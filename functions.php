@@ -3,7 +3,7 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 /* قفل دامنه */
-// define( 'PEECHA_DOMAINS', array( 'sahelstyle.ir', 'www.sahelstyle.ir' ) );
+// define( 'PEECHA_DOMAINS', array( 'example.com', 'www.example.com' ) );
 if ( defined( 'PEECHA_DOMAINS' ) && is_array( PEECHA_DOMAINS ) && ! empty( PEECHA_DOMAINS ) && ! is_admin() ) {
     $peecha_host = preg_replace( '/^www\./', '', isset( $_SERVER['HTTP_HOST'] ) ? $_SERVER['HTTP_HOST'] : '' );
     $peecha_ok = false;
@@ -32,9 +32,18 @@ if ( ! function_exists( 'sahel_rgb_str' ) ) {
     }
 }
 
-function sahel_brand()       { return get_theme_mod( 'sahel_brand', 'ساحل استایل' ); }
-function sahel_brand_short() { return get_theme_mod( 'sahel_brand_short', 'ساحل' ); }
-function sahel_brand_en()    { return get_theme_mod( 'sahel_brand_en', 'SAHEL STYLE' ); }
+function sahel_kses_map( $html ) {
+    $allowed = wp_kses_allowed_html( 'post' );
+    $allowed['iframe'] = array(
+        'src' => true, 'width' => true, 'height' => true, 'style' => true,
+        'allow' => true, 'allowfullscreen' => true, 'loading' => true,
+        'referrerpolicy' => true, 'frameborder' => true, 'title' => true,
+    );
+    return wp_kses( (string) $html, $allowed );
+}
+function sahel_brand()       { return get_theme_mod( 'sahel_brand', 'فروشگاه شما' ); }
+function sahel_brand_short() { return get_theme_mod( 'sahel_brand_short', 'فروشگاه' ); }
+function sahel_brand_en()    { return get_theme_mod( 'sahel_brand_en', 'YOUR STORE' ); }
 function sahel_logo_url() {
     if ( function_exists( 'has_custom_logo' ) && has_custom_logo() ) {
         $u = wp_get_attachment_image_url( get_theme_mod( 'custom_logo' ), 'full' );
@@ -76,13 +85,22 @@ function sahel_cat_img( $c, $fb ) {
 function sahel_page_url( $slug ) { $p = get_page_by_path( $slug ); return $p ? get_permalink( $p ) : home_url( '/' ); }
 function sahel_top_sale() {
     if ( ! function_exists( 'wc_get_products' ) ) return null;
-    $ids = wc_get_products( array( 'limit' => -1, 'status' => 'publish', 'return' => 'ids', 'on_sale' => true ) );
+    $cached = get_transient( 'sahel_top_sale_id' );
+    if ( false !== $cached ) {
+        if ( ! $cached ) { return null; }
+        $p = wc_get_product( $cached['id'] );
+        return $p ? array( 'p' => $p, 'bp' => $cached['bp'] ) : null;
+    }
+    $ids = wc_get_products( array( 'limit' => 200, 'status' => 'publish', 'return' => 'ids', 'on_sale' => true, 'orderby' => 'date', 'order' => 'DESC' ) );
     $best = null; $bp = 0;
     foreach ( (array) $ids as $id ) { $p = wc_get_product( $id ); if ( ! $p ) continue;
         $r = (float) $p->get_regular_price(); $s = $p->get_sale_price();
         if ( $r > 0 && $s !== '' ) { $pc = round( ( ( $r - $s ) / $r ) * 100 ); if ( $pc > $bp ) { $bp = $pc; $best = $p; } } }
+    set_transient( 'sahel_top_sale_id', $best ? array( 'id' => $best->get_id(), 'bp' => $bp ) : 0, 15 * MINUTE_IN_SECONDS );
     return $best ? array( 'p' => $best, 'bp' => $bp ) : null;
 }
+add_action( 'save_post_product', function() { delete_transient( 'sahel_top_sale_id' ); } );
+add_action( 'woocommerce_update_product', function() { delete_transient( 'sahel_top_sale_id' ); } );
 function sahel_arrows() {
     return '<div class="strip-arrows"><button class="s-arrow prev" aria-label="قبلی"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></button><button class="s-arrow next" aria-label="بعدی"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button></div>';
 }
@@ -128,6 +146,7 @@ function sahel_header_font_family() {
 add_action( 'after_setup_theme', function() {
     add_theme_support( 'woocommerce' ); add_theme_support( 'wc-product-gallery-zoom' ); add_theme_support( 'wc-product-gallery-lightbox' ); add_theme_support( 'wc-product-gallery-slider' );
     add_theme_support( 'post-thumbnails' ); add_theme_support( 'title-tag' ); add_theme_support( 'custom-logo', array( 'height' => 64, 'width' => 140 ) );
+    register_nav_menu( 'primary', 'منوی اصلی' );
 } );
 
 add_action( 'wp_enqueue_scripts', function() {
@@ -189,7 +208,8 @@ add_action( 'wp_ajax_sahel_newsletter', 'sahel_newsletter' );
 add_action( 'wp_ajax_nopriv_sahel_newsletter', 'sahel_newsletter' );
 function sahel_newsletter() {
     $phone = isset( $_POST['phone'] ) ? sanitize_text_field( wp_unslash( $_POST['phone'] ) ) : '';
-    if ( strlen( $phone ) < 10 ) { wp_send_json( array( 'ok' => 0, 'msg' => 'شماره موبایل معتبر نیست' ) ); }
+    $phone = preg_replace( '/[^0-9]/', '', strtr( $phone, array( '۰' => '0', '۱' => '1', '۲' => '2', '۳' => '3', '۴' => '4', '۵' => '5', '۶' => '6', '۷' => '7', '۸' => '8', '۹' => '9' ) ) );
+    if ( strlen( $phone ) < 10 || strlen( $phone ) > 15 ) { wp_send_json( array( 'ok' => 0, 'msg' => 'شماره موبایل معتبر نیست' ) ); }
     $m = get_option( 'sahel_club_members', array() );
     if ( ! in_array( $phone, $m, true ) ) {
         $m[] = $phone; update_option( 'sahel_club_members', $m );
@@ -215,8 +235,8 @@ function sahel_club_page() {
 /* صفحات خودکار */
 add_action( 'init', function() {
     if ( get_option( 'sahel_pages_v1' ) ) { return; }
-    $about = '<h2>' . sahel_brand() . '؛ ظرافت، آرامش، درخشش</h2><p>' . sahel_brand() . ' با یک باور ساده متولد شد: هر خانم لیاقت لباس‌هایی را دارد که هم زیبا باشند هم راحت.</p>';
-    $contact = '<h2>راه‌های ارتباط با ' . sahel_brand() . '</h2><p>📍 ' . get_theme_mod( 'sahel_address', 'تهران، خیابان ساحل، پاساژ استایل، پلاک ۱۲' ) . '</p>';
+    $about = '<h2>درباره ' . sahel_brand() . '</h2><p>' . sahel_brand() . ' با یک باور ساده متولد شد: هر مشتری لیاقت تجربه‌ی خرید آسان و محصولاتی باکیفیت را دارد. این متن را از پیشخوان وردپرس → صفحات ویرایش کنید.</p>';
+    $contact = '<h2>راه‌های ارتباط با ' . sahel_brand() . '</h2><p>📍 ' . get_theme_mod( 'sahel_address', 'آدرس فروشگاه خود را از تنظیمات نمایش وارد کنید' ) . '</p>';
     $pages = array(
         array( 'about-us', 'درباره ما', $about ),
         array( 'contact-us', 'تماس با ما', $contact ),
@@ -230,56 +250,13 @@ add_action( 'init', function() {
     update_option( 'sahel_pages_v1', 1 );
 }, 8 );
 
-/* کارت محصول */
-add_action( 'init', function() {
-    if ( ! function_exists( 'wc_get_products' ) ) return;
-    $file = get_stylesheet_directory() . '/woocommerce/content-product.php';
-    $cur = file_exists( $file ) ? file_get_contents( $file ) : '';
-    if ( $cur && strpos( $cur, 'prod-desc' ) !== false && strpos( $cur, 'getTimestamp' ) !== false && strpos( $cur, 'prod-vars' ) !== false ) return;
-    $safe = <<<'SHCARD'
-<?php
-global $product;
-if ( empty( $product ) || ! $product->is_visible() ) { return; }
-$sd = wp_trim_words( wp_strip_all_tags( $product->get_short_description() ), 14 );
-?>
-<li <?php wc_product_class( '', $product ); ?>>
-<article class="prod-card">
-<a class="prod-media" href="<?php the_permalink(); ?>">
-<?php echo $product->get_image( 'woocommerce_thumbnail', array( 'loading' => 'lazy' ) ); ?>
-<?php if ( $product->is_on_sale() ) : $br = (float) $product->get_regular_price(); $bs = $product->get_sale_price(); $bp = $br > 0 && $bs !== '' ? round( ( ( $br - $bs ) / $br ) * 100 ) : 0; ?>
-<span class="badge hot"><?php echo sahel_fa( $bp ); ?>٪ تخفیف</span>
-<?php else : $bd = $product->get_date_created(); ?>
-<span class="badge <?php echo ( $bd && $bd->getTimestamp() > time() - 15 * DAY_IN_SECONDS ) ? 'new">جدید' : 'best">' . ( function_exists('sahel_brand_short') ? sahel_brand_short() : 'ساحل' ); ?></span>
-<?php endif; ?>
-</a>
-<div class="prod-body">
-<?php echo wc_get_product_category_list( $product->get_id(), '، ', '<span class="prod-cat">', '</span>' ); ?>
-<h3 class="prod-name"><a href="<?php the_permalink(); ?>"><?php echo esc_html( $product->get_name() ); ?></a></h3>
-<?php if ( $product->is_type( 'variable' ) ) : ?>
-<div class="prod-vars">
-<?php foreach ( $product->get_variation_attributes() as $var_name => $var_opts ) : ?>
-<span><?php echo esc_html( wc_attribute_label( $var_name ) . ': ' . sahel_fa( count( $var_opts ) ) . ' تنوع' ); ?></span>
-<?php endforeach; ?>
-</div>
-<?php endif; ?>
-<?php if ( $sd ) : ?><p class="prod-desc"><?php echo esc_html( $sd ); ?></p><?php endif; ?>
-<div class="prod-price"><?php echo $product->get_price_html(); ?></div>
-<?php woocommerce_template_loop_add_to_cart(); ?>
-</div>
-</article>
-</li>
-SHCARD;
-    @mkdir( dirname( $file ), 0755, true );
-    @file_put_contents( $file, $safe );
-}, 5 );
-
 /* تعریف بخش‌های صفحه اصلی */
 function sahel_home_sec_defs() {
     $b = sahel_brand();
     return array(
         'stats'    => array( 'نوار آمار و اعداد', '', '', 1 ),
         'marquee'  => array( 'نوار متحرک', '', '', 2 ),
-        'cats'     => array( 'دسته‌بندی‌ها', 'دسته‌بندی‌های ' . $b, 'از ساحل تا مهمانی — استایل تو، امضای تو', 3 ),
+        'cats'     => array( 'دسته‌بندی‌ها', 'دسته‌بندی‌های ' . $b, 'هر آنچه نیاز داری، یک‌جا', 3 ),
         'offer'    => array( 'پیشنهاد ویژه', 'پیشنهاد ویژه هفته', '', 4 ),
         'new'      => array( 'جدیدترین محصولات', 'جدیدترین محصولات', 'تازه‌های کالکشن', 5 ),
         'sale'     => array( 'محصولات تخفیف‌دار', 'لباس‌های تخفیف‌دار', 'فرصت‌های ویژه با تخفیف واقعی', 6 ),
@@ -334,11 +311,11 @@ function sahel_sec_bg_attr( $sec ) {
 add_action( 'customize_register', function( $w ) {
     /* ===== هویت برند ===== */
     $w->add_section( 'sahel_brand', array( 'title' => '۱. هویت برند', 'priority' => 29 ) );
-    $w->add_setting( 'sahel_brand', array( 'default' => 'ساحل استایل', 'sanitize_callback' => 'sanitize_text_field' ) );
+    $w->add_setting( 'sahel_brand', array( 'default' => 'فروشگاه شما', 'sanitize_callback' => 'sanitize_text_field' ) );
     $w->add_control( 'sahel_brand', array( 'label' => 'نام برند', 'section' => 'sahel_brand' ) );
-    $w->add_setting( 'sahel_brand_short', array( 'default' => 'ساحل', 'sanitize_callback' => 'sanitize_text_field' ) );
+    $w->add_setting( 'sahel_brand_short', array( 'default' => 'فروشگاه', 'sanitize_callback' => 'sanitize_text_field' ) );
     $w->add_control( 'sahel_brand_short', array( 'label' => 'نام کوتاه برند', 'section' => 'sahel_brand' ) );
-    $w->add_setting( 'sahel_brand_en', array( 'default' => 'SAHEL STYLE', 'sanitize_callback' => 'sanitize_text_field' ) );
+    $w->add_setting( 'sahel_brand_en', array( 'default' => 'YOUR STORE', 'sanitize_callback' => 'sanitize_text_field' ) );
     $w->add_control( 'sahel_brand_en', array( 'label' => 'نام انگلیسی برند', 'section' => 'sahel_brand' ) );
 
     /* ===== هدر و منو ===== */
@@ -542,7 +519,7 @@ add_action( 'customize_register', function( $w ) {
     $w->add_control( new WP_Customize_Image_Control( $w, 'sahel_about_image', array( 'label' => 'تصویر درباره ما', 'section' => 'sahel_pages' ) ) );
     $w->add_setting( 'sahel_contact_image', array( 'default' => '', 'sanitize_callback' => 'esc_url_raw' ) );
     $w->add_control( new WP_Customize_Image_Control( $w, 'sahel_contact_image', array( 'label' => 'تصویر تماس با ما', 'section' => 'sahel_pages' ) ) );
-    $w->add_setting( 'sahel_contact_map', array( 'default' => '', 'sanitize_callback' => 'wp_kses_post' ) );
+    $w->add_setting( 'sahel_contact_map', array( 'default' => '', 'sanitize_callback' => 'sahel_kses_map' ) );
     $w->add_control( 'sahel_contact_map', array( 'label' => 'کد نقشه', 'section' => 'sahel_pages', 'type' => 'textarea' ) );
     $w->add_setting( 'sahel_404_text', array( 'default' => 'صفحه پیدا نشد!', 'sanitize_callback' => 'sanitize_text_field' ) );
     $w->add_control( 'sahel_404_text', array( 'label' => 'متن ۴۰۴', 'section' => 'sahel_pages' ) );
@@ -557,7 +534,7 @@ add_action( 'customize_register', function( $w ) {
     $w->add_control( 'sahel_address', array( 'label' => 'آدرس', 'section' => 'sahel_footer' ) );
     $w->add_setting( 'sahel_phone', array( 'default' => sahel_fa( '021-220000' ), 'sanitize_callback' => 'sanitize_text_field' ) );
     $w->add_control( 'sahel_phone', array( 'label' => 'تلفن', 'section' => 'sahel_footer' ) );
-    $w->add_setting( 'sahel_email', array( 'default' => 'info@sahelstyle.ir', 'sanitize_callback' => 'sanitize_text_field' ) );
+    $w->add_setting( 'sahel_email', array( 'default' => 'info@example.com', 'sanitize_callback' => 'sanitize_text_field' ) );
     $w->add_control( 'sahel_email', array( 'label' => 'ایمیل', 'section' => 'sahel_footer' ) );
     $w->add_setting( 'sahel_hours', array( 'default' => 'هر روز ۱۰-۲۱', 'sanitize_callback' => 'sanitize_text_field' ) );
     $w->add_control( 'sahel_hours', array( 'label' => 'ساعت کاری', 'section' => 'sahel_footer' ) );
@@ -1555,7 +1532,7 @@ function sahel_shell( $content ) {
 </div>
 <div><h5>دسترسی سریع</h5><a href="<?php echo esc_url( home_url( '/' ) ); ?>">صفحه اصلی</a><a href="<?php echo esc_url( sahel_shop_url() ); ?>">فروشگاه</a><a href="<?php echo esc_url( sahel_page_url( 'blog' ) ); ?>">مقالات</a></div>
 <div><h5><?php echo esc_html( $brand ); ?></h5><a href="<?php echo esc_url( sahel_page_url( 'about-us' ) ); ?>">درباره ما</a><a href="<?php echo esc_url( sahel_page_url( 'contact-us' ) ); ?>">تماس با ما</a><?php foreach ( array_slice( $cats, 0, 2 ) as $c ) : ?><a href="<?php echo esc_url( get_term_link( $c ) ); ?>"><?php echo esc_html( $c->name ); ?></a><?php endforeach; ?></div>
-<div><h5>تماس با <?php echo esc_html( $brand ); ?></h5><p>📍 <?php echo esc_html( get_theme_mod( 'sahel_address', 'تهران' ) ); ?></p><p>📞 <?php echo esc_html( get_theme_mod( 'sahel_phone', sahel_fa( '021-220000' ) ) ); ?></p><p>✉️ <?php echo esc_html( get_theme_mod( 'sahel_email', 'info@sahelstyle.ir' ) ); ?></p><p>🕘 <?php echo esc_html( get_theme_mod( 'sahel_hours', 'هر روز ۱۰-۲۱' ) ); ?></p></div>
+<div><h5>تماس با <?php echo esc_html( $brand ); ?></h5><p>📍 <?php echo esc_html( get_theme_mod( 'sahel_address', 'تهران' ) ); ?></p><p>📞 <?php echo esc_html( get_theme_mod( 'sahel_phone', sahel_fa( '021-220000' ) ) ); ?></p><p>✉️ <?php echo esc_html( get_theme_mod( 'sahel_email', 'info@example.com' ) ); ?></p><p>🕘 <?php echo esc_html( get_theme_mod( 'sahel_hours', 'هر روز ۱۰-۲۱' ) ); ?></p></div>
 </div>
 <div class="foot-bottom">
 <span><?php echo esc_html( get_theme_mod( 'sahel_copyright', '© تمامی حقوق برای ' . $brand . ' محفوظ است.' ) ); ?></span>
@@ -1574,7 +1551,7 @@ function sahel_shell( $content ) {
 <button class="btn btn-primary" type="submit">جستجو</button>
 </form>
 <div class="sh-live"></div>
-<p class="so-hint">مثلاً: پیراهن ساحلی، بافت، کیف…</p>
+<p class="so-hint">مثلاً: نام محصول مورد نظر…</p>
 </div>
 </div>
 <script>
@@ -2145,9 +2122,9 @@ function sahel_engine( $template ) {
                         $h .= '<div class="page-hero rv in">';
                         if ( $img ) { $h .= '<div class="page-hero-img"><img src="' . esc_url( $img ) . '" alt=""></div>'; }
                         else { $h .= '<div class="logo3d"><div class="logo3d-glow"></div><div class="logo3d-ring"></div><div class="logo3d-float"><img class="main" src="' . esc_url( sahel_logo_url() ) . '" alt=""></div><img class="refl" src="' . esc_url( sahel_logo_url() ) . '" alt="" aria-hidden="true"></div>'; }
-                        $h .= '<div class="page-hero-txt"><h1>' . ( $is_about ? 'درباره <span class="grad-text">' . esc_html( $brand ) . '</span>' : 'تماس با <span class="grad-text">' . esc_html( $brand ) . '</span>' ) . '</h1><p>' . ( $is_about ? 'ظرافت، آرامش، درخشش.' : 'از شما می‌شنویم.' ) . '</p></div>';
+                        $h .= '<div class="page-hero-txt"><h1>' . ( $is_about ? 'درباره <span class="grad-text">' . esc_html( $brand ) . '</span>' : 'تماس با <span class="grad-text">' . esc_html( $brand ) . '</span>' ) . '</h1><p>' . ( $is_about ? 'داستان و ارزش‌های ' . esc_html( $brand ) . '.' : 'از شما می‌شنویم.' ) . '</p></div>';
                         $h .= '</div>';
-                        $h .= '<article class="page-card rv in"><div class="page-content">' . get_the_content() . '</div>';
+                        $h .= '<article class="page-card rv in"><div class="page-content">' . apply_filters( 'the_content', get_the_content() ) . '</div>';
                         if ( ! $is_about ) {
                             $map = get_theme_mod( 'sahel_contact_map', '' );
                             if ( $map ) { $h .= '<div class="contact-grid"><div class="map-box">' . $map . '</div></div>'; }
@@ -2167,7 +2144,7 @@ function sahel_engine( $template ) {
                         }
                         $h .= '</div>';
                     } else {
-                        $h .= '<article class="page-card rv in"><h1 class="page-title">' . get_the_title() . '</h1><div class="page-content">' . get_the_content() . '</div></article>';
+                        $h .= '<article class="page-card rv in"><h1 class="page-title">' . get_the_title() . '</h1><div class="page-content">' . apply_filters( 'the_content', get_the_content() ) . '</div></article>';
                     }
                 }
                 $h .= '</main>';
@@ -2175,7 +2152,7 @@ function sahel_engine( $template ) {
             }
         } else {
             $h = '<main class="wrap" style="padding:40px 24px 70px">';
-            while ( have_posts() ) { the_post(); $h .= '<article class="page-card rv in"><h1 class="page-title">' . get_the_title() . '</h1><div class="page-content">' . get_the_content() . '</div></article>'; }
+            while ( have_posts() ) { the_post(); $h .= '<article class="page-card rv in"><h1 class="page-title">' . get_the_title() . '</h1><div class="page-content">' . apply_filters( 'the_content', get_the_content() ) . '</div></article>'; }
             $h .= '</main>';
             sahel_shell( $h );
         }
