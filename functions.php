@@ -160,6 +160,13 @@ add_action( 'wp_enqueue_scripts', function() {
         wp_enqueue_style( 'sahel-font-head', 'https://cdn.jsdelivr.net/fontsource/css/' . $map[ $hf ] . '@latest/700.css', array(), '1.0' );
     }
     if ( function_exists( 'WC' ) ) { wp_enqueue_script( 'wc-add-to-cart' ); wp_enqueue_script( 'wc-cart-fragments' ); }
+    /* sahel_engine() renders most page types itself with its own inline script (see sahel_shell());
+       this file backs the classic template fallback (admin preview / Elementor preview / search
+       results) so it must not load on engine-rendered pages, or click handlers would double-fire. */
+    if ( is_admin() || isset( $_GET['elementor-preview'] ) || is_search() ) {
+        wp_enqueue_script( 'jquery' );
+        wp_enqueue_script( 'sahel-scripts', get_stylesheet_directory_uri() . '/assets/js/scripts.js', array( 'jquery' ), '1.0', true );
+    }
 }, 5 );
 add_action( 'wp_enqueue_scripts', function() {
     if ( function_exists( 'is_product' ) && is_product() ) {
@@ -1468,10 +1475,10 @@ function sahel_shell( $content ) {
     $ajax_url = esc_url( admin_url( 'admin-ajax.php' ) );
     $hide_desc = get_theme_mod( 'sahel_m_hide_desc', 1 ) ? ' hide-m-desc' : '';
     $pd_full = ( function_exists( 'is_product' ) && is_product() && get_theme_mod( 'sahel_product_fullwidth', 0 ) ) ? ' pd-full' : '';
-    $body_cls = 'btnst-' . get_theme_mod( 'sahel_btn_style', 'pill' ) . ' catst-' . get_theme_mod( 'sahel_catcard', '1' ) . ' prodst-' . get_theme_mod( 'sahel_prodcard', '1' ) . $hide_desc . $pd_full;
+    $body_cls = 'btnst-' . get_theme_mod( 'sahel_btn_style', 'pill' ) . ' catst-' . get_theme_mod( 'sahel_catcard', '1' ) . ' prodst-' . get_theme_mod( 'sahel_prodcard', '1' ) . ' hstyle-' . get_theme_mod( 'sahel_header_style', 'classic' ) . $hide_desc . $pd_full;
     $h_img = get_theme_mod( 'sahel_header_image', '' );
     $h_op = (int) get_theme_mod( 'sahel_header_image_opacity', 30 ) / 100;
-    $header_style = $h_img ? '--header-img:url(' . esc_url( $h_img ) . ');--header-img-op:' . $h_op . ';' : '';
+    $header_img_style = $h_img ? '--header-img:url(' . esc_url( $h_img ) . ');--header-img-op:' . $h_op . ';' : '';
     ?>
 <!doctype html>
 <html lang="fa" dir="rtl">
@@ -1484,7 +1491,7 @@ function sahel_shell( $content ) {
 </head>
 <body class="<?php echo esc_attr( $body_cls ); ?>">
 <div id="toast"></div>
-<header id="header" style="<?php echo esc_attr( $header_style ); ?>">
+<header id="header" style="<?php echo esc_attr( $header_img_style ); ?>">
 <div class="wrap header-inner">
 <a class="brand" href="<?php echo esc_url( home_url( '/' ) ); ?>">
 <span class="brand-logo"><img src="<?php echo $logo; ?>" alt="<?php echo esc_attr( $brand ); ?>"></span>
@@ -1825,7 +1832,9 @@ function sahel_home_html() {
         }
         $sec = sahel_sec( 'sale' );
         if ( $sec['on'] ) {
-            $h = '<section class="sale-sec">';
+            $bg = sahel_sec_bg_attr( $sec );
+            $h = '<section class="sale-sec"' . $bg['style'] . '>';
+            $h .= $bg['overlay'];
             $h .= '<div class="wrap">';
             $h .= '<div class="sec-head rv"><div><h2>' . esc_html( $sec['title'] ) . '</h2><p>' . esc_html( $sec['sub'] ) . '</p></div><div style="display:flex;gap:10px;align-items:center"><a class="sec-link" style="background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.2);color:#e7cfb8" href="' . esc_url( sahel_shop_url() ) . '">مشاهده همه 🤎</a>' . sahel_arrows() . '</div></div>';
             $h .= '<div class="strip">' . do_shortcode( '[products limit="8" columns="4" on_sale="true"]' ) . '</div></div></section>';
@@ -2284,6 +2293,28 @@ add_action( 'wp_head', function() {
 }
 </style>';
 }, 96 );
+
+add_action( 'wp_head', function() {
+    echo '<style id="sahel-hstyle">
+body.hstyle-modern .header-inner{flex-wrap:wrap;justify-content:center;row-gap:8px;padding-block:10px}
+body.hstyle-modern .brand{order:1;flex:0 0 100%;justify-content:center}
+body.hstyle-modern .bnav{order:3;flex:0 0 100%;justify-content:center;margin-inline-start:0}
+body.hstyle-modern .hact{order:2;flex:0 0 100%;justify-content:center}
+body.hstyle-minimal .hact .sh-search{display:none}
+body.hstyle-minimal .hact .login-btn{display:none}
+body.hstyle-minimal .bnav{margin-inline-end:auto;margin-inline-start:0}
+body.hstyle-glass #header{background:color-mix(in srgb,var(--headerbg) 45%,transparent);backdrop-filter:blur(28px) saturate(1.8);-webkit-backdrop-filter:blur(28px) saturate(1.8);border-bottom-color:color-mix(in srgb,#fff 35%,transparent);box-shadow:0 8px 32px color-mix(in srgb,var(--c1) 14%,transparent)}
+body.hstyle-compact .header-inner{padding-block:6px}
+body.hstyle-compact .brand-logo img,body.hstyle-compact .brand img{height:38px}
+body.hstyle-compact .brand-name{font-size:1rem}
+body.hstyle-compact .bnav a,body.hstyle-compact .dd-toggle{padding:6px 12px;font-size:.82rem}
+body.hstyle-compact .icon-btn{width:38px;height:38px}
+body.hstyle-compact .sh-search{padding:6px 10px}
+@media(max-width:920px){
+body.hstyle-modern .header-inner{padding-block:8px}
+}
+</style>';
+}, 97 );
 
 add_action( 'wp_head', function() {
 echo '<style id="sahel-cart-fix">
