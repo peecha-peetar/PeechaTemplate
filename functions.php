@@ -361,6 +361,10 @@ add_action( 'customize_register', function( $w ) {
     $w->add_control( new WP_Customize_Image_Control( $w, 'sahel_header_image', array( 'label' => '🖼 تصویر پس‌زمینه هدر', 'section' => 'sahel_header' ) ) );
     $w->add_setting( 'sahel_header_image_opacity', array( 'default' => 30, 'sanitize_callback' => 'absint' ) );
     $w->add_control( 'sahel_header_image_opacity', array( 'label' => 'شدت تصویر پس‌زمینه هدر (٪)', 'section' => 'sahel_header', 'type' => 'number', 'input_attrs' => array( 'min' => 5, 'max' => 100 ) ) );
+    $w->add_setting( 'sahel_headerbg', array( 'default' => '#faf7f2', 'sanitize_callback' => 'sanitize_hex_color' ) );
+    $w->add_control( new WP_Customize_Color_Control( $w, 'sahel_headerbg', array( 'label' => '🎨 پس‌زمینه هدر', 'section' => 'sahel_header' ) ) );
+    $w->add_setting( 'sahel_header_opacity', array( 'default' => 82, 'sanitize_callback' => 'absint' ) );
+    $w->add_control( 'sahel_header_opacity', array( 'label' => 'شفافیت هدر (٪)', 'section' => 'sahel_header', 'type' => 'number', 'input_attrs' => array( 'min' => 0, 'max' => 100 ) ) );
 
     /* ===== آیتم‌های منو ===== */
     $w->add_section( 'sahel_menu', array( 'title' => '۳. آیتم‌های منو', 'description' => 'حداکثر ۱۲ آیتم. آیتم خالی = نمایش داده نمی‌شود', 'priority' => 29.6 ) );
@@ -445,26 +449,25 @@ add_action( 'customize_register', function( $w ) {
     $w->add_control( 'sahel_m_overlay', array( 'label' => 'شدت روکش (٪)', 'section' => 'sahel_mobile', 'type' => 'number' ) );
 
     /* ===== آمار ===== */
-    $w->add_section( 'sahel_stats', array( 'title' => '۷. آمار', 'priority' => 33 ) );
     $w->add_setting( 'sahel_stat1', array( 'default' => '8000', 'sanitize_callback' => 'sanitize_text_field' ) );
-    $w->add_control( 'sahel_stat1', array( 'label' => 'عدد ۱', 'section' => 'sahel_stats' ) );
+    $w->add_control( 'sahel_stat1', array( 'label' => 'عدد ۱', 'section' => 'sahel_secgrp_stats' ) );
     $w->add_setting( 'sahel_stat1_label', array( 'default' => 'مشتری خوشحال', 'sanitize_callback' => 'sanitize_text_field' ) );
-    $w->add_control( 'sahel_stat1_label', array( 'label' => 'متن ۱', 'section' => 'sahel_stats' ) );
+    $w->add_control( 'sahel_stat1_label', array( 'label' => 'متن ۱', 'section' => 'sahel_secgrp_stats' ) );
     $w->add_setting( 'sahel_stat2', array( 'default' => '450', 'sanitize_callback' => 'sanitize_text_field' ) );
-    $w->add_control( 'sahel_stat2', array( 'label' => 'عدد ۲', 'section' => 'sahel_stats' ) );
+    $w->add_control( 'sahel_stat2', array( 'label' => 'عدد ۲', 'section' => 'sahel_secgrp_stats' ) );
     $w->add_setting( 'sahel_stat2_label', array( 'default' => 'محصول متنوع', 'sanitize_callback' => 'sanitize_text_field' ) );
-    $w->add_control( 'sahel_stat2_label', array( 'label' => 'متن ۲', 'section' => 'sahel_stats' ) );
+    $w->add_control( 'sahel_stat2_label', array( 'label' => 'متن ۲', 'section' => 'sahel_secgrp_stats' ) );
     $w->add_setting( 'sahel_stat3', array( 'default' => '98', 'sanitize_callback' => 'sanitize_text_field' ) );
-    $w->add_control( 'sahel_stat3', array( 'label' => 'عدد ۳ (٪)', 'section' => 'sahel_stats' ) );
+    $w->add_control( 'sahel_stat3', array( 'label' => 'عدد ۳ (٪)', 'section' => 'sahel_secgrp_stats' ) );
     $w->add_setting( 'sahel_stat3_label', array( 'default' => 'رضایت خرید', 'sanitize_callback' => 'sanitize_text_field' ) );
-    $w->add_control( 'sahel_stat3_label', array( 'label' => 'متن ۳', 'section' => 'sahel_stats' ) );
+    $w->add_control( 'sahel_stat3_label', array( 'label' => 'متن ۳', 'section' => 'sahel_secgrp_stats' ) );
     $w->add_setting( 'sahel_stat4_text', array( 'default' => 'سراسر کشور', 'sanitize_callback' => 'sanitize_text_field' ) );
-    $w->add_control( 'sahel_stat4_text', array( 'label' => 'متن ۴', 'section' => 'sahel_stats' ) );
+    $w->add_control( 'sahel_stat4_text', array( 'label' => 'متن ۴', 'section' => 'sahel_secgrp_stats' ) );
     $w->add_setting( 'sahel_stat4_label', array( 'default' => 'ارسال سریع', 'sanitize_callback' => 'sanitize_text_field' ) );
-    $w->add_control( 'sahel_stat4_label', array( 'label' => 'متن ۴', 'section' => 'sahel_stats' ) );
+    $w->add_control( 'sahel_stat4_label', array( 'label' => 'متن ۴', 'section' => 'sahel_secgrp_stats' ) );
 
     /* ===== رنگ‌ها و فونت ===== */
-    $w->add_section( 'sahel_colors', array( 'title' => '۸. رنگ‌ها و فونت', 'priority' => 34 ) );
+    $w->add_section( 'sahel_colors', array( 'title' => '۷. رنگ‌ها و فونت', 'priority' => 34 ) );
     $cols = array(
         'sahel_c1' => array( 'رنگ اصلی', '#b08968' ),
         'sahel_c2' => array( 'رنگ ثانویه', '#d4a373' ),
@@ -472,7 +475,6 @@ add_action( 'customize_register', function( $w ) {
         'sahel_bg' => array( 'پس‌زمینه سایت', '#faf7f2' ),
         'sahel_ink' => array( 'رنگ متن', '#33261c' ),
         'sahel_muted' => array( 'رنگ کم‌رنگ', '#8b7a6b' ),
-        'sahel_headerbg' => array( 'پس‌زمینه هدر', '#faf7f2' ),
         'sahel_footerbg' => array( 'پس‌زمینه فوتر', '#241a12' ),
         'sahel_price_color' => array( 'رنگ قیمت', '#c65a3f' ),
         'sahel_btn_text' => array( 'رنگ متن دکمه‌ها', '#ffffff' ),
@@ -485,8 +487,6 @@ add_action( 'customize_register', function( $w ) {
         $w->add_setting( $k, array( 'default' => $c[1], 'sanitize_callback' => 'sanitize_hex_color' ) );
         $w->add_control( new WP_Customize_Color_Control( $w, $k, array( 'label' => $c[0], 'section' => 'sahel_colors' ) ) );
     }
-    $w->add_setting( 'sahel_header_opacity', array( 'default' => 82, 'sanitize_callback' => 'absint' ) );
-    $w->add_control( 'sahel_header_opacity', array( 'label' => 'شفافیت هدر (٪)', 'section' => 'sahel_colors', 'type' => 'number', 'input_attrs' => array( 'min' => 0, 'max' => 100 ) ) );
     $w->add_setting( 'sahel_font', array( 'default' => 'vazirmatn', 'sanitize_callback' => 'sanitize_key' ) );
     $w->add_control( 'sahel_font', array( 'label' => 'فونت بدنه', 'section' => 'sahel_colors', 'type' => 'select', 'choices' => $fonts ) );
     $w->add_setting( 'sahel_heading_font', array( 'default' => '', 'sanitize_callback' => 'sanitize_key' ) );
@@ -495,7 +495,7 @@ add_action( 'customize_register', function( $w ) {
     $w->add_control( 'sahel_body_size', array( 'label' => 'اندازه فونت', 'section' => 'sahel_colors', 'type' => 'number' ) );
 
     /* ===== فروشگاه ===== */
-    $w->add_section( 'sahel_shop', array( 'title' => '۹. فروشگاه', 'priority' => 35 ) );
+    $w->add_section( 'sahel_shop', array( 'title' => '۸. فروشگاه', 'priority' => 35 ) );
     $w->add_setting( 'sahel_shop_banner', array( 'default' => '', 'sanitize_callback' => 'esc_url_raw' ) );
     $w->add_control( new WP_Customize_Image_Control( $w, 'sahel_shop_banner', array( 'label' => 'تصویر بنر', 'section' => 'sahel_shop' ) ) );
     $w->add_setting( 'sahel_shop_title', array( 'default' => 'فروشگاه ' . sahel_brand(), 'sanitize_callback' => 'sanitize_text_field' ) );
@@ -510,7 +510,7 @@ add_action( 'customize_register', function( $w ) {
     $w->add_control( 'sahel_shop_per_page', array( 'label' => 'تعداد در صفحه', 'section' => 'sahel_shop', 'type' => 'number' ) );
 
     /* ===== محصول ===== */
-    $w->add_section( 'sahel_product', array( 'title' => '۱۰. محصول', 'priority' => 36 ) );
+    $w->add_section( 'sahel_product', array( 'title' => '۹. محصول', 'priority' => 36 ) );
     $w->add_setting( 'sahel_product_trust', array( 'default' => 1, 'sanitize_callback' => 'absint' ) );
     $w->add_control( 'sahel_product_trust', array( 'label' => 'نوار اعتماد', 'section' => 'sahel_product', 'type' => 'checkbox' ) );
     $w->add_setting( 'sahel_product_tabs', array( 'default' => 1, 'sanitize_callback' => 'absint' ) );
@@ -521,7 +521,7 @@ add_action( 'customize_register', function( $w ) {
     $w->add_control( 'sahel_product_fullwidth', array( 'label' => 'تمام‌عرض', 'section' => 'sahel_product', 'type' => 'checkbox' ) );
 
     /* ===== صفحات ===== */
-    $w->add_section( 'sahel_pages', array( 'title' => '۱۱. صفحات', 'priority' => 37 ) );
+    $w->add_section( 'sahel_pages', array( 'title' => '۱۰. صفحات', 'priority' => 37 ) );
     $w->add_setting( 'sahel_about_image', array( 'default' => '', 'sanitize_callback' => 'esc_url_raw' ) );
     $w->add_control( new WP_Customize_Image_Control( $w, 'sahel_about_image', array( 'label' => 'تصویر درباره ما', 'section' => 'sahel_pages' ) ) );
     $w->add_setting( 'sahel_contact_image', array( 'default' => '', 'sanitize_callback' => 'esc_url_raw' ) );
@@ -532,7 +532,7 @@ add_action( 'customize_register', function( $w ) {
     $w->add_control( 'sahel_404_text', array( 'label' => 'متن ۴۰۴', 'section' => 'sahel_pages' ) );
 
     /* ===== فوتر ===== */
-    $w->add_section( 'sahel_footer', array( 'title' => '۱۲. فوتر', 'priority' => 38 ) );
+    $w->add_section( 'sahel_footer', array( 'title' => '۱۱. فوتر', 'priority' => 38 ) );
     $w->add_setting( 'sahel_copyright', array( 'default' => '© تمامی حقوق برای ' . sahel_brand() . ' محفوظ است.', 'sanitize_callback' => 'sanitize_text_field' ) );
     $w->add_control( 'sahel_copyright', array( 'label' => 'کپی‌رایت', 'section' => 'sahel_footer' ) );
     $w->add_setting( 'sahel_footer_about', array( 'default' => sahel_brand() . '؛ فروشگاه آنلاین.', 'sanitize_callback' => 'sanitize_text_field' ) );
@@ -557,18 +557,17 @@ add_action( 'customize_register', function( $w ) {
     $w->add_control( 'sahel_peecha_text', array( 'label' => 'متن پیچا', 'section' => 'sahel_footer' ) );
 
     /* ===== مارکی ===== */
-    $w->add_section( 'sahel_marquee', array( 'title' => '۱۳. مارکی', 'priority' => 39 ) );
     $w->add_setting( 'sahel_marquee_text', array( 'default' => sahel_brand() . ' ✦ ظرافت ✦ آرامش ✦ ضمانت ✦ پیراهن ✦ بافت ✦ ارسال ', 'sanitize_callback' => 'sanitize_text_field' ) );
-    $w->add_control( 'sahel_marquee_text', array( 'label' => 'متن (با ✦ جدا کنید)', 'section' => 'sahel_marquee' ) );
+    $w->add_control( 'sahel_marquee_text', array( 'label' => 'متن (با ✦ جدا کنید)', 'section' => 'sahel_secgrp_marquee' ) );
     $w->add_setting( 'sahel_marquee_color', array( 'default' => '#8b7a6b', 'sanitize_callback' => 'sanitize_hex_color' ) );
-    $w->add_control( new WP_Customize_Color_Control( $w, 'sahel_marquee_color', array( 'label' => 'رنگ متن', 'section' => 'sahel_marquee' ) ) );
+    $w->add_control( new WP_Customize_Color_Control( $w, 'sahel_marquee_color', array( 'label' => 'رنگ متن', 'section' => 'sahel_secgrp_marquee' ) ) );
     $w->add_setting( 'sahel_marquee_size', array( 'default' => 15, 'sanitize_callback' => 'absint' ) );
-    $w->add_control( 'sahel_marquee_size', array( 'label' => 'اندازه فونت', 'section' => 'sahel_marquee', 'type' => 'number' ) );
+    $w->add_control( 'sahel_marquee_size', array( 'label' => 'اندازه فونت', 'section' => 'sahel_secgrp_marquee', 'type' => 'number' ) );
     /* v4.5: افکت مارکی */
     $w->add_setting( 'sahel_marquee_effect', array( 'default' => 'slide', 'sanitize_callback' => 'sanitize_key' ) );
     $w->add_control( 'sahel_marquee_effect', array(
         'label' => '🎬 افکت مارکی',
-        'section' => 'sahel_marquee',
+        'section' => 'sahel_secgrp_marquee',
         'type' => 'select',
         'choices' => array(
             'slide' => 'اسلاید ساده (چپ به راست)',
@@ -579,10 +578,10 @@ add_action( 'customize_register', function( $w ) {
         )
     ) );
     $w->add_setting( 'sahel_marquee_speed', array( 'default' => 26, 'sanitize_callback' => 'absint' ) );
-    $w->add_control( 'sahel_marquee_speed', array( 'label' => 'سرعت (ثانیه — کمتر = سریع‌تر)', 'section' => 'sahel_marquee', 'type' => 'number', 'input_attrs' => array( 'min' => 10, 'max' => 60 ) ) );
+    $w->add_control( 'sahel_marquee_speed', array( 'label' => 'سرعت (ثانیه — کمتر = سریع‌تر)', 'section' => 'sahel_secgrp_marquee', 'type' => 'number', 'input_attrs' => array( 'min' => 10, 'max' => 60 ) ) );
 
     /* ===== بخش‌های صفحه اصلی ===== */
-    $w->add_section( 'sahel_sections', array( 'title' => '۱۴. بخش‌های صفحه اصلی', 'description' => 'تنظیمات هر بخش (فعال‌سازی، تیتر، تمام‌عرض، تراز، پس‌زمینه، رنگ دکمه)', 'priority' => 40 ) );
+    $w->add_panel( 'sahel_home_panel', array( 'title' => '۱۲. بخش‌های صفحه اصلی', 'description' => 'هر بخش صفحه اصلی، تنظیمات (فعال‌سازی، تیتر، پس‌زمینه، ...) و محتوای اختصاصی خودش را در یک قسمت جداگانه دارد.', 'priority' => 40 ) );
     $grad_presets = array(
         '' => '— بدون گرادیان —',
         'linear-gradient(135deg,#faf7f2,#e7cfb8)' => 'کرم ملایم',
@@ -592,49 +591,49 @@ add_action( 'customize_register', function( $w ) {
         'linear-gradient(135deg,#faf7f2 0%,transparent 100%)' => 'محو',
     );
     foreach ( sahel_home_sec_defs() as $key => $def ) {
+        $w->add_section( 'sahel_secgrp_' . $key, array( 'title' => $def[0], 'panel' => 'sahel_home_panel' ) );
         $w->add_setting( 'sahel_sec_' . $key . '_on', array( 'default' => 1, 'sanitize_callback' => 'absint' ) );
-        $w->add_control( 'sahel_sec_' . $key . '_on', array( 'label' => '✔ نمایش: ' . $def[0], 'section' => 'sahel_sections', 'type' => 'checkbox' ) );
+        $w->add_control( 'sahel_sec_' . $key . '_on', array( 'label' => '✔ نمایش این بخش', 'section' => 'sahel_secgrp_' . $key, 'type' => 'checkbox' ) );
         $w->add_setting( 'sahel_sec_' . $key . '_order', array( 'default' => $def[3], 'sanitize_callback' => 'absint' ) );
-        $w->add_control( 'sahel_sec_' . $key . '_order', array( 'label' => '🔃 ترتیب: ' . $def[0], 'section' => 'sahel_sections', 'type' => 'number', 'input_attrs' => array( 'min' => 1, 'max' => 20 ) ) );
+        $w->add_control( 'sahel_sec_' . $key . '_order', array( 'label' => '🔃 ترتیب نمایش', 'section' => 'sahel_secgrp_' . $key, 'type' => 'number', 'input_attrs' => array( 'min' => 1, 'max' => 20 ) ) );
         $w->add_setting( 'sahel_sec_' . $key . '_title', array( 'default' => $def[1], 'sanitize_callback' => 'sanitize_text_field' ) );
-        $w->add_control( 'sahel_sec_' . $key . '_title', array( 'label' => 'تیتر: ' . $def[0], 'section' => 'sahel_sections' ) );
+        $w->add_control( 'sahel_sec_' . $key . '_title', array( 'label' => 'تیتر', 'section' => 'sahel_secgrp_' . $key ) );
         $w->add_setting( 'sahel_sec_' . $key . '_sub', array( 'default' => $def[2], 'sanitize_callback' => 'sanitize_text_field' ) );
-        $w->add_control( 'sahel_sec_' . $key . '_sub', array( 'label' => 'زیرتیتر: ' . $def[0], 'section' => 'sahel_sections' ) );
+        $w->add_control( 'sahel_sec_' . $key . '_sub', array( 'label' => 'زیرتیتر', 'section' => 'sahel_secgrp_' . $key ) );
         $w->add_setting( 'sahel_sec_' . $key . '_full', array( 'default' => 0, 'sanitize_callback' => 'absint' ) );
-        $w->add_control( 'sahel_sec_' . $key . '_full', array( 'label' => '↔ تمام‌عرض: ' . $def[0], 'section' => 'sahel_sections', 'type' => 'checkbox' ) );
+        $w->add_control( 'sahel_sec_' . $key . '_full', array( 'label' => '↔ تمام‌عرض', 'section' => 'sahel_secgrp_' . $key, 'type' => 'checkbox' ) );
         $w->add_setting( 'sahel_sec_' . $key . '_align', array( 'default' => 'right', 'sanitize_callback' => 'sanitize_key' ) );
-        $w->add_control( 'sahel_sec_' . $key . '_align', array( 'label' => '⚖ تراز: ' . $def[0], 'section' => 'sahel_sections', 'type' => 'select', 'choices' => array( 'right' => 'راست', 'center' => 'وسط', 'left' => 'چپ' ) ) );
+        $w->add_control( 'sahel_sec_' . $key . '_align', array( 'label' => '⚖ تراز', 'section' => 'sahel_secgrp_' . $key, 'type' => 'select', 'choices' => array( 'right' => 'راست', 'center' => 'وسط', 'left' => 'چپ' ) ) );
         $w->add_setting( 'sahel_sec_' . $key . '_bg_img', array( 'default' => '', 'sanitize_callback' => 'esc_url_raw' ) );
-        $w->add_control( new WP_Customize_Image_Control( $w, 'sahel_sec_' . $key . '_bg_img', array( 'label' => '🖼 تصویر پس‌زمینه: ' . $def[0], 'section' => 'sahel_sections' ) ) );
+        $w->add_control( new WP_Customize_Image_Control( $w, 'sahel_sec_' . $key . '_bg_img', array( 'label' => '🖼 تصویر پس‌زمینه', 'section' => 'sahel_secgrp_' . $key ) ) );
         $w->add_setting( 'sahel_sec_' . $key . '_bg_color', array( 'default' => '', 'sanitize_callback' => 'sanitize_hex_color' ) );
-        $w->add_control( new WP_Customize_Color_Control( $w, 'sahel_sec_' . $key . '_bg_color', array( 'label' => '🎨 رنگ: ' . $def[0], 'section' => 'sahel_sections' ) ) );
+        $w->add_control( new WP_Customize_Color_Control( $w, 'sahel_sec_' . $key . '_bg_color', array( 'label' => '🎨 رنگ پس‌زمینه', 'section' => 'sahel_secgrp_' . $key ) ) );
         $w->add_setting( 'sahel_sec_' . $key . '_bg_grad', array( 'default' => '', 'sanitize_callback' => 'sanitize_text_field' ) );
-        $w->add_control( 'sahel_sec_' . $key . '_bg_grad', array( 'label' => '🌈 گرادیان: ' . $def[0], 'section' => 'sahel_sections', 'type' => 'select', 'choices' => $grad_presets ) );
+        $w->add_control( 'sahel_sec_' . $key . '_bg_grad', array( 'label' => '🌈 گرادیان', 'section' => 'sahel_secgrp_' . $key, 'type' => 'select', 'choices' => $grad_presets ) );
         $w->add_setting( 'sahel_sec_' . $key . '_bg_opacity', array( 'default' => 100, 'sanitize_callback' => 'absint' ) );
-        $w->add_control( 'sahel_sec_' . $key . '_bg_opacity', array( 'label' => '💫 شفافیت: ' . $def[0], 'section' => 'sahel_sections', 'type' => 'number', 'input_attrs' => array( 'min' => 10, 'max' => 100 ) ) );
+        $w->add_control( 'sahel_sec_' . $key . '_bg_opacity', array( 'label' => '💫 شفافیت پس‌زمینه', 'section' => 'sahel_secgrp_' . $key, 'type' => 'number', 'input_attrs' => array( 'min' => 10, 'max' => 100 ) ) );
         $w->add_setting( 'sahel_sec_' . $key . '_btn_color', array( 'default' => '', 'sanitize_callback' => 'sanitize_hex_color' ) );
-        $w->add_control( new WP_Customize_Color_Control( $w, 'sahel_sec_' . $key . '_btn_color', array( 'label' => '🎯 رنگ دکمه: ' . $def[0], 'section' => 'sahel_sections' ) ) );
+        $w->add_control( new WP_Customize_Color_Control( $w, 'sahel_sec_' . $key . '_btn_color', array( 'label' => '🎯 رنگ دکمه', 'section' => 'sahel_secgrp_' . $key ) ) );
         $w->add_setting( 'sahel_sec_' . $key . '_btn_text', array( 'default' => '', 'sanitize_callback' => 'sanitize_hex_color' ) );
-        $w->add_control( new WP_Customize_Color_Control( $w, 'sahel_sec_' . $key . '_btn_text', array( 'label' => '🎯 رنگ متن دکمه: ' . $def[0], 'section' => 'sahel_sections' ) ) );
+        $w->add_control( new WP_Customize_Color_Control( $w, 'sahel_sec_' . $key . '_btn_text', array( 'label' => '🎯 رنگ متن دکمه', 'section' => 'sahel_secgrp_' . $key ) ) );
     }
     $w->add_setting( 'sahel_about_home_text', array( 'default' => sahel_brand() . ' با یک باور ساده متولد شد.', 'sanitize_callback' => 'sanitize_textarea_field' ) );
-    $w->add_control( 'sahel_about_home_text', array( 'label' => 'متن درباره در صفحه اصلی', 'section' => 'sahel_sections', 'type' => 'textarea' ) );
+    $w->add_control( 'sahel_about_home_text', array( 'label' => 'متن درباره در صفحه اصلی', 'section' => 'sahel_secgrp_about', 'type' => 'textarea' ) );
 
     /* ===== برندها ===== */
-    $w->add_section( 'sahel_brands', array( 'title' => '۱۵. برندها', 'priority' => 41 ) );
     $w->add_setting( 'sahel_brands_mode', array( 'default' => 'marquee', 'sanitize_callback' => 'sanitize_key' ) );
-    $w->add_control( 'sahel_brands_mode', array( 'label' => 'حالت نمایش', 'section' => 'sahel_brands', 'type' => 'select', 'choices' => array( 'marquee' => 'مارکی', 'float' => 'شناور', 'static' => 'ایستا' ) ) );
+    $w->add_control( 'sahel_brands_mode', array( 'label' => 'حالت نمایش', 'section' => 'sahel_secgrp_brands', 'type' => 'select', 'choices' => array( 'marquee' => 'مارکی', 'float' => 'شناور', 'static' => 'ایستا' ) ) );
     $w->add_setting( 'sahel_brands_speed', array( 'default' => 30, 'sanitize_callback' => 'absint' ) );
-    $w->add_control( 'sahel_brands_speed', array( 'label' => 'سرعت (ثانیه)', 'section' => 'sahel_brands', 'type' => 'number', 'input_attrs' => array( 'min' => 10, 'max' => 90 ) ) );
+    $w->add_control( 'sahel_brands_speed', array( 'label' => 'سرعت (ثانیه)', 'section' => 'sahel_secgrp_brands', 'type' => 'number', 'input_attrs' => array( 'min' => 10, 'max' => 90 ) ) );
     for ( $i = 1; $i <= 8; $i++ ) {
         $w->add_setting( 'sahel_brand_logo' . $i, array( 'default' => '', 'sanitize_callback' => 'esc_url_raw' ) );
-        $w->add_control( new WP_Customize_Image_Control( $w, 'sahel_brand_logo' . $i, array( 'label' => 'لوگو ' . sahel_fa( $i ), 'section' => 'sahel_brands' ) ) );
+        $w->add_control( new WP_Customize_Image_Control( $w, 'sahel_brand_logo' . $i, array( 'label' => 'لوگو ' . sahel_fa( $i ), 'section' => 'sahel_secgrp_brands' ) ) );
         $w->add_setting( 'sahel_brand_name' . $i, array( 'default' => '', 'sanitize_callback' => 'sanitize_text_field' ) );
-        $w->add_control( 'sahel_brand_name' . $i, array( 'label' => 'نام ' . sahel_fa( $i ), 'section' => 'sahel_brands' ) );
+        $w->add_control( 'sahel_brand_name' . $i, array( 'label' => 'نام ' . sahel_fa( $i ), 'section' => 'sahel_secgrp_brands' ) );
     }
 
     /* ===== نوار پایین موبایل ===== */
-    $w->add_section( 'sahel_bottombar', array( 'title' => '۱۶. نوار پایین موبایل', 'priority' => 42 ) );
+    $w->add_section( 'sahel_bottombar', array( 'title' => '۱۳. نوار پایین موبایل', 'priority' => 42 ) );
     $bb_choices = array( '' => '— غیرفعال —', 'home' => 'خانه', 'shop' => 'فروشگاه', 'cart' => 'سبد', 'contact' => 'تماس', 'search' => 'جستجو', 'account' => 'حساب', 'blog' => 'مقالات', 'about' => 'درباره' );
     $bb_defs = array( 'shop', 'cart', 'contact', 'search' );
     for ( $i = 1; $i <= 4; $i++ ) {
@@ -643,7 +642,7 @@ add_action( 'customize_register', function( $w ) {
     }
 
     /* ===== دکمه شناور ===== */
-    $w->add_section( 'sahel_fab', array( 'title' => '۱۷. دکمه شناور تماس', 'priority' => 43 ) );
+    $w->add_section( 'sahel_fab', array( 'title' => '۱۴. دکمه شناور تماس', 'priority' => 43 ) );
     $w->add_setting( 'sahel_fab_on', array( 'default' => 1, 'sanitize_callback' => 'absint' ) );
     $w->add_control( 'sahel_fab_on', array( 'label' => 'نمایش دکمه', 'section' => 'sahel_fab', 'type' => 'checkbox' ) );
     $w->add_setting( 'sahel_fab_pos', array( 'default' => 'bl', 'sanitize_callback' => 'sanitize_key' ) );
@@ -666,11 +665,10 @@ add_action( 'customize_register', function( $w ) {
     $w->add_control( 'sahel_fab_instagram', array( 'label' => 'اینستاگرام', 'section' => 'sahel_fab' ) );
 
     /* ===== محتوای بخش‌های جدید ===== */
-    $w->add_section( 'sahel_newsecs', array( 'title' => '۱۸. محتوای بخش‌های جدید', 'priority' => 44 ) );
     $w->add_setting( 'sahel_campaign_btn', array( 'default' => 'مشاهده کالکشن', 'sanitize_callback' => 'sanitize_text_field' ) );
-    $w->add_control( 'sahel_campaign_btn', array( 'label' => 'دکمه بنر کمپین', 'section' => 'sahel_newsecs' ) );
+    $w->add_control( 'sahel_campaign_btn', array( 'label' => 'دکمه بنر کمپین', 'section' => 'sahel_secgrp_campaign' ) );
     $w->add_setting( 'sahel_campaign_url', array( 'default' => '', 'sanitize_callback' => 'esc_url_raw' ) );
-    $w->add_control( 'sahel_campaign_url', array( 'label' => 'لینک بنر کمپین', 'section' => 'sahel_newsecs' ) );
+    $w->add_control( 'sahel_campaign_url', array( 'label' => 'لینک بنر کمپین', 'section' => 'sahel_secgrp_campaign' ) );
     $look_defs = array(
         'https://image.qwenlm.ai/public_source/593f1887-5498-4920-ad1d-3f467426cd05/1762ba743-5206-44f2-8090-f738bd071c0d.png',
         'https://image.qwenlm.ai/public_source/593f1887-5498-4920-ad1d-3f467426cd05/1316896db-bd87-4b94-afa0-087689252253.png',
@@ -679,7 +677,7 @@ add_action( 'customize_register', function( $w ) {
     );
     for ( $i = 1; $i <= 4; $i++ ) {
         $w->add_setting( 'sahel_look' . $i, array( 'default' => $look_defs[ $i - 1 ], 'sanitize_callback' => 'esc_url_raw' ) );
-        $w->add_control( new WP_Customize_Image_Control( $w, 'sahel_look' . $i, array( 'label' => 'تصویر گالری ' . sahel_fa( $i ), 'section' => 'sahel_newsecs' ) ) );
+        $w->add_control( new WP_Customize_Image_Control( $w, 'sahel_look' . $i, array( 'label' => 'تصویر گالری ' . sahel_fa( $i ), 'section' => 'sahel_secgrp_look' ) ) );
     }
     $testi_defs = array(
         array( 'کیفیت عالی بود.', 'نگار احمدی', 'تهران' ),
@@ -688,11 +686,11 @@ add_action( 'customize_register', function( $w ) {
     );
     for ( $i = 1; $i <= 3; $i++ ) {
         $w->add_setting( 'sahel_testi' . $i . '_txt', array( 'default' => $testi_defs[ $i - 1 ][0], 'sanitize_callback' => 'sanitize_textarea_field' ) );
-        $w->add_control( 'sahel_testi' . $i . '_txt', array( 'label' => 'نظر ' . sahel_fa( $i ), 'section' => 'sahel_newsecs', 'type' => 'textarea' ) );
+        $w->add_control( 'sahel_testi' . $i . '_txt', array( 'label' => 'نظر ' . sahel_fa( $i ), 'section' => 'sahel_secgrp_testi', 'type' => 'textarea' ) );
         $w->add_setting( 'sahel_testi' . $i . '_name', array( 'default' => $testi_defs[ $i - 1 ][1], 'sanitize_callback' => 'sanitize_text_field' ) );
-        $w->add_control( 'sahel_testi' . $i . '_name', array( 'label' => 'نام ' . sahel_fa( $i ), 'section' => 'sahel_newsecs' ) );
+        $w->add_control( 'sahel_testi' . $i . '_name', array( 'label' => 'نام ' . sahel_fa( $i ), 'section' => 'sahel_secgrp_testi' ) );
         $w->add_setting( 'sahel_testi' . $i . '_role', array( 'default' => $testi_defs[ $i - 1 ][2], 'sanitize_callback' => 'sanitize_text_field' ) );
-        $w->add_control( 'sahel_testi' . $i . '_role', array( 'label' => 'شهر ' . sahel_fa( $i ), 'section' => 'sahel_newsecs' ) );
+        $w->add_control( 'sahel_testi' . $i . '_role', array( 'label' => 'شهر ' . sahel_fa( $i ), 'section' => 'sahel_secgrp_testi' ) );
     }
     $faq_defs = array(
         array( 'شرایط ارسال؟', '۲۴-۴۸ ساعت' ),
@@ -702,12 +700,12 @@ add_action( 'customize_register', function( $w ) {
     );
     for ( $i = 1; $i <= 4; $i++ ) {
         $w->add_setting( 'sahel_faq' . $i . '_q', array( 'default' => $faq_defs[ $i - 1 ][0], 'sanitize_callback' => 'sanitize_text_field' ) );
-        $w->add_control( 'sahel_faq' . $i . '_q', array( 'label' => 'سؤال ' . sahel_fa( $i ), 'section' => 'sahel_newsecs' ) );
+        $w->add_control( 'sahel_faq' . $i . '_q', array( 'label' => 'سؤال ' . sahel_fa( $i ), 'section' => 'sahel_secgrp_faq' ) );
         $w->add_setting( 'sahel_faq' . $i . '_a', array( 'default' => $faq_defs[ $i - 1 ][1], 'sanitize_callback' => 'sanitize_textarea_field' ) );
-        $w->add_control( 'sahel_faq' . $i . '_a', array( 'label' => 'پاسخ ' . sahel_fa( $i ), 'section' => 'sahel_newsecs', 'type' => 'textarea' ) );
+        $w->add_control( 'sahel_faq' . $i . '_a', array( 'label' => 'پاسخ ' . sahel_fa( $i ), 'section' => 'sahel_secgrp_faq', 'type' => 'textarea' ) );
     }
     $w->add_setting( 'sahel_insta_text', array( 'default' => 'ما را دنبال کنید.', 'sanitize_callback' => 'sanitize_text_field' ) );
-    $w->add_control( 'sahel_insta_text', array( 'label' => 'متن اینستاگرام', 'section' => 'sahel_newsecs' ) );
+    $w->add_control( 'sahel_insta_text', array( 'label' => 'متن اینستاگرام', 'section' => 'sahel_secgrp_insta' ) );
 } );
 
 /* v4.5: ساخت منو */
@@ -1219,19 +1217,19 @@ body.pd-full .pd-main{max-width:none;padding-inline:30px}
 .brands-track{display:flex;gap:46px;width:max-content;animation:brandslide var(--br-speed,30s) linear infinite}
 .brands-strip.is-float .brands-track{animation:none;flex-wrap:wrap;justify-content:center;gap:36px}
 .brands-strip.is-static .brands-track{animation:none;flex-wrap:wrap;justify-content:center;gap:36px}
-.brands-strip.is-float .brand-logo{animation:appleFloat 4s ease-in-out infinite}
-.brands-strip.is-float .brand-logo:nth-child(2){animation-delay:.5s}
-.brands-strip.is-float .brand-logo:nth-child(3){animation-delay:1s}
-.brands-strip.is-float .brand-logo:nth-child(4){animation-delay:1.5s}
-.brands-strip.is-float .brand-logo:nth-child(5){animation-delay:2s}
-.brands-strip.is-float .brand-logo:nth-child(6){animation-delay:2.5s}
-.brands-strip.is-float .brand-logo:nth-child(7){animation-delay:3s}
-.brands-strip.is-float .brand-logo:nth-child(8){animation-delay:3.5s}
+.brands-strip.is-float .brand-partner{animation:appleFloat 4s ease-in-out infinite}
+.brands-strip.is-float .brand-partner:nth-child(2){animation-delay:.5s}
+.brands-strip.is-float .brand-partner:nth-child(3){animation-delay:1s}
+.brands-strip.is-float .brand-partner:nth-child(4){animation-delay:1.5s}
+.brands-strip.is-float .brand-partner:nth-child(5){animation-delay:2s}
+.brands-strip.is-float .brand-partner:nth-child(6){animation-delay:2.5s}
+.brands-strip.is-float .brand-partner:nth-child(7){animation-delay:3s}
+.brands-strip.is-float .brand-partner:nth-child(8){animation-delay:3.5s}
 @keyframes brandslide{to{transform:translateX(-50%)}}
-.brand-logo{flex-shrink:0;height:56px;width:auto;display:flex;align-items:center;justify-content:center;padding:10px 22px;background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);transition:.35s cubic-bezier(.4,0,.2,1);opacity:.8}
-.brand-logo img{max-height:40px;width:auto;object-fit:contain;filter:grayscale(40%);transition:.35s cubic-bezier(.4,0,.2,1)}
-.brand-logo:hover{opacity:1;border-color:var(--line2);transform:translateY(-6px) scale(1.08);box-shadow:var(--shadow-lg)}
-.brand-logo:hover img{filter:grayscale(0%)}
+.brand-partner{flex-shrink:0;height:56px;width:auto;display:flex;align-items:center;justify-content:center;padding:10px 22px;background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);transition:.35s cubic-bezier(.4,0,.2,1);opacity:.8}
+.brand-partner img{max-height:40px;width:auto;object-fit:contain;filter:grayscale(40%);transition:.35s cubic-bezier(.4,0,.2,1)}
+.brand-partner:hover{opacity:1;border-color:var(--line2);transform:translateY(-6px) scale(1.08);box-shadow:var(--shadow-lg)}
+.brand-partner:hover img{filter:grayscale(0%)}
 
 .bn-bottombar{display:none}
 .sh-searchover{position:fixed;inset:0;z-index:120;background:color-mix(in srgb,var(--bg) 97%,transparent);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);display:none;align-items:flex-start;justify-content:center;padding:90px 22px}
@@ -1869,8 +1867,8 @@ function sahel_home_html() {
             $h .= '<div class="wrap">';
             $h .= sahel_sec_head_html( $sec['title'], $sec['sub'], '' );
             $h .= '<div class="brands-strip' . $mode_class . '"><div class="brands-track">';
-            foreach ( $logos as $lg ) { $h .= '<div class="brand-logo" title="' . esc_attr( $lg[1] ) . '"><img src="' . esc_url( $lg[0] ) . '" alt="' . esc_attr( $lg[1] ) . '"></div>'; }
-            if ( $mode === 'marquee' ) { foreach ( $logos as $lg ) { $h .= '<div class="brand-logo" title="' . esc_attr( $lg[1] ) . '"><img src="' . esc_url( $lg[0] ) . '" alt="' . esc_attr( $lg[1] ) . '"></div>'; } }
+            foreach ( $logos as $lg ) { $h .= '<div class="brand-partner" title="' . esc_attr( $lg[1] ) . '"><img src="' . esc_url( $lg[0] ) . '" alt="' . esc_attr( $lg[1] ) . '"></div>'; }
+            if ( $mode === 'marquee' ) { foreach ( $logos as $lg ) { $h .= '<div class="brand-partner" title="' . esc_attr( $lg[1] ) . '"><img src="' . esc_url( $lg[0] ) . '" alt="' . esc_attr( $lg[1] ) . '"></div>'; } }
             $h .= '</div></div></div></section>';
             $parts[] = array( $sec['order'], $h );
         }
