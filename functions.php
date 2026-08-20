@@ -298,6 +298,8 @@ function sahel_sec( $key ) {
         'bg_opacity' => (int) get_theme_mod( 'sahel_sec_' . $key . '_bg_opacity', 100 ),
         'btn_color'  => get_theme_mod( 'sahel_sec_' . $key . '_btn_color', '' ),
         'btn_text'   => get_theme_mod( 'sahel_sec_' . $key . '_btn_text', '' ),
+        'title_size' => (int) get_theme_mod( 'sahel_sec_' . $key . '_title_size', 0 ),
+        'sub_size'   => (int) get_theme_mod( 'sahel_sec_' . $key . '_sub_size', 0 ),
     );
 }
 function sahel_sec_head_html( $title, $sub, $extra = '' ) {
@@ -322,6 +324,8 @@ function sahel_sec_bg_attr( $sec ) {
     } elseif ( $sec['bg_grad'] ) {
         $style[] = 'background-image:' . $sec['bg_grad'];
     }
+    if ( ! empty( $sec['title_size'] ) ) { $style[] = '--sec-title-fs:' . (int) $sec['title_size'] . 'px'; }
+    if ( ! empty( $sec['sub_size'] ) ) { $style[] = '--sec-sub-fs:' . (int) $sec['sub_size'] . 'px'; }
     $class = 'sec-al-' . ( $sec['align'] ? $sec['align'] : 'right' );
     return array( 'class' => $class, 'style' => !empty($style) ? ' style="' . implode(';', $style) . '"' : '', 'overlay' => $overlay );
 }
@@ -633,6 +637,10 @@ add_action( 'customize_register', function( $w ) {
         $w->add_control( new WP_Customize_Color_Control( $w, 'sahel_sec_' . $key . '_btn_color', array( 'label' => '🎯 رنگ دکمه', 'section' => 'sahel_secgrp_' . $key ) ) );
         $w->add_setting( 'sahel_sec_' . $key . '_btn_text', array( 'default' => '', 'sanitize_callback' => 'sanitize_hex_color' ) );
         $w->add_control( new WP_Customize_Color_Control( $w, 'sahel_sec_' . $key . '_btn_text', array( 'label' => '🎯 رنگ متن دکمه', 'section' => 'sahel_secgrp_' . $key ) ) );
+        $w->add_setting( 'sahel_sec_' . $key . '_title_size', array( 'default' => 0, 'sanitize_callback' => 'absint' ) );
+        $w->add_control( 'sahel_sec_' . $key . '_title_size', array( 'label' => '🔠 اندازه فونت تیتر (px) — ۰ یعنی پیش‌فرض', 'section' => 'sahel_secgrp_' . $key, 'type' => 'number', 'input_attrs' => array( 'min' => 0, 'max' => 60 ) ) );
+        $w->add_setting( 'sahel_sec_' . $key . '_sub_size', array( 'default' => 0, 'sanitize_callback' => 'absint' ) );
+        $w->add_control( 'sahel_sec_' . $key . '_sub_size', array( 'label' => '🔠 اندازه فونت زیرتیتر (px) — ۰ یعنی پیش‌فرض', 'section' => 'sahel_secgrp_' . $key, 'type' => 'number', 'input_attrs' => array( 'min' => 0, 'max' => 40 ) ) );
     }
     $w->add_setting( 'sahel_about_home_text', array( 'default' => sahel_brand() . ' با یک باور ساده متولد شد.', 'sanitize_callback' => 'sanitize_textarea_field' ) );
     $w->add_control( 'sahel_about_home_text', array( 'label' => 'متن درباره در صفحه اصلی', 'section' => 'sahel_secgrp_about', 'type' => 'textarea' ) );
@@ -1010,6 +1018,8 @@ section.sec-al-center .sec-head{justify-content:center;text-align:center}
 section.sec-al-center .sec-head>div{flex:1}
 section.sec-al-left .wrap{text-align:left}
 section.sec-al-left .sec-head{flex-direction:row-reverse}
+section[style*="--sec-title-fs"] .sec-head h2{font-size:var(--sec-title-fs)}
+section[style*="--sec-sub-fs"] .sec-head p{font-size:var(--sec-sub-fs)}
 .sec-bg-img{position:absolute;inset:0;background-size:cover;background-position:center;background-repeat:no-repeat;z-index:0;pointer-events:none}
 section>.wrap{position:relative;z-index:1}
 
@@ -1399,7 +1409,12 @@ ul.products:not(.strip ul.products){--pcols:2}
 .so-box .btn{width:100%}
 }
 SHCSS;
-    return $dyn . $static;
+    $cart_icon_path = 'M7 18c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm10 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM7.1 14.9h10.4c.75 0 1.41-.41 1.75-1.02l3.58-6.49A1 1 0 0 0 22 6.9H5.21l-.94-2H1v2h2l3.6 7.59-1.35 2.45C4.52 15.37 5.48 17 7 17h12v-2H7.42l1.09-2.09z';
+    $cart_icon_fill = '%23' . ltrim( $carticon, '#' );
+    $cart_icon_fill_h = '%23' . ltrim( $carticonh, '#' );
+    $cart_icon_css = '.prod-body a.button{background-image:url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'' . $cart_icon_fill . '\'%3E%3Cpath d=\'' . $cart_icon_path . '\'/%3E%3C/svg%3E")!important}';
+    $cart_icon_css .= '.prod-body a.button:hover{background-image:url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'' . $cart_icon_fill_h . '\'%3E%3Cpath d=\'' . $cart_icon_path . '\'/%3E%3C/svg%3E")!important}';
+    return $dyn . $static . $cart_icon_css;
 }
 
 /* Rest of the functions remain the same as v4.4 */
