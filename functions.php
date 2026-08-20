@@ -293,6 +293,8 @@ function sahel_sec( $key ) {
         'bg_img'     => get_theme_mod( 'sahel_sec_' . $key . '_bg_img', '' ),
         'bg_color'   => get_theme_mod( 'sahel_sec_' . $key . '_bg_color', '' ),
         'bg_grad'    => get_theme_mod( 'sahel_sec_' . $key . '_bg_grad', '' ),
+        'grad_c1'    => get_theme_mod( 'sahel_sec_' . $key . '_grad_c1', '' ),
+        'grad_c2'    => get_theme_mod( 'sahel_sec_' . $key . '_grad_c2', '' ),
         'bg_opacity' => (int) get_theme_mod( 'sahel_sec_' . $key . '_bg_opacity', 100 ),
         'btn_color'  => get_theme_mod( 'sahel_sec_' . $key . '_btn_color', '' ),
         'btn_text'   => get_theme_mod( 'sahel_sec_' . $key . '_btn_text', '' ),
@@ -308,8 +310,18 @@ function sahel_sec_bg_attr( $sec ) {
         $opacity = $sec['bg_opacity'] / 100;
         $overlay = '<div class="sec-bg-img" style="opacity:' . $opacity . ';background-image:url(' . esc_url( $sec['bg_img'] ) . ')"></div>';
     }
-    if ( $sec['bg_color'] ) { $style[] = 'background-color:' . esc_attr( $sec['bg_color'] ); }
-    if ( $sec['bg_grad'] ) { $style[] = 'background-image:' . $sec['bg_grad']; }
+    if ( $sec['bg_color'] ) {
+        if ( $sec['bg_opacity'] < 100 ) {
+            $style[] = 'background-color:rgba(' . sahel_rgb_str( $sec['bg_color'] ) . ',' . ( $sec['bg_opacity'] / 100 ) . ')';
+        } else {
+            $style[] = 'background-color:' . esc_attr( $sec['bg_color'] );
+        }
+    }
+    if ( ! empty( $sec['grad_c1'] ) && ! empty( $sec['grad_c2'] ) ) {
+        $style[] = 'background-image:linear-gradient(135deg,' . esc_attr( $sec['grad_c1'] ) . ',' . esc_attr( $sec['grad_c2'] ) . ')';
+    } elseif ( $sec['bg_grad'] ) {
+        $style[] = 'background-image:' . $sec['bg_grad'];
+    }
     $class = 'sec-al-' . ( $sec['align'] ? $sec['align'] : 'right' );
     return array( 'class' => $class, 'style' => !empty($style) ? ' style="' . implode(';', $style) . '"' : '', 'overlay' => $overlay );
 }
@@ -398,6 +410,8 @@ add_action( 'customize_register', function( $w ) {
     $w->add_control( 'sahel_slide_height_m', array( 'label' => 'ارتفاع اسلاید موبایل', 'section' => 'sahel_slider', 'type' => 'number' ) );
     $w->add_setting( 'sahel_slider_full', array( 'default' => 0, 'sanitize_callback' => 'absint' ) );
     $w->add_control( 'sahel_slider_full', array( 'label' => '↔ اسلایدر تمام‌عرض', 'section' => 'sahel_slider', 'type' => 'checkbox' ) );
+    $w->add_setting( 'sahel_slider_width', array( 'default' => 0, 'sanitize_callback' => 'absint' ) );
+    $w->add_control( 'sahel_slider_width', array( 'label' => 'عرض دستی اسلایدر (px) — خالی/۰ یعنی خودکار', 'section' => 'sahel_slider', 'type' => 'number', 'input_attrs' => array( 'min' => 0, 'max' => 3000 ) ) );
 
     $slide_max = min( 10, max( 1, (int) get_theme_mod( 'sahel_slide_count', 3 ) ) + 1 );
     for ( $i = 1; $i <= $slide_max; $i++ ) {
@@ -591,14 +605,6 @@ add_action( 'customize_register', function( $w ) {
 
     /* ===== بخش‌های صفحه اصلی ===== */
     $w->add_panel( 'sahel_home_panel', array( 'title' => '۱۲. بخش‌های صفحه اصلی', 'description' => 'هر بخش صفحه اصلی، تنظیمات (فعال‌سازی، تیتر، پس‌زمینه، ...) و محتوای اختصاصی خودش را در یک قسمت جداگانه دارد.', 'priority' => 40 ) );
-    $grad_presets = array(
-        '' => '— بدون گرادیان —',
-        'linear-gradient(135deg,#faf7f2,#e7cfb8)' => 'کرم ملایم',
-        'linear-gradient(135deg,#b08968,#d4a373)' => 'کارامل',
-        'linear-gradient(135deg,#241a12,#4a2f1d)' => 'قهوه‌ای تیره',
-        'linear-gradient(135deg,#c65a3f,#b08968)' => 'تخفیف',
-        'linear-gradient(135deg,#faf7f2 0%,transparent 100%)' => 'محو',
-    );
     foreach ( sahel_home_sec_defs() as $key => $def ) {
         $w->add_section( 'sahel_secgrp_' . $key, array( 'title' => $def[0], 'panel' => 'sahel_home_panel' ) );
         $w->add_setting( 'sahel_sec_' . $key . '_on', array( 'default' => 1, 'sanitize_callback' => 'absint' ) );
@@ -617,8 +623,10 @@ add_action( 'customize_register', function( $w ) {
         $w->add_control( new WP_Customize_Image_Control( $w, 'sahel_sec_' . $key . '_bg_img', array( 'label' => '🖼 تصویر پس‌زمینه', 'section' => 'sahel_secgrp_' . $key ) ) );
         $w->add_setting( 'sahel_sec_' . $key . '_bg_color', array( 'default' => '', 'sanitize_callback' => 'sanitize_hex_color' ) );
         $w->add_control( new WP_Customize_Color_Control( $w, 'sahel_sec_' . $key . '_bg_color', array( 'label' => '🎨 رنگ پس‌زمینه', 'section' => 'sahel_secgrp_' . $key ) ) );
-        $w->add_setting( 'sahel_sec_' . $key . '_bg_grad', array( 'default' => '', 'sanitize_callback' => 'sanitize_text_field' ) );
-        $w->add_control( 'sahel_sec_' . $key . '_bg_grad', array( 'label' => '🌈 گرادیان', 'section' => 'sahel_secgrp_' . $key, 'type' => 'select', 'choices' => $grad_presets ) );
+        $w->add_setting( 'sahel_sec_' . $key . '_grad_c1', array( 'default' => '', 'sanitize_callback' => 'sanitize_hex_color' ) );
+        $w->add_control( new WP_Customize_Color_Control( $w, 'sahel_sec_' . $key . '_grad_c1', array( 'label' => '🌈 رنگ اول گرادیان', 'section' => 'sahel_secgrp_' . $key ) ) );
+        $w->add_setting( 'sahel_sec_' . $key . '_grad_c2', array( 'default' => '', 'sanitize_callback' => 'sanitize_hex_color' ) );
+        $w->add_control( new WP_Customize_Color_Control( $w, 'sahel_sec_' . $key . '_grad_c2', array( 'label' => '🌈 رنگ دوم گرادیان (هر دو رنگ باید انتخاب شوند)', 'section' => 'sahel_secgrp_' . $key ) ) );
         $w->add_setting( 'sahel_sec_' . $key . '_bg_opacity', array( 'default' => 100, 'sanitize_callback' => 'absint' ) );
         $w->add_control( 'sahel_sec_' . $key . '_bg_opacity', array( 'label' => '💫 شفافیت پس‌زمینه', 'section' => 'sahel_secgrp_' . $key, 'type' => 'number', 'input_attrs' => array( 'min' => 10, 'max' => 100 ) ) );
         $w->add_setting( 'sahel_sec_' . $key . '_btn_color', array( 'default' => '', 'sanitize_callback' => 'sanitize_hex_color' ) );
@@ -905,6 +913,8 @@ body.sh-menu-open.mnav-carded .sh-mnav .dd-sublink:hover{background:var(--cream)
 .icon-btn{position:relative;width:46px;height:46px;display:grid;place-items:center;border:1px solid var(--line);border-radius:16px;background:rgba(255,255,255,.85);box-shadow:var(--shadow);transition:.25s cubic-bezier(.4,0,.2,1)}
 .icon-btn:hover{border-color:var(--line2);transform:translateY(-3px) scale(1.05)}
 .icon-btn svg{width:20px;height:20px;stroke:var(--ink)}
+#cartBtn svg{stroke:var(--carticon)}
+#cartBtn:hover svg{stroke:var(--carticonh)}
 #cartCount{position:absolute;top:-8px;left:-8px;min-width:22px;height:22px;padding:0 5px;display:grid;place-items:center;background:var(--grad);color:#fff;font-size:.7rem;font-weight:800;border-radius:99px;box-shadow:0 6px 16px color-mix(in srgb,var(--c1) 40%,transparent);animation:appleSpring .4s cubic-bezier(.4,0,.2,1)}
 
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;padding:13px 28px;border-radius:99px;font-weight:800;font-size:.92rem;transition:.3s cubic-bezier(.4,0,.2,1);white-space:nowrap}
@@ -915,7 +925,9 @@ body.sh-menu-open.mnav-carded .sh-mnav .dd-sublink:hover{background:var(--cream)
 .btn-light{background:#fff;color:color-mix(in srgb,var(--c1) 80%,#000)}
 
 .slider{position:relative;min-height:var(--sh,620px);overflow:hidden}
+.slider:not(.is-full){max-width:1260px;margin-inline:auto;border-radius:24px}
 .slider.is-full .wrap{max-width:none;padding-inline:36px}
+.slider[style*="--slider-w"]{max-width:var(--slider-w)!important}
 .slide{position:absolute;inset:0;display:flex;align-items:center;opacity:0;visibility:hidden;transition:opacity 1.5s ease,visibility 1.5s}
 .slide.active{opacity:1;visibility:visible}
 .sb-wrap{position:absolute;inset:0;overflow:hidden}
@@ -1015,6 +1027,8 @@ section>.wrap{position:relative;z-index:1}
 .s-arrow svg{width:16px;height:16px;stroke:var(--ink)}
 .strip{margin-inline:calc(50% - 50vw)}
 .strip ul.products{display:flex!important;flex-wrap:nowrap!important;grid-template-columns:none!important;gap:var(--prod-gap,14px);overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;padding:16px max(20px,calc((100vw - 1216px)/2)) 18px;mask-image:linear-gradient(90deg,transparent,#000 2%,#000 98%,transparent);-webkit-mask-image:linear-gradient(90deg,transparent,#000 2%,#000 98%,transparent)}
+section.sec-al-center .strip ul.products{justify-content:center}
+section.sec-al-left .strip ul.products{justify-content:flex-end}
 .strip ul.products::-webkit-scrollbar{display:none}
 .strip ul.products li.product{flex:0 0 250px!important;width:250px!important;scroll-snap-align:start}
 .strip .prod-card{height:100%}
@@ -1025,6 +1039,8 @@ section>.wrap{position:relative;z-index:1}
 .sale-sec .strip-arrows .s-arrow:hover svg{stroke:color-mix(in srgb,var(--c1) 60%,#000)}
 
 .cat-grid{display:flex;gap:var(--cat-gap,14px);overflow-x:auto;padding:16px 4px 18px;scroll-snap-type:x mandatory;scrollbar-width:none;mask-image:linear-gradient(90deg,transparent,#000 2%,#000 98%,transparent);-webkit-mask-image:linear-gradient(90deg,transparent,#000 2%,#000 98%,transparent)}
+section.sec-al-center .cat-grid{justify-content:center}
+section.sec-al-left .cat-grid{justify-content:flex-end}
 .cat-grid::-webkit-scrollbar{display:none}
 .cat-card{flex:0 0 168px;width:168px;height:auto;padding:10px 10px 14px;scroll-snap-align:start;border-radius:22px;border:1px solid var(--line);background:var(--cardbg);box-shadow:var(--shadow);transition:.35s cubic-bezier(.4,0,.2,1)}
 .cat-grid .ovl{display:none}
@@ -1767,7 +1783,9 @@ function sahel_home_html() {
     }
     if ( empty( $rendered ) ) { $rendered[] = sahel_slide_data( 1 ); }
     $slider_full = get_theme_mod( 'sahel_slider_full', 0 ) ? ' is-full' : '';
-    $ob .= '<div class="slider' . $slider_full . '"><div class="slides">';
+    $slider_w = (int) get_theme_mod( 'sahel_slider_width', 0 );
+    $slider_w_style = $slider_w > 0 ? ' style="--slider-w:' . $slider_w . 'px"' : '';
+    $ob .= '<div class="slider' . $slider_full . '"' . $slider_w_style . '><div class="slides">';
     foreach ( $rendered as $i => $sd ) {
         $url = $sd['url'] ? $sd['url'] : sahel_shop_url();
         $align = 'al-' . ( $sd['align'] ? $sd['align'] : 'right' );
