@@ -439,6 +439,12 @@ add_action( 'customize_register', function( $w ) {
     $w->add_setting( 'sahel_postcard', array( 'default' => '1', 'sanitize_callback' => 'sanitize_key' ) );
     $w->add_control( 'sahel_postcard', array( 'label' => 'کارت مقاله', 'section' => 'sahel_styles', 'type' => 'select', 'choices' => array(
         '1' => 'کلاسیک', '2' => 'مینیمال بدون قاب', '3' => 'متن روی تصویر', '4' => 'افقی' ) ) );
+    $w->add_setting( 'sahel_cat_gap', array( 'default' => 14, 'sanitize_callback' => 'absint' ) );
+    $w->add_control( 'sahel_cat_gap', array( 'label' => 'فاصله بین کارت‌های دسته‌بندی (px)', 'section' => 'sahel_styles', 'type' => 'number', 'input_attrs' => array( 'min' => 0, 'max' => 60 ) ) );
+    $w->add_setting( 'sahel_prod_gap', array( 'default' => 14, 'sanitize_callback' => 'absint' ) );
+    $w->add_control( 'sahel_prod_gap', array( 'label' => 'فاصله بین کارت‌های محصول (px)', 'section' => 'sahel_styles', 'type' => 'number', 'input_attrs' => array( 'min' => 0, 'max' => 60 ) ) );
+    $w->add_setting( 'sahel_post_gap', array( 'default' => 18, 'sanitize_callback' => 'absint' ) );
+    $w->add_control( 'sahel_post_gap', array( 'label' => 'فاصله بین کارت‌های مقاله (px)', 'section' => 'sahel_styles', 'type' => 'number', 'input_attrs' => array( 'min' => 0, 'max' => 60 ) ) );
 
     /* ===== موبایل ===== */
     $w->add_section( 'sahel_mobile', array( 'title' => '۶. موبایل', 'priority' => 32 ) );
@@ -637,6 +643,8 @@ add_action( 'customize_register', function( $w ) {
 
     /* ===== نوار پایین موبایل ===== */
     $w->add_section( 'sahel_bottombar', array( 'title' => '۱۳. نوار پایین موبایل', 'priority' => 42 ) );
+    $w->add_setting( 'sahel_bb_on', array( 'default' => 1, 'sanitize_callback' => 'absint' ) );
+    $w->add_control( 'sahel_bb_on', array( 'label' => '✔ نمایش نوار پایین در موبایل', 'section' => 'sahel_bottombar', 'type' => 'checkbox' ) );
     $bb_choices = array( '' => '— غیرفعال —', 'home' => 'خانه', 'shop' => 'فروشگاه', 'cart' => 'سبد', 'contact' => 'تماس', 'search' => 'جستجو', 'account' => 'حساب', 'blog' => 'مقالات', 'about' => 'درباره' );
     $bb_defs = array( 'shop', 'cart', 'contact', 'search' );
     for ( $i = 1; $i <= 4; $i++ ) {
@@ -782,8 +790,11 @@ function sahel_css() {
     $mq_effect = get_theme_mod( 'sahel_marquee_effect', 'slide' );
     $mq_speed = (int) get_theme_mod( 'sahel_marquee_speed', 26 );
     $header_style = get_theme_mod( 'sahel_header_style', 'classic' );
+    $cat_gap = (int) get_theme_mod( 'sahel_cat_gap', 14 );
+    $prod_gap = (int) get_theme_mod( 'sahel_prod_gap', 14 );
+    $post_gap = (int) get_theme_mod( 'sahel_post_gap', 18 );
     
-    $dyn = ':root{--c1:' . $c1 . ';--c2:' . $c2 . ';--hot:' . $hot . ';--bg:' . $bg . ';--ink:' . $ink . ';--muted:' . $muted . ';--headerbg:' . $hbg . ';--footerbg:' . $fbg . ';--m-h1:' . $mh1 . 'px;--m-p:' . $mp . 'px;--m-ov:' . $mov . '%;--font:\'' . $font . '\',system-ui,Tahoma,sans-serif;--font-head:\'' . $hfont . '\',system-ui,Tahoma,sans-serif;--font-header:\'' . $hfont2 . '\',system-ui,Tahoma,sans-serif;--fs:' . $fsize . 'px;--pricec:' . $pricec . ';--btnt:' . $btnt . ';--carticon:' . $carticon . ';--carticonh:' . $carticonh . ';--cardbg:' . $cardbg . ';--ftext:' . $ftext . ';--mqc:' . $mqc . ';--mqs:' . $mqs . 'px;--sh:' . $sh . 'px;--shm:' . $shm . 'px;--br-speed:' . $br_speed . 's;--slider-full:' . $slider_full . ';--caramel:var(--c1);--sand:var(--c2);--cream:color-mix(in srgb,var(--c2) 45%,#fff);--grad:linear-gradient(100deg,var(--c2),var(--c1) 55%,color-mix(in srgb,var(--c1) 75%,#000));--grad2:linear-gradient(100deg,var(--cream),var(--c2));--line:color-mix(in srgb,var(--ink) 10%,transparent);--line2:color-mix(in srgb,var(--c1) 55%,transparent);--shadow:0 10px 30px color-mix(in srgb,var(--ink) 9%,transparent);--shadow-lg:0 30px 70px color-mix(in srgb,var(--c1) 22%,transparent);--r:24px;--header-text:' . $header_text . ';--header-btn-bg:' . $header_btn_bg . ';--header-btn-text:' . $header_btn_text . ';--mq-speed:' . $mq_speed . 's;--header-style:' . $header_style . '}';
+    $dyn = ':root{--c1:' . $c1 . ';--c2:' . $c2 . ';--hot:' . $hot . ';--bg:' . $bg . ';--ink:' . $ink . ';--muted:' . $muted . ';--headerbg:' . $hbg . ';--footerbg:' . $fbg . ';--m-h1:' . $mh1 . 'px;--m-p:' . $mp . 'px;--m-ov:' . $mov . '%;--font:\'' . $font . '\',system-ui,Tahoma,sans-serif;--font-head:\'' . $hfont . '\',system-ui,Tahoma,sans-serif;--font-header:\'' . $hfont2 . '\',system-ui,Tahoma,sans-serif;--fs:' . $fsize . 'px;--pricec:' . $pricec . ';--btnt:' . $btnt . ';--carticon:' . $carticon . ';--carticonh:' . $carticonh . ';--cardbg:' . $cardbg . ';--ftext:' . $ftext . ';--mqc:' . $mqc . ';--mqs:' . $mqs . 'px;--sh:' . $sh . 'px;--shm:' . $shm . 'px;--br-speed:' . $br_speed . 's;--slider-full:' . $slider_full . ';--caramel:var(--c1);--sand:var(--c2);--cream:color-mix(in srgb,var(--c2) 45%,#fff);--grad:linear-gradient(100deg,var(--c2),var(--c1) 55%,color-mix(in srgb,var(--c1) 75%,#000));--grad2:linear-gradient(100deg,var(--cream),var(--c2));--line:color-mix(in srgb,var(--ink) 10%,transparent);--line2:color-mix(in srgb,var(--c1) 55%,transparent);--shadow:0 10px 30px color-mix(in srgb,var(--ink) 9%,transparent);--shadow-lg:0 30px 70px color-mix(in srgb,var(--c1) 22%,transparent);--r:24px;--header-text:' . $header_text . ';--header-btn-bg:' . $header_btn_bg . ';--header-btn-text:' . $header_btn_text . ';--mq-speed:' . $mq_speed . 's;--header-style:' . $header_style . ';--cat-gap:' . $cat_gap . 'px;--prod-gap:' . $prod_gap . 'px;--post-gap:' . $post_gap . 'px}';
     
     $static = <<<'SHCSS'
 *{margin:0;padding:0;box-sizing:border-box}
@@ -1003,7 +1014,7 @@ section>.wrap{position:relative;z-index:1}
 .s-arrow:hover svg{stroke:#fff}
 .s-arrow svg{width:16px;height:16px;stroke:var(--ink)}
 .strip{margin-inline:calc(50% - 50vw)}
-.strip ul.products{display:flex!important;flex-wrap:nowrap!important;grid-template-columns:none!important;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;padding:16px max(20px,calc((100vw - 1216px)/2)) 18px;mask-image:linear-gradient(90deg,transparent,#000 2%,#000 98%,transparent);-webkit-mask-image:linear-gradient(90deg,transparent,#000 2%,#000 98%,transparent)}
+.strip ul.products{display:flex!important;flex-wrap:nowrap!important;grid-template-columns:none!important;gap:var(--prod-gap,14px);overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;padding:16px max(20px,calc((100vw - 1216px)/2)) 18px;mask-image:linear-gradient(90deg,transparent,#000 2%,#000 98%,transparent);-webkit-mask-image:linear-gradient(90deg,transparent,#000 2%,#000 98%,transparent)}
 .strip ul.products::-webkit-scrollbar{display:none}
 .strip ul.products li.product{flex:0 0 250px!important;width:250px!important;scroll-snap-align:start}
 .strip .prod-card{height:100%}
@@ -1013,7 +1024,7 @@ section>.wrap{position:relative;z-index:1}
 .sale-sec .strip-arrows .s-arrow:hover{background:var(--grad2)}
 .sale-sec .strip-arrows .s-arrow:hover svg{stroke:color-mix(in srgb,var(--c1) 60%,#000)}
 
-.cat-grid{display:flex;gap:14px;overflow-x:auto;padding:16px 4px 18px;scroll-snap-type:x mandatory;scrollbar-width:none;mask-image:linear-gradient(90deg,transparent,#000 2%,#000 98%,transparent);-webkit-mask-image:linear-gradient(90deg,transparent,#000 2%,#000 98%,transparent)}
+.cat-grid{display:flex;gap:var(--cat-gap,14px);overflow-x:auto;padding:16px 4px 18px;scroll-snap-type:x mandatory;scrollbar-width:none;mask-image:linear-gradient(90deg,transparent,#000 2%,#000 98%,transparent);-webkit-mask-image:linear-gradient(90deg,transparent,#000 2%,#000 98%,transparent)}
 .cat-grid::-webkit-scrollbar{display:none}
 .cat-card{flex:0 0 168px;width:168px;height:auto;padding:10px 10px 14px;scroll-snap-align:start;border-radius:22px;border:1px solid var(--line);background:var(--cardbg);box-shadow:var(--shadow);transition:.35s cubic-bezier(.4,0,.2,1)}
 .cat-grid .ovl{display:none}
@@ -1031,7 +1042,7 @@ body.catst-4 .cat-card:hover{transform:translateY(-10px) scale(1.05)}
 body.catst-4 .cat-card:hover img{box-shadow:var(--shadow-lg);transform:scale(1.1) rotate(5deg)}
 body.catst-4 .cat-card .txt{padding:12px 0 0}
 
-ul.products{display:grid !important;grid-template-columns:repeat(var(--pcols,5),minmax(0,1fr))!important;gap:14px;list-style:none;padding:0;margin:0 !important}
+ul.products{display:grid !important;grid-template-columns:repeat(var(--pcols,5),minmax(0,1fr))!important;gap:var(--prod-gap,14px);list-style:none;padding:0;margin:0 !important}
 ul.products li.product{margin:0 !important;width:auto !important;float:none !important;min-width:0;display:flex}
 .prod-card{flex:1;width:100%;background:var(--cardbg);border:1px solid var(--line);border-radius:22px;display:flex;flex-direction:column;box-shadow:var(--shadow);transition:.35s cubic-bezier(.4,0,.2,1)}
 .prod-card:hover{transform:translateY(-8px) scale(1.02);box-shadow:var(--shadow-lg);border-color:var(--line2)}
@@ -1078,7 +1089,7 @@ ul.products li.product{margin:0 !important;width:auto !important;float:none !imp
 .sale-sec .sec-head h2{color:#fff;font-size:1.15rem}
 .sale-sec .sec-head h2 span{background:var(--grad2);-webkit-background-clip:text;color:transparent}
 .sale-sec .sec-head p{color:color-mix(in srgb,var(--cream) 60%,transparent);font-size:.72rem}
-.sale-sec ul.products{display:flex!important;flex-wrap:nowrap!important;grid-template-columns:none!important;gap:12px;overflow-x:auto;padding:16px max(20px,calc((100vw - 1216px)/2)) 8px;scroll-snap-type:x mandatory;scrollbar-width:none}
+.sale-sec ul.products{display:flex!important;flex-wrap:nowrap!important;grid-template-columns:none!important;gap:var(--prod-gap,14px);overflow-x:auto;padding:16px max(20px,calc((100vw - 1216px)/2)) 8px;scroll-snap-type:x mandatory;scrollbar-width:none}
 .sale-sec ul.products::-webkit-scrollbar{display:none}
 .sale-sec ul.products li.product{flex:0 0 210px!important;width:210px!important;scroll-snap-align:start}
 .sale-sec .prod-card{background:rgba(255,255,255,.06);backdrop-filter:blur(16px);border-color:rgba(255,255,255,.12);box-shadow:0 14px 34px rgba(0,0,0,.3)}
@@ -1174,7 +1185,7 @@ body.pd-full .pd-main{max-width:none;padding-inline:30px}
 .pd-related{margin-top:54px}
 .pd-related-title{font-weight:900;font-size:1.25rem;margin-bottom:22px}
 .pd-related-title span{background:var(--grad);-webkit-background-clip:text;color:transparent}
-.blog-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.blog-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--post-gap,18px)}
 .post-card{background:var(--cardbg);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);transition:.35s cubic-bezier(.4,0,.2,1);overflow:hidden}
 .post-card:hover{transform:translateY(-8px) scale(1.02);box-shadow:var(--shadow-lg)}
 .post-card img{width:100%;aspect-ratio:16/9;object-fit:cover}
@@ -1209,6 +1220,9 @@ body.pd-full .pd-main{max-width:none;padding-inline:30px}
 .feat h4{font-weight:900;font-size:.95rem;margin-bottom:8px}
 .feat p{color:var(--muted);font-size:.76rem;line-height:1.9}
 .news{border-radius:32px;border:1px solid var(--line2);background:linear-gradient(135deg,color-mix(in srgb,var(--cream) 40%,#fff),rgba(255,255,255,.9) 50%,color-mix(in srgb,var(--cream) 30%,#fff));backdrop-filter:blur(10px);padding:44px;text-align:center;position:relative;overflow:hidden}
+section:not(.sec-al-center) .campaign,section:not(.sec-al-center) .news{text-align:inherit}
+section:not(.sec-al-center) .news form{margin-inline:0}
+section.sec-al-left .news form{margin-inline-start:auto;margin-inline-end:0}
 .news::before{content:"";position:absolute;inset:0;background:radial-gradient(500px 240px at 80% 0%,color-mix(in srgb,var(--c2) 20%,transparent),transparent 60%)}
 .news h2{font-weight:900;font-size:1.35rem;margin-bottom:10px;position:relative}
 .news p{color:var(--muted);margin-bottom:22px;font-size:.84rem;position:relative}
@@ -1218,8 +1232,10 @@ body.pd-full .pd-main{max-width:none;padding-inline:30px}
 /* v4.5: Brands section */
 .brands-strip{overflow:hidden;position:relative;padding:20px 0}
 .brands-track{display:flex;gap:46px;width:max-content;animation:brandslide var(--br-speed,30s) linear infinite}
-.brands-strip.is-float .brands-track{animation:none;flex-wrap:wrap;justify-content:center;gap:36px}
-.brands-strip.is-static .brands-track{animation:none;flex-wrap:wrap;justify-content:center;gap:36px}
+.brands-strip.is-float .brands-track{animation:none;flex-wrap:wrap;justify-content:flex-start;gap:36px}
+.brands-strip.is-static .brands-track{animation:none;flex-wrap:wrap;justify-content:flex-start;gap:36px}
+section.sec-al-center .brands-strip.is-float .brands-track,section.sec-al-center .brands-strip.is-static .brands-track{justify-content:center}
+section.sec-al-left .brands-strip.is-float .brands-track,section.sec-al-left .brands-strip.is-static .brands-track{justify-content:flex-end}
 .brands-strip.is-float .brand-partner{animation:appleFloat 4s ease-in-out infinite}
 .brands-strip.is-float .brand-partner:nth-child(2){animation-delay:.5s}
 .brands-strip.is-float .brand-partner:nth-child(3){animation-delay:1s}
@@ -1343,14 +1359,14 @@ body.sh-menu-open .sh-mnav{transform:translateY(0)}
 .statband{grid-template-columns:repeat(2,1fr)}
 ul.products:not(.strip ul.products){--pcols:3}
 .bn-bottombar{position:fixed;bottom:0;left:0;right:0;z-index:100;display:flex;gap:6px;background:color-mix(in srgb,var(--bg) 94%,transparent);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid var(--line);padding:8px 10px calc(8px + env(safe-area-inset-bottom));box-shadow:0 -10px 30px color-mix(in srgb,var(--ink) 8%,transparent)}
-body{padding-bottom:76px}
+body:not(.bbar-off){padding-bottom:76px}
 .bb-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 4px;border-radius:14px;color:var(--muted);font-size:.62rem;font-weight:800;transition:.25s cubic-bezier(.4,0,.2,1);border:none;background:none;cursor:pointer;font-family:inherit}
 .bb-item svg{width:20px;height:20px;stroke:currentColor}
 .bb-item.active,.bb-item:hover{color:var(--caramel);background:color-mix(in srgb,var(--c2) 12%,transparent);transform:translateY(-2px)}
 #toast{bottom:92px}
 }
 @media(max-width:600px){
-ul.products:not(.strip ul.products){--pcols:2;gap:10px}
+ul.products:not(.strip ul.products){--pcols:2}
 .strip ul.products li.product{flex:0 0 180px!important;width:180px!important}
 .cat-card{flex:0 0 140px;width:140px}
 .cat-card h3{font-size:.78rem}
@@ -1371,7 +1387,18 @@ SHCSS;
 }
 
 /* Rest of the functions remain the same as v4.4 */
+function sahel_bottombar_active() {
+    if ( ! get_theme_mod( 'sahel_bb_on', 1 ) ) { return false; }
+    $default4 = array( 'shop', 'cart', 'contact', 'search' );
+    $valid = array( 'home', 'shop', 'cart', 'contact', 'search', 'account', 'blog', 'about' );
+    for ( $i = 1; $i <= 4; $i++ ) {
+        $k = get_theme_mod( 'sahel_bb' . $i, $default4[ $i - 1 ] );
+        if ( $k && in_array( $k, $valid, true ) ) { return true; }
+    }
+    return false;
+}
 function sahel_bottombar_render() {
+    if ( ! sahel_bottombar_active() ) { return; }
     $defs = array(
         'home' => array( 'خانه', home_url( '/' ), is_front_page(), '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9 21v-6h6v6"/></svg>' ),
         'shop' => array( 'فروشگاه', sahel_shop_url(), ( function_exists( 'is_shop' ) && is_shop() ) || ( function_exists( 'is_product_category' ) && is_product_category() ) || ( function_exists( 'is_product' ) && is_product() ), '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1-5h16l1 5"/><path d="M4 9v11h16V9"/><path d="M9 20v-6h6v6"/></svg>' ),
@@ -1383,20 +1410,21 @@ function sahel_bottombar_render() {
         'about' => array( 'درباره ما', sahel_page_url( 'about-us' ), is_page( 'about-us' ), '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M12 11v5"/></svg>' ),
     );
     $default4 = array( 'shop', 'cart', 'contact', 'search' );
-    echo '<nav class="bn-bottombar">';
+    $items = '';
     for ( $i = 1; $i <= 4; $i++ ) {
         $k = get_theme_mod( 'sahel_bb' . $i, $default4[ $i - 1 ] );
         if ( ! $k || ! isset( $defs[ $k ] ) ) { continue; }
         $d = $defs[ $k ];
         if ( $k === 'search' ) {
-            echo '<button class="bb-item bbSearch" aria-label="' . esc_attr( $d[0] ) . '">' . $d[3] . esc_html( $d[0] ) . '</button>';
+            $items .= '<button class="bb-item bbSearch" aria-label="' . esc_attr( $d[0] ) . '">' . $d[3] . esc_html( $d[0] ) . '</button>';
         } elseif ( $k === 'cart' ) {
-            echo '<button class="bb-item bbCart" aria-label="' . esc_attr( $d[0] ) . '">' . $d[3] . esc_html( $d[0] ) . '</button>';
+            $items .= '<button class="bb-item bbCart" aria-label="' . esc_attr( $d[0] ) . '">' . $d[3] . esc_html( $d[0] ) . '</button>';
         } else {
-            echo '<a class="bb-item' . ( $d[2] ? ' active' : '' ) . '" href="' . esc_url( $d[1] ) . '">' . $d[3] . esc_html( $d[0] ) . '</a>';
+            $items .= '<a class="bb-item' . ( $d[2] ? ' active' : '' ) . '" href="' . esc_url( $d[1] ) . '">' . $d[3] . esc_html( $d[0] ) . '</a>';
         }
     }
-    echo '</nav>';
+    if ( ! $items ) { return; }
+    echo '<nav class="bn-bottombar">' . $items . '</nav>';
 }
 
 function sahel_fab_icons( $k ) {
@@ -1476,7 +1504,8 @@ function sahel_shell( $content ) {
     $ajax_url = esc_url( admin_url( 'admin-ajax.php' ) );
     $hide_desc = get_theme_mod( 'sahel_m_hide_desc', 1 ) ? ' hide-m-desc' : '';
     $pd_full = ( function_exists( 'is_product' ) && is_product() && get_theme_mod( 'sahel_product_fullwidth', 0 ) ) ? ' pd-full' : '';
-    $body_cls = 'btnst-' . get_theme_mod( 'sahel_btn_style', 'pill' ) . ' catst-' . get_theme_mod( 'sahel_catcard', '1' ) . ' prodst-' . get_theme_mod( 'sahel_prodcard', '1' ) . ' postst-' . get_theme_mod( 'sahel_postcard', '1' ) . ' hstyle-' . get_theme_mod( 'sahel_header_style', 'classic' ) . $hide_desc . $pd_full;
+    $bbar_off = sahel_bottombar_active() ? '' : ' bbar-off';
+    $body_cls = 'btnst-' . get_theme_mod( 'sahel_btn_style', 'pill' ) . ' catst-' . get_theme_mod( 'sahel_catcard', '1' ) . ' prodst-' . get_theme_mod( 'sahel_prodcard', '1' ) . ' postst-' . get_theme_mod( 'sahel_postcard', '1' ) . ' hstyle-' . get_theme_mod( 'sahel_header_style', 'classic' ) . $hide_desc . $pd_full . $bbar_off;
     $h_img = get_theme_mod( 'sahel_header_image', '' );
     $h_op = (int) get_theme_mod( 'sahel_header_image_opacity', 30 ) / 100;
     $header_img_style = $h_img ? '--header-img:url(' . esc_url( $h_img ) . ');--header-img-op:' . $h_op . ';' : '';
@@ -2316,6 +2345,8 @@ body.postst-4 .post-card .pb{flex:1}
 .faq-item .fa-a{padding:0 20px 16px;color:var(--muted);line-height:2;font-size:.84rem}
 .faq-item[open]{border-color:var(--line2);box-shadow:var(--shadow)}
 .insta-strip{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;background:var(--cardbg);border:1px solid var(--line);border-radius:24px;padding:26px 30px;box-shadow:var(--shadow)}
+section.sec-al-center .insta-strip{justify-content:center;text-align:center}
+section.sec-al-left .insta-strip{flex-direction:row-reverse}
 .insta-strip h3{font-weight:900;font-size:1.05rem}
 .insta-strip p{color:var(--muted);font-size:.8rem;margin-top:6px}
 @media(max-width:800px){.look-grid{grid-template-columns:repeat(2,1fr)}.testi-grid{grid-template-columns:1fr}}
