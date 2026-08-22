@@ -120,13 +120,16 @@ function sahel_arrows() {
 }
 function sahel_slide_data( $i ) {
     $d = array(
-        1 => array( 'img' => 'https://image.qwenlm.ai/public_source/593f1887-5498-4920-ad1d-3f467426cd05/1762ba743-5206-44f2-8090-f738bd071c0d.png', 'pill' => 'کالکشن ساحلی ۱۴۰۵', 't1' => 'مثل ساحل؛', 't2' => 'آرام و درخشان', 'desc' => 'پیراهن‌های ساحلی و مجلسی با پارچه‌های خنک و برش‌های ظریف.', 'btn' => 'خرید پیراهن ساحلی', 'url' => '' ),
-        2 => array( 'img' => 'https://image.qwenlm.ai/public_source/593f1887-5498-4920-ad1d-3f467426cd05/1316896db-bd87-4b94-afa0-087689252253.png', 'pill' => 'پاییز و زمستان', 't1' => 'بافت‌های گرم؛', 't2' => 'ظرافتِ ساحل', 'desc' => 'بافت، ژاکت و ست‌های چهارفصل با رنگ‌های نود.', 'btn' => 'مشاهده بافت‌ها', 'url' => '' ),
-        3 => array( 'img' => 'https://image.qwenlm.ai/public_source/593f1887-5498-4920-ad1d-3f467426cd05/1cab5e6b5-d545-4e84-a529-fbfb06285707.png', 'pill' => 'اکسسوری', 't1' => 'استایلت را', 't2' => 'امضا کن', 'desc' => 'کیف، کمربند و زیورآلات مینیمال.', 'btn' => 'مشاهده اکسسوری‌ها', 'url' => '' ),
+        1 => array( 'img' => 'https://image.qwenlm.ai/public_source/593f1887-5498-4920-ad1d-3f467426cd05/1762ba743-5206-44f2-8090-f738bd071c0d.png', 'pill' => 'کالکشن جدید', 't1' => 'عنوان اسلاید ۱؛', 't2' => 'قابل ویرایش', 'desc' => 'این متن نمونه است؛ از تنظیمات نمایش ← اسلاید ۱ آن را با توضیحات خودتان جایگزین کنید.', 'btn' => 'مشاهده محصولات', 'url' => '' ),
+        2 => array( 'img' => 'https://image.qwenlm.ai/public_source/593f1887-5498-4920-ad1d-3f467426cd05/1316896db-bd87-4b94-afa0-087689252253.png', 'pill' => 'پیشنهاد ویژه', 't1' => 'عنوان اسلاید ۲؛', 't2' => 'قابل ویرایش', 'desc' => 'این متن نمونه است؛ از تنظیمات نمایش ← اسلاید ۲ آن را با توضیحات خودتان جایگزین کنید.', 'btn' => 'مشاهده محصولات', 'url' => '' ),
+        3 => array( 'img' => 'https://image.qwenlm.ai/public_source/593f1887-5498-4920-ad1d-3f467426cd05/1cab5e6b5-d545-4e84-a529-fbfb06285707.png', 'pill' => 'محصولات منتخب', 't1' => 'عنوان اسلاید ۳؛', 't2' => 'قابل ویرایش', 'desc' => 'این متن نمونه است؛ از تنظیمات نمایش ← اسلاید ۳ آن را با توضیحات خودتان جایگزین کنید.', 'btn' => 'مشاهده محصولات', 'url' => '' ),
     );
     $b = isset( $d[ $i ] ) ? $d[ $i ] : array( 'img' => '', 'pill' => '', 't1' => '', 't2' => '', 'desc' => '', 'btn' => '', 'url' => '' );
     return array(
+        'bgtype' => get_theme_mod( 'sahel_slide' . $i . '_bgtype', 'image' ),
         'img' => get_theme_mod( 'sahel_slide' . $i . '_image', $b['img'] ),
+        'bgcolor1' => get_theme_mod( 'sahel_slide' . $i . '_bgcolor1', '#f3ede4' ),
+        'bgcolor2' => get_theme_mod( 'sahel_slide' . $i . '_bgcolor2', '#d9c8b4' ),
         'pill' => get_theme_mod( 'sahel_slide' . $i . '_pill', $b['pill'] ),
         't1' => get_theme_mod( 'sahel_slide' . $i . '_t1', $b['t1'] ),
         't2' => get_theme_mod( 'sahel_slide' . $i . '_t2', $b['t2'] ),
@@ -378,6 +381,10 @@ function sahel_sec( $key ) {
         'title_size' => (int) get_theme_mod( 'sahel_sec_' . $key . '_title_size', 0 ),
         'sub_size'   => (int) get_theme_mod( 'sahel_sec_' . $key . '_sub_size', 0 ),
         'padding_x'  => (int) get_theme_mod( 'sahel_sec_' . $key . '_padding_x', 0 ),
+        'title_color' => get_theme_mod( 'sahel_sec_' . $key . '_title_color', '' ),
+        'text_color'  => get_theme_mod( 'sahel_sec_' . $key . '_text_color', '' ),
+        'hover_color' => get_theme_mod( 'sahel_sec_' . $key . '_hover_color', '' ),
+        'height'      => (int) get_theme_mod( 'sahel_sec_' . $key . '_height', 0 ),
     );
 }
 function sahel_sec_head_html( $title, $sub, $extra = '' ) {
@@ -405,6 +412,10 @@ function sahel_sec_bg_attr( $sec ) {
     if ( ! empty( $sec['title_size'] ) ) { $style[] = '--sec-title-fs:' . (int) $sec['title_size'] . 'px'; }
     if ( ! empty( $sec['sub_size'] ) ) { $style[] = '--sec-sub-fs:' . (int) $sec['sub_size'] . 'px'; }
     if ( ! empty( $sec['padding_x'] ) ) { $style[] = '--sec-px:' . (int) $sec['padding_x'] . 'px'; }
+    if ( ! empty( $sec['title_color'] ) ) { $style[] = '--sec-title-color:' . esc_attr( $sec['title_color'] ); }
+    if ( ! empty( $sec['text_color'] ) ) { $style[] = '--sec-text-color:' . esc_attr( $sec['text_color'] ); }
+    if ( ! empty( $sec['hover_color'] ) ) { $style[] = '--sec-hover-color:' . esc_attr( $sec['hover_color'] ); }
+    if ( ! empty( $sec['height'] ) ) { $style[] = '--sec-min-h:' . (int) $sec['height'] . 'px'; }
     $class = 'sec-al-' . ( $sec['align'] ? $sec['align'] : 'right' );
     return array( 'class' => $class, 'style' => !empty($style) ? ' style="' . implode(';', $style) . '"' : '', 'overlay' => $overlay );
 }
@@ -492,12 +503,20 @@ add_action( 'customize_register', function( $w ) {
     $w->add_control( 'sahel_slider_full', array( 'label' => '↔ اسلایدر تمام‌عرض', 'section' => 'sahel_slider', 'type' => 'checkbox' ) );
     $w->add_setting( 'sahel_slider_width', array( 'default' => 0, 'sanitize_callback' => 'absint' ) );
     $w->add_control( 'sahel_slider_width', array( 'label' => 'عرض دستی اسلایدر (px) — خالی/۰ یعنی خودکار', 'section' => 'sahel_slider', 'type' => 'number', 'input_attrs' => array( 'min' => 0, 'max' => 3000 ) ) );
+    $w->add_setting( 'sahel_slider_on', array( 'default' => 1, 'sanitize_callback' => 'absint' ) );
+    $w->add_control( 'sahel_slider_on', array( 'label' => 'نمایش اسلایدر', 'section' => 'sahel_slider', 'type' => 'checkbox' ) );
 
     $slide_max = min( 10, max( 1, (int) get_theme_mod( 'sahel_slide_count', 3 ) ) + 1 );
     for ( $i = 1; $i <= $slide_max; $i++ ) {
         $w->add_section( 'sahel_slide' . $i, array( 'title' => 'اسلاید ' . sahel_fa( $i ), 'priority' => 30 ) );
+        $w->add_setting( 'sahel_slide' . $i . '_bgtype', array( 'default' => 'image', 'sanitize_callback' => 'sanitize_key' ) );
+        $w->add_control( 'sahel_slide' . $i . '_bgtype', array( 'label' => 'نوع پس‌زمینه', 'section' => 'sahel_slide' . $i, 'type' => 'select', 'choices' => array( 'image' => 'تصویر', 'color' => 'رنگ ساده', 'gradient' => 'گرادیانت' ) ) );
         $w->add_setting( 'sahel_slide' . $i . '_image', array( 'default' => '', 'sanitize_callback' => 'esc_url_raw' ) );
-        $w->add_control( new WP_Customize_Image_Control( $w, 'sahel_slide' . $i . '_image', array( 'label' => 'تصویر اسلاید', 'section' => 'sahel_slide' . $i ) ) );
+        $w->add_control( new WP_Customize_Image_Control( $w, 'sahel_slide' . $i . '_image', array( 'label' => 'تصویر اسلاید (وقتی نوع پس‌زمینه = تصویر)', 'section' => 'sahel_slide' . $i ) ) );
+        $w->add_setting( 'sahel_slide' . $i . '_bgcolor1', array( 'default' => '#f3ede4', 'sanitize_callback' => 'sanitize_hex_color' ) );
+        $w->add_control( new WP_Customize_Color_Control( $w, 'sahel_slide' . $i . '_bgcolor1', array( 'label' => 'رنگ پس‌زمینه (یا رنگ اول گرادیانت)', 'section' => 'sahel_slide' . $i ) ) );
+        $w->add_setting( 'sahel_slide' . $i . '_bgcolor2', array( 'default' => '#d9c8b4', 'sanitize_callback' => 'sanitize_hex_color' ) );
+        $w->add_control( new WP_Customize_Color_Control( $w, 'sahel_slide' . $i . '_bgcolor2', array( 'label' => 'رنگ دوم گرادیانت', 'section' => 'sahel_slide' . $i ) ) );
         $w->add_setting( 'sahel_slide' . $i . '_align', array( 'default' => 'right', 'sanitize_callback' => 'sanitize_key' ) );
         $w->add_control( 'sahel_slide' . $i . '_align', array( 'label' => 'محل متن', 'section' => 'sahel_slide' . $i, 'type' => 'select', 'choices' => array( 'right' => 'راست', 'center' => 'وسط', 'left' => 'چپ' ) ) );
         $w->add_setting( 'sahel_slide' . $i . '_ovl_color', array( 'default' => '#faf7f2', 'sanitize_callback' => 'sanitize_hex_color' ) );
@@ -724,6 +743,14 @@ add_action( 'customize_register', function( $w ) {
         $w->add_control( 'sahel_sec_' . $key . '_sub_size', array( 'label' => '🔠 اندازه فونت زیرتیتر (px) — ۰ یعنی پیش‌فرض', 'section' => 'sahel_secgrp_' . $key, 'type' => 'number', 'input_attrs' => array( 'min' => 0, 'max' => 40 ) ) );
         $w->add_setting( 'sahel_sec_' . $key . '_padding_x', array( 'default' => 0, 'sanitize_callback' => 'absint' ) );
         $w->add_control( 'sahel_sec_' . $key . '_padding_x', array( 'label' => '↔ فاصله جانبی (px) — ۰ یعنی پیش‌فرض', 'section' => 'sahel_secgrp_' . $key, 'type' => 'number', 'input_attrs' => array( 'min' => 0, 'max' => 120 ) ) );
+        $w->add_setting( 'sahel_sec_' . $key . '_title_color', array( 'default' => '', 'sanitize_callback' => 'sanitize_hex_color' ) );
+        $w->add_control( new WP_Customize_Color_Control( $w, 'sahel_sec_' . $key . '_title_color', array( 'label' => '🎨 رنگ تیتر', 'section' => 'sahel_secgrp_' . $key ) ) );
+        $w->add_setting( 'sahel_sec_' . $key . '_text_color', array( 'default' => '', 'sanitize_callback' => 'sanitize_hex_color' ) );
+        $w->add_control( new WP_Customize_Color_Control( $w, 'sahel_sec_' . $key . '_text_color', array( 'label' => '🎨 رنگ متن بخش', 'section' => 'sahel_secgrp_' . $key ) ) );
+        $w->add_setting( 'sahel_sec_' . $key . '_hover_color', array( 'default' => '', 'sanitize_callback' => 'sanitize_hex_color' ) );
+        $w->add_control( new WP_Customize_Color_Control( $w, 'sahel_sec_' . $key . '_hover_color', array( 'label' => '🎨 رنگ هاور (لینک/دکمه)', 'section' => 'sahel_secgrp_' . $key ) ) );
+        $w->add_setting( 'sahel_sec_' . $key . '_height', array( 'default' => 0, 'sanitize_callback' => 'absint' ) );
+        $w->add_control( 'sahel_sec_' . $key . '_height', array( 'label' => '↕ حداقل ارتفاع بخش (px) — ۰ یعنی خودکار', 'section' => 'sahel_secgrp_' . $key, 'type' => 'number', 'input_attrs' => array( 'min' => 0, 'max' => 1200 ) ) );
     }
     $w->add_setting( 'sahel_about_home_text', array( 'default' => sahel_brand() . ' با یک باور ساده متولد شد.', 'sanitize_callback' => 'sanitize_textarea_field' ) );
     $w->add_control( 'sahel_about_home_text', array( 'label' => 'متن درباره در صفحه اصلی', 'section' => 'sahel_secgrp_about', 'type' => 'textarea' ) );
@@ -1093,6 +1120,7 @@ body.ddst-4 .dd-card small{display:none}
 .slide.active .sb-wrap{animation:kenburns 11s ease forwards}
 @keyframes kenburns{from{transform:scale(1.16)}to{transform:scale(1.04)}}
 .slide-bg{width:100%;height:100%;object-fit:cover;object-position:center top;transform:scale(1.06);transition:transform 1.1s cubic-bezier(.2,.7,.2,1);filter:saturate(1.05)}
+.slide-bg-color{width:100%;height:100%}
 .slide-ovl{position:absolute;inset:0}
 .slide .wrap{position:relative;z-index:2;padding-top:70px;padding-bottom:70px;width:100%}
 .slide-txt{max-width:640px}
@@ -1112,10 +1140,6 @@ body.ddst-4 .dd-card small{display:none}
 .slide-txt h1{font-size:clamp(2.2rem,5vw,3.9rem);font-weight:900;line-height:1.35;margin:20px 0 16px;letter-spacing:-.5px}
 .slide-txt p{color:var(--muted);line-height:2.1;margin-bottom:28px;font-size:1rem}
 .hero-cta{display:flex;gap:14px;flex-wrap:wrap}
-.slide-brand{position:absolute;z-index:3;top:14%;left:6%;display:flex;align-items:center;gap:12px;padding:10px 22px 10px 12px;border-radius:99px;background:rgba(255,255,255,.8);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.9);box-shadow:var(--shadow-lg);animation:appleFloat 5s ease-in-out infinite}
-.slide-brand img{height:40px;width:auto;object-fit:contain}
-.slide-brand b{font-size:.8rem;color:var(--ink);display:block}
-.slide-brand small{font-size:.6rem;color:var(--muted)}
 .s-nav{position:absolute;top:50%;transform:translateY(-50%);width:50px;height:50px;border-radius:99px;background:rgba(255,255,255,.9);backdrop-filter:blur(10px);border:1px solid var(--line);box-shadow:var(--shadow);display:grid;place-items:center;z-index:6;transition:.25s cubic-bezier(.4,0,.2,1)}
 .s-nav:hover{background:var(--grad);border-color:transparent;transform:translateY(-50%) scale(1.1)}
 .s-nav:hover svg{stroke:#fff}
@@ -1132,7 +1156,6 @@ body.ddst-4 .dd-card small{display:none}
 .slide-txt p{font-size:var(--m-p)}
 body.hide-m-desc .slide-txt p{display:none}
 .slide .wrap{padding-top:46px;padding-bottom:56px}
-.slide-brand{top:auto;bottom:20%;left:6%}
 .s-nav{display:none}
 }
 
@@ -1174,6 +1197,12 @@ section.sec-al-left .sec-head{flex-direction:row-reverse}
 section[style*="--sec-title-fs"] .sec-head h2{font-size:var(--sec-title-fs)}
 section[style*="--sec-sub-fs"] .sec-head p{font-size:var(--sec-sub-fs)}
 section[style*="--sec-px"] > .wrap{padding-inline:var(--sec-px)}
+section[style*="--sec-min-h"]{min-height:var(--sec-min-h);display:flex;flex-direction:column;justify-content:center}
+section[style*="--sec-title-color"] .sec-head h2{color:var(--sec-title-color)}
+section[style*="--sec-text-color"]{color:var(--sec-text-color)}
+section[style*="--sec-text-color"] .sec-head p{color:var(--sec-text-color)}
+section[style*="--sec-hover-color"] a:hover,section[style*="--sec-hover-color"] .sec-link:hover{color:var(--sec-hover-color)}
+section[style*="--sec-hover-color"] .btn-primary:hover{background:var(--sec-hover-color);border-color:var(--sec-hover-color)}
 .sec-bg-img{position:absolute;inset:0;background-size:cover;background-position:center;background-repeat:no-repeat;z-index:0;pointer-events:none}
 section>.wrap{position:relative;z-index:1}
 
@@ -1944,39 +1973,49 @@ function sahel_home_html() {
     $logo = esc_url( sahel_logo_url() );
     $brand = sahel_brand(); $brand_short = sahel_brand_short(); $brand_en = sahel_brand_en();
 
-    $count = max( 1, min( 10, (int) get_theme_mod( 'sahel_slide_count', 3 ) ) );
-    $rendered = array();
-    for ( $i = 1; $i <= $count; $i++ ) {
-        $sd = sahel_slide_data( $i );
-        if ( ! $sd['img'] ) { continue; }
-        $rendered[] = $sd;
-    }
-    if ( empty( $rendered ) ) { $rendered[] = sahel_slide_data( 1 ); }
-    $slider_full = get_theme_mod( 'sahel_slider_full', 0 ) ? ' is-full' : '';
-    $slider_w = (int) get_theme_mod( 'sahel_slider_width', 0 );
-    $slider_w_style = $slider_w > 0 ? ' style="--slider-w:' . $slider_w . 'px"' : '';
-    $ob .= '<div class="slider' . $slider_full . '"' . $slider_w_style . '><div class="slides">';
-    foreach ( $rendered as $i => $sd ) {
-        $url = $sd['url'] ? $sd['url'] : sahel_shop_url();
-        $align = 'al-' . ( $sd['align'] ? $sd['align'] : 'right' );
-        $ovl_style = '--ovl-rgb:' . sahel_rgb_str( $sd['ovl_color'] ) . ';--ovl-o:' . ( (int) $sd['ovl_opacity'] / 100 );
-        $ob .= '<section class="slide" style="' . esc_attr( $ovl_style ) . '"><div class="sb-wrap"><img class="slide-bg" src="' . esc_url( $sd['img'] ) . '" alt=""></div><div class="slide-ovl"></div>';
-        if ( $i === 0 ) { $ob .= '<div class="slide-brand"><img src="' . $logo . '" alt=""><span><b>' . esc_html( $brand ) . '</b><small>' . esc_html( $brand_en ) . '</small></span></div>'; }
-        $ob .= '<div class="wrap"><div class="slide-txt ' . esc_attr( $align ) . '">';
-        if ( $sd['pill'] ) { $ob .= '<span class="pill"><i></i>' . esc_html( $sd['pill'] ) . '</span>'; }
-        if ( $sd['t1'] || $sd['t2'] ) {
-            $ob .= '<h1>' . esc_html( $sd['t1'] ) . ( $sd['t1'] && $sd['t2'] ? '<br>' : '' ) . ( $sd['t2'] ? '<span class="grad-text">' . esc_html( $sd['t2'] ) . '</span>' : '' ) . '</h1>';
+    if ( get_theme_mod( 'sahel_slider_on', 1 ) ) {
+        $count = max( 1, min( 10, (int) get_theme_mod( 'sahel_slide_count', 3 ) ) );
+        $rendered = array();
+        for ( $i = 1; $i <= $count; $i++ ) {
+            $sd = sahel_slide_data( $i );
+            $has_bg = $sd['img'] || $sd['bgtype'] !== 'image';
+            if ( ! $has_bg ) { continue; }
+            $rendered[] = $sd;
         }
-        if ( $sd['desc'] ) { $ob .= '<p>' . esc_html( $sd['desc'] ) . '</p>'; }
-        if ( $sd['btn'] ) { $ob .= '<div class="hero-cta"><a class="btn btn-primary" href="' . esc_url( $url ) . '">' . esc_html( $sd['btn'] ) . '</a></div>'; }
-        $ob .= '</div></div></section>';
+        if ( empty( $rendered ) ) { $rendered[] = sahel_slide_data( 1 ); }
+        $slider_full = get_theme_mod( 'sahel_slider_full', 0 ) ? ' is-full' : '';
+        $slider_w = (int) get_theme_mod( 'sahel_slider_width', 0 );
+        $slider_w_style = $slider_w > 0 ? ' style="--slider-w:' . $slider_w . 'px"' : '';
+        $ob .= '<div class="slider' . $slider_full . '"' . $slider_w_style . '><div class="slides">';
+        foreach ( $rendered as $i => $sd ) {
+            $url = $sd['url'] ? $sd['url'] : sahel_shop_url();
+            $align = 'al-' . ( $sd['align'] ? $sd['align'] : 'right' );
+            $ovl_style = '--ovl-rgb:' . sahel_rgb_str( $sd['ovl_color'] ) . ';--ovl-o:' . ( (int) $sd['ovl_opacity'] / 100 );
+            $ob .= '<section class="slide" style="' . esc_attr( $ovl_style ) . '"><div class="sb-wrap">';
+            if ( $sd['bgtype'] === 'color' ) {
+                $ob .= '<div class="slide-bg-color" style="background:' . esc_attr( $sd['bgcolor1'] ) . '"></div>';
+            } elseif ( $sd['bgtype'] === 'gradient' ) {
+                $ob .= '<div class="slide-bg-color" style="background:linear-gradient(135deg,' . esc_attr( $sd['bgcolor1'] ) . ',' . esc_attr( $sd['bgcolor2'] ) . ')"></div>';
+            } else {
+                $ob .= '<img class="slide-bg" src="' . esc_url( $sd['img'] ) . '" alt="">';
+            }
+            $ob .= '</div><div class="slide-ovl"></div>';
+            $ob .= '<div class="wrap"><div class="slide-txt ' . esc_attr( $align ) . '">';
+            if ( $sd['pill'] ) { $ob .= '<span class="pill"><i></i>' . esc_html( $sd['pill'] ) . '</span>'; }
+            if ( $sd['t1'] || $sd['t2'] ) {
+                $ob .= '<h1>' . esc_html( $sd['t1'] ) . ( $sd['t1'] && $sd['t2'] ? '<br>' : '' ) . ( $sd['t2'] ? '<span class="grad-text">' . esc_html( $sd['t2'] ) . '</span>' : '' ) . '</h1>';
+            }
+            if ( $sd['desc'] ) { $ob .= '<p>' . esc_html( $sd['desc'] ) . '</p>'; }
+            if ( $sd['btn'] ) { $ob .= '<div class="hero-cta"><a class="btn btn-primary" href="' . esc_url( $url ) . '">' . esc_html( $sd['btn'] ) . '</a></div>'; }
+            $ob .= '</div></div></section>';
+        }
+        $ob .= '</div>';
+        $ob .= '<button class="s-nav s-next" aria-label="بعدی"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>';
+        $ob .= '<button class="s-nav s-prev" aria-label="قبلی"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></button>';
+        $ob .= '<div class="s-dots">';
+        foreach ( $rendered as $i => $sd ) { $ob .= '<button' . ( $i === 0 ? ' class="active"' : '' ) . '></button>'; }
+        $ob .= '</div><div class="s-progress" id="sprog"></div></div>';
     }
-    $ob .= '</div>';
-    $ob .= '<button class="s-nav s-next" aria-label="بعدی"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>';
-    $ob .= '<button class="s-nav s-prev" aria-label="قبلی"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></button>';
-    $ob .= '<div class="s-dots">';
-    foreach ( $rendered as $i => $sd ) { $ob .= '<button' . ( $i === 0 ? ' class="active"' : '' ) . '></button>'; }
-    $ob .= '</div><div class="s-progress" id="sprog"></div></div>';
 
     $parts = array();
 
