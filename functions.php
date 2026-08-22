@@ -155,8 +155,13 @@ add_action( 'after_setup_theme', function() {
    کش رو صریحاً موقع انتشار پاک می‌کنیم. */
 function sahel_purge_all_caches() {
     if ( function_exists( 'wp_cache_flush' ) ) { wp_cache_flush(); }
-    // LiteSpeed Cache (سرور/افزونه LiteSpeed - علامتش هدر Server: LiteSpeed هست)
+    // LiteSpeed Cache - افزونه (اگه نصب باشه)
     do_action( 'litespeed_purge_all' );
+    // LiteSpeed Cache - ماژول سطح سرور (بدون نیاز به افزونه؛ هاست‌هایی که وب‌سرورشون
+    // LiteSpeed هست، کش صفحه رو با همین هدر پاک می‌کنن حتی اگه هیچ افزونه‌ای فعال نباشه)
+    if ( ! headers_sent() ) {
+        header( 'X-LiteSpeed-Purge: *' );
+    }
     // WP Rocket
     if ( function_exists( 'rocket_clean_domain' ) ) { rocket_clean_domain(); }
     // W3 Total Cache
