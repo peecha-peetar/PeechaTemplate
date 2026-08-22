@@ -300,6 +300,7 @@ function sahel_sec( $key ) {
         'btn_text'   => get_theme_mod( 'sahel_sec_' . $key . '_btn_text', '' ),
         'title_size' => (int) get_theme_mod( 'sahel_sec_' . $key . '_title_size', 0 ),
         'sub_size'   => (int) get_theme_mod( 'sahel_sec_' . $key . '_sub_size', 0 ),
+        'padding_x'  => (int) get_theme_mod( 'sahel_sec_' . $key . '_padding_x', 0 ),
     );
 }
 function sahel_sec_head_html( $title, $sub, $extra = '' ) {
@@ -326,6 +327,7 @@ function sahel_sec_bg_attr( $sec ) {
     }
     if ( ! empty( $sec['title_size'] ) ) { $style[] = '--sec-title-fs:' . (int) $sec['title_size'] . 'px'; }
     if ( ! empty( $sec['sub_size'] ) ) { $style[] = '--sec-sub-fs:' . (int) $sec['sub_size'] . 'px'; }
+    if ( ! empty( $sec['padding_x'] ) ) { $style[] = '--sec-px:' . (int) $sec['padding_x'] . 'px'; }
     $class = 'sec-al-' . ( $sec['align'] ? $sec['align'] : 'right' );
     return array( 'class' => $class, 'style' => !empty($style) ? ' style="' . implode(';', $style) . '"' : '', 'overlay' => $overlay );
 }
@@ -401,9 +403,6 @@ add_action( 'customize_register', function( $w ) {
         $w->add_setting( 'sahel_m' . $i . '_val', array( 'default' => $def[2], 'sanitize_callback' => 'sanitize_text_field' ) );
         $w->add_control( 'sahel_m' . $i . '_val', array( 'label' => 'مقدار آیتم ' . sahel_fa( $i ), 'section' => 'sahel_menu' ) );
     }
-    $w->add_setting( 'sahel_mnav_carded', array( 'default' => 0, 'sanitize_callback' => 'absint' ) );
-    $w->add_control( 'sahel_mnav_carded', array( 'label' => '💳 منوی موبایل: سطح آخر کارتی', 'section' => 'sahel_menu', 'type' => 'checkbox' ) );
-
     /* ===== اسلایدر ===== */
     $w->add_section( 'sahel_slider', array( 'title' => '۴. اسلایدر', 'priority' => 30 ) );
     $w->add_setting( 'sahel_slide_count', array( 'default' => 3, 'sanitize_callback' => 'absint' ) );
@@ -606,6 +605,8 @@ add_action( 'customize_register', function( $w ) {
     ) );
     $w->add_setting( 'sahel_marquee_speed', array( 'default' => 26, 'sanitize_callback' => 'absint' ) );
     $w->add_control( 'sahel_marquee_speed', array( 'label' => 'سرعت (ثانیه — کمتر = سریع‌تر)', 'section' => 'sahel_secgrp_marquee', 'type' => 'number', 'input_attrs' => array( 'min' => 10, 'max' => 60 ) ) );
+    $w->add_setting( 'sahel_marquee_dir', array( 'default' => 'rtl', 'sanitize_callback' => 'sanitize_key' ) );
+    $w->add_control( 'sahel_marquee_dir', array( 'label' => '↔ مسیر حرکت', 'section' => 'sahel_secgrp_marquee', 'type' => 'select', 'choices' => array( 'rtl' => 'راست به چپ', 'ltr' => 'چپ به راست' ) ) );
 
     /* ===== بخش‌های صفحه اصلی ===== */
     $w->add_panel( 'sahel_home_panel', array( 'title' => '۱۲. بخش‌های صفحه اصلی', 'description' => 'هر بخش صفحه اصلی، تنظیمات (فعال‌سازی، تیتر، پس‌زمینه، ...) و محتوای اختصاصی خودش را در یک قسمت جداگانه دارد.', 'priority' => 40 ) );
@@ -641,6 +642,8 @@ add_action( 'customize_register', function( $w ) {
         $w->add_control( 'sahel_sec_' . $key . '_title_size', array( 'label' => '🔠 اندازه فونت تیتر (px) — ۰ یعنی پیش‌فرض', 'section' => 'sahel_secgrp_' . $key, 'type' => 'number', 'input_attrs' => array( 'min' => 0, 'max' => 60 ) ) );
         $w->add_setting( 'sahel_sec_' . $key . '_sub_size', array( 'default' => 0, 'sanitize_callback' => 'absint' ) );
         $w->add_control( 'sahel_sec_' . $key . '_sub_size', array( 'label' => '🔠 اندازه فونت زیرتیتر (px) — ۰ یعنی پیش‌فرض', 'section' => 'sahel_secgrp_' . $key, 'type' => 'number', 'input_attrs' => array( 'min' => 0, 'max' => 40 ) ) );
+        $w->add_setting( 'sahel_sec_' . $key . '_padding_x', array( 'default' => 0, 'sanitize_callback' => 'absint' ) );
+        $w->add_control( 'sahel_sec_' . $key . '_padding_x', array( 'label' => '↔ فاصله جانبی (px) — ۰ یعنی پیش‌فرض', 'section' => 'sahel_secgrp_' . $key, 'type' => 'number', 'input_attrs' => array( 'min' => 0, 'max' => 120 ) ) );
     }
     $w->add_setting( 'sahel_about_home_text', array( 'default' => sahel_brand() . ' با یک باور ساده متولد شد.', 'sanitize_callback' => 'sanitize_textarea_field' ) );
     $w->add_control( 'sahel_about_home_text', array( 'label' => 'متن درباره در صفحه اصلی', 'section' => 'sahel_secgrp_about', 'type' => 'textarea' ) );
@@ -749,13 +752,16 @@ function sahel_render_menu_items() {
             $fbimg = 'https://image.qwenlm.ai/public_source/593f1887-5498-4920-ad1d-3f467426cd05/16752e62d-5c58-45c7-891c-b787a0344a6c.png';
             foreach ( sahel_product_cats_tree() as $node ) {
                 $c = $node['term'];
-                $html .= '<div class="dd-group"><a class="dd-card" href="' . esc_url( get_term_link( $c ) ) . '"><img src="' . esc_url( sahel_cat_img( $c, $fbimg ) ) . '" alt=""><span><b>' . esc_html( $c->name ) . '</b><small>' . sahel_num( $c->count ) . '</small></span></a>';
                 if ( ! empty( $node['children'] ) ) {
-                    $html .= '<div class="dd-sub">';
-                    foreach ( $node['children'] as $chnode ) { $cc = $chnode['term']; $html .= '<a class="dd-sublink" href="' . esc_url( get_term_link( $cc ) ) . '">' . esc_html( $cc->name ) . '</a>'; }
-                    $html .= '</div>';
+                    $html .= '<div class="dd-group dd-group-parent"><a class="dd-title" href="' . esc_url( get_term_link( $c ) ) . '">' . esc_html( $c->name ) . '</a><div class="dd-cards">';
+                    foreach ( $node['children'] as $chnode ) {
+                        $cc = $chnode['term'];
+                        $html .= '<a class="dd-card" href="' . esc_url( get_term_link( $cc ) ) . '"><img src="' . esc_url( sahel_cat_img( $cc, $fbimg ) ) . '" alt=""><span><b>' . esc_html( $cc->name ) . '</b><small>' . sahel_num( $cc->count ) . '</small></span></a>';
+                    }
+                    $html .= '</div></div>';
+                } else {
+                    $html .= '<a class="dd-card" href="' . esc_url( get_term_link( $c ) ) . '"><img src="' . esc_url( sahel_cat_img( $c, $fbimg ) ) . '" alt=""><span><b>' . esc_html( $c->name ) . '</b><small>' . sahel_num( $c->count ) . '</small></span></a>';
                 }
-                $html .= '</div>';
             }
             $html .= '<a class="dd-all" href="' . esc_url( sahel_shop_url() ) . '">همه محصولات ←</a></div></div></div>';
         } else {
@@ -888,16 +894,12 @@ body.btnst-soft .btn-primary{background:color-mix(in srgb,var(--c2) 25%,#fff);co
 .dd-all{grid-column:1/-1;text-align:center;color:var(--caramel);font-weight:800;font-size:.8rem;padding:12px;border-top:1px solid var(--line);display:block}
 
 /* v4.5: Submenu - levels as text, only last level as cards */
-.sh-mnav .dd-group{display:flex;flex-direction:column;gap:6px}
-.sh-mnav .dd-group>.dd-card{background:transparent;border:none;padding:8px 12px;font-weight:700;font-size:.95rem}
-.sh-mnav .dd-group>.dd-card:hover{background:color-mix(in srgb,var(--c2) 10%,#fff);transform:none;box-shadow:none}
-.sh-mnav .dd-group>.dd-card img{display:none}
-.sh-mnav .dd-sub{display:flex;flex-wrap:wrap;gap:6px;padding:4px 12px}
-.sh-mnav .dd-sublink{font-size:.72rem;font-weight:700;color:var(--muted);background:color-mix(in srgb,var(--c2) 12%,transparent);padding:5px 12px;border-radius:99px;transition:.25s cubic-bezier(.4,0,.2,1)}
-.sh-mnav .dd-sublink:hover{color:var(--caramel);background:color-mix(in srgb,var(--c2) 22%,transparent);transform:translateX(4px)}
-body.sh-menu-open.mnav-carded .sh-mnav .dd-sub{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;padding:8px}
-body.sh-menu-open.mnav-carded .sh-mnav .dd-sublink{background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px 12px;font-size:.8rem;box-shadow:var(--shadow)}
-body.sh-menu-open.mnav-carded .sh-mnav .dd-sublink:hover{background:var(--cream);border-color:var(--line2);color:var(--ink);transform:translateY(-2px)}
+.dd-group-parent{grid-column:1/-1}
+.dd-title{display:block;font-weight:800;font-size:.82rem;color:var(--muted);padding:6px 12px 8px}
+.dd-title:hover{color:var(--caramel)}
+.dd-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px}
+.sh-mnav .dd-title{color:var(--ink)}
+.sh-mnav .dd-cards{grid-template-columns:repeat(2,1fr)}
 
 .sh-search{position:relative}
 .sh-search form{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.9);border:1px solid var(--line);border-radius:99px;padding:9px 16px;width:230px;box-shadow:var(--shadow);transition:.3s cubic-bezier(.4,0,.2,1)}
@@ -994,16 +996,18 @@ body.hide-m-desc .slide-txt p{display:none}
 /* v4.5: Marquee with multiple effects - LTR (left to right) */
 .marquee{direction:ltr;border-block:1px solid var(--line);background:rgba(255,255,255,.7);overflow:hidden;padding:14px 0}
 .marquee-track{display:flex;width:max-content;animation:marqueeSlide var(--mq-speed,26s) linear infinite}
-.marquee.effect-fade .marquee-track{animation:marqueeFade var(--mq-speed,26s) ease-in-out infinite}
-.marquee.effect-bounce .marquee-track{animation:marqueeBounce var(--mq-speed,26s) ease-in-out infinite}
-.marquee.effect-scale .marquee-track{animation:marqueeScale var(--mq-speed,26s) ease-in-out infinite}
-.marquee.effect-wave .marquee-track{animation:marqueeWave var(--mq-speed,26s) ease-in-out infinite}
+.marquee.dir-ltr .marquee-track{animation-direction:reverse}
+.marquee-track>span{display:inline-block}
+.marquee.effect-fade .marquee-track>span{animation:marqueeFadeLoop 2.2s ease-in-out infinite}
+.marquee.effect-bounce .marquee-track>span{animation:marqueeBounceLoop 1.3s ease-in-out infinite}
+.marquee.effect-scale .marquee-track>span{animation:marqueeScaleLoop 1.7s ease-in-out infinite}
+.marquee.effect-wave .marquee-track>span{animation:marqueeWaveLoop 2s ease-in-out infinite}
 
 @keyframes marqueeSlide{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-@keyframes marqueeFade{0%,100%{opacity:1;transform:translateX(0)}50%{opacity:.6;transform:translateX(-50%)}}
-@keyframes marqueeBounce{0%,100%{transform:translateX(0)}50%{transform:translateX(-50%) translateY(-10px)}}
-@keyframes marqueeScale{0%,100%{transform:translateX(0) scale(1)}50%{transform:translateX(-50%) scale(1.05)}}
-@keyframes marqueeWave{0%{transform:translateX(0) rotate(0)}50%{transform:translateX(-50%) rotate(2deg)}100%{transform:translateX(-100%) rotate(0)}}
+@keyframes marqueeFadeLoop{0%,100%{opacity:1}50%{opacity:.45}}
+@keyframes marqueeBounceLoop{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@keyframes marqueeScaleLoop{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+@keyframes marqueeWaveLoop{0%,100%{transform:rotate(0)}25%{transform:rotate(3deg)}75%{transform:rotate(-3deg)}}
 
 .marquee span{display:flex;gap:26px;padding-inline:13px;font-weight:800;color:var(--mqc);white-space:nowrap;font-size:var(--mqs,.9rem)}
 .marquee b{background:var(--grad);-webkit-background-clip:text;color:transparent}
@@ -1020,6 +1024,7 @@ section.sec-al-left .wrap{text-align:left}
 section.sec-al-left .sec-head{flex-direction:row-reverse}
 section[style*="--sec-title-fs"] .sec-head h2{font-size:var(--sec-title-fs)}
 section[style*="--sec-sub-fs"] .sec-head p{font-size:var(--sec-sub-fs)}
+section[style*="--sec-px"] > .wrap{padding-inline:var(--sec-px)}
 .sec-bg-img{position:absolute;inset:0;background-size:cover;background-position:center;background-repeat:no-repeat;z-index:0;pointer-events:none}
 section>.wrap{position:relative;z-index:1}
 
@@ -1627,9 +1632,6 @@ function sahel_shell( $content ) {
 var $=jQuery;
 var ajaxUrl='<?php echo $ajax_url; ?>';
 var BRAND='<?php echo esc_js( $brand ); ?>';
-if(document.body.classList.contains('sh-menu-open') || <?php echo (int) get_theme_mod( 'sahel_mnav_carded', 0 ); ?>){
-  document.body.classList.add('mnav-carded');
-}
 $(document).on('click','#cartBtn,.bbCart',function(){$('#cartDrawer').addClass('show');$('#overlay').addClass('show');});
 $(document).on('click','#closeCart,#overlay',function(){$('#cartDrawer').removeClass('show');$('#overlay').removeClass('show');});
 $(document).on('click','.dd-toggle',function(e){ if($(window).width()<920 && !$(this).closest('.sh-mnav').length){ e.preventDefault(); $(this).closest('.dd').toggleClass('open'); } });
@@ -1688,7 +1690,7 @@ $(this).find('.slide.active .slide-txt').css('transform','translate('+(x*10)+'px
 $('.slider').on('mouseleave',function(){$(this).find('.slide-bg').css('transform','');$(this).find('.slide-txt').css('transform','');});
 if($sl.length){sgo(0);}
 $(document).on('click','.s-arrow',function(){
-var box=$(this).closest('.wrap').find('ul.products')[0];
+var box=$(this).closest('.wrap').find('ul.products,.cat-grid')[0];
 if(!box)return;
 var dir=$(this).hasClass('next')?-1:1;
 box.scrollBy({left:dir*320,behavior:'smooth'});
@@ -1807,7 +1809,14 @@ function sahel_home_html() {
         $ovl_style = '--ovl-rgb:' . sahel_rgb_str( $sd['ovl_color'] ) . ';--ovl-o:' . ( (int) $sd['ovl_opacity'] / 100 );
         $ob .= '<section class="slide" style="' . esc_attr( $ovl_style ) . '"><div class="sb-wrap"><img class="slide-bg" src="' . esc_url( $sd['img'] ) . '" alt=""></div><div class="slide-ovl"></div>';
         if ( $i === 0 ) { $ob .= '<div class="slide-brand"><img src="' . $logo . '" alt=""><span><b>' . esc_html( $brand ) . '</b><small>' . esc_html( $brand_en ) . '</small></span></div>'; }
-        $ob .= '<div class="wrap"><div class="slide-txt ' . esc_attr( $align ) . '"><span class="pill"><i></i>' . esc_html( $sd['pill'] ) . '</span><h1>' . esc_html( $sd['t1'] ) . '<br><span class="grad-text">' . esc_html( $sd['t2'] ) . '</span></h1><p>' . esc_html( $sd['desc'] ) . '</p><div class="hero-cta"><a class="btn btn-primary" href="' . esc_url( $url ) . '">' . esc_html( $sd['btn'] ) . '</a></div></div></div></section>';
+        $ob .= '<div class="wrap"><div class="slide-txt ' . esc_attr( $align ) . '">';
+        if ( $sd['pill'] ) { $ob .= '<span class="pill"><i></i>' . esc_html( $sd['pill'] ) . '</span>'; }
+        if ( $sd['t1'] || $sd['t2'] ) {
+            $ob .= '<h1>' . esc_html( $sd['t1'] ) . ( $sd['t1'] && $sd['t2'] ? '<br>' : '' ) . ( $sd['t2'] ? '<span class="grad-text">' . esc_html( $sd['t2'] ) . '</span>' : '' ) . '</h1>';
+        }
+        if ( $sd['desc'] ) { $ob .= '<p>' . esc_html( $sd['desc'] ) . '</p>'; }
+        if ( $sd['btn'] ) { $ob .= '<div class="hero-cta"><a class="btn btn-primary" href="' . esc_url( $url ) . '">' . esc_html( $sd['btn'] ) . '</a></div>'; }
+        $ob .= '</div></div></section>';
     }
     $ob .= '</div>';
     $ob .= '<button class="s-nav s-next" aria-label="بعدی"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>';
@@ -1840,7 +1849,8 @@ function sahel_home_html() {
     if ( $sec['on'] ) {
         $mq = get_theme_mod( 'sahel_marquee_text', $brand . ' ✦ ظرافت ✦ آرامش ✦ ضمانت ✦ پیراهن ✦ بافت ✦ ارسال ' );
         $mq_effect = get_theme_mod( 'sahel_marquee_effect', 'slide' );
-        $parts[] = array( $sec['order'], '<div class="marquee effect-' . esc_attr( $mq_effect ) . '"><div class="marquee-track"><span>' . esc_html( $mq ) . '</span><span>' . esc_html( $mq ) . '</span></div></div>' );
+        $mq_dir = get_theme_mod( 'sahel_marquee_dir', 'rtl' ) === 'ltr' ? ' dir-ltr' : '';
+        $parts[] = array( $sec['order'], '<div class="marquee effect-' . esc_attr( $mq_effect ) . $mq_dir . '"><div class="marquee-track"><span>' . esc_html( $mq ) . '</span><span>' . esc_html( $mq ) . '</span></div></div>' );
     }
 
     $sec = sahel_sec( 'cats' );
@@ -1856,7 +1866,7 @@ function sahel_home_html() {
         $h = '<section id="categories"' . ( $sec['full'] ? ' class="sec-full ' . $bg['class'] . '"' : ' class="' . $bg['class'] . '"' ) . $bg['style'] . ( $sec['btn_color'] ? ' data-btn-color="' . esc_attr( $sec['btn_color'] ) . '"' : '' ) . ( $sec['btn_text'] ? ' data-btn-text="' . esc_attr( $sec['btn_text'] ) . '"' : '' ) . '>';
         $h .= $bg['overlay'];
         $h .= '<div class="wrap">';
-        $h .= sahel_sec_head_html( $sec['title'], $sec['sub'], '<a class="sec-link" href="' . esc_url( sahel_shop_url() ) . '">مشاهده همه ←</a>' );
+        $h .= sahel_sec_head_html( $sec['title'], $sec['sub'], '<a class="sec-link" href="' . esc_url( sahel_shop_url() ) . '">مشاهده همه ←</a>' . sahel_arrows() );
         $h .= '<div class="cat-grid">';
         $i = 0;
         foreach ( $cats as $c ) {
