@@ -533,6 +533,9 @@ add_action( 'customize_register', function( $w ) {
     $w->add_setting( 'sahel_postcard', array( 'default' => '1', 'sanitize_callback' => 'sanitize_key' ) );
     $w->add_control( 'sahel_postcard', array( 'label' => 'کارت مقاله', 'section' => 'sahel_styles', 'type' => 'select', 'choices' => array(
         '1' => 'کلاسیک', '2' => 'مینیمال بدون قاب', '3' => 'متن روی تصویر', '4' => 'افقی' ) ) );
+    $w->add_setting( 'sahel_dd_style', array( 'default' => '1', 'sanitize_callback' => 'sanitize_key' ) );
+    $w->add_control( 'sahel_dd_style', array( 'label' => 'دراپ‌داون دسته‌بندی در هدر', 'section' => 'sahel_styles', 'type' => 'select', 'choices' => array(
+        '1' => 'کارتی جمع‌وجور (پیش‌فرض)', '2' => 'ساده فهرستی (بدون تصویر)', '3' => 'شیشه‌ای شناور', '4' => 'گرید ریز دایره‌ای' ) ) );
     $w->add_setting( 'sahel_cat_gap', array( 'default' => 14, 'sanitize_callback' => 'absint' ) );
     $w->add_control( 'sahel_cat_gap', array( 'label' => 'فاصله بین کارت‌های دسته‌بندی (px)', 'section' => 'sahel_styles', 'type' => 'number', 'input_attrs' => array( 'min' => 0, 'max' => 60 ) ) );
     $w->add_setting( 'sahel_prod_gap', array( 'default' => 14, 'sanitize_callback' => 'absint' ) );
@@ -1003,22 +1006,40 @@ body.btnst-soft .btn-primary{background:color-mix(in srgb,var(--c2) 25%,#fff);co
 .dd:hover .dd-toggle svg{transform:rotate(180deg)}
 .dd-menu{position:absolute;top:100%;right:0;left:auto;padding-top:12px;display:none;z-index:70}
 .dd:hover .dd-menu,.dd.open .dd-menu{display:block;animation:appleBlurIn .4s cubic-bezier(.4,0,.2,1)}
-.dd-panel{width:min(840px,92vw);background:color-mix(in srgb,var(--bg) 85%,transparent);backdrop-filter:blur(24px) saturate(1.4);-webkit-backdrop-filter:blur(24px) saturate(1.4);border:1px solid rgba(255,255,255,.8);border-radius:24px;box-shadow:var(--shadow-lg);padding:14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}
-.dd-card{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:18px;border:1px solid transparent;transition:.3s cubic-bezier(.4,0,.2,1);background:rgba(255,255,255,.6)}
-.dd-card:hover{background:#fff;border-color:var(--line2);transform:translateY(-4px) scale(1.02);box-shadow:var(--shadow)}
-.dd-card img{width:52px;height:52px;border-radius:14px;object-fit:cover;border:1px solid var(--line);flex-shrink:0}
-.dd-card span{flex:1;display:flex;flex-direction:column;align-items:flex-end;gap:2px}
-.dd-card b{font-size:.85rem}
-.dd-card small{color:var(--muted);font-size:.68rem}
+.dd-panel{width:min(840px,92vw);max-height:min(66vh,560px);overflow-y:auto;overscroll-behavior:contain;background:color-mix(in srgb,var(--bg) 85%,transparent);backdrop-filter:blur(24px) saturate(1.4);-webkit-backdrop-filter:blur(24px) saturate(1.4);border:1px solid rgba(255,255,255,.8);border-radius:24px;box-shadow:var(--shadow-lg);padding:14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;align-content:start}
+.dd-card{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:15px;border:1px solid transparent;transition:.3s cubic-bezier(.4,0,.2,1);background:rgba(255,255,255,.6)}
+.dd-card:hover{background:#fff;border-color:var(--line2);transform:translateY(-3px) scale(1.02);box-shadow:var(--shadow)}
+.dd-card img{width:38px;height:38px;border-radius:11px;object-fit:cover;border:1px solid var(--line);flex-shrink:0}
+.dd-card span{flex:1;display:flex;flex-direction:column;align-items:flex-end;gap:1px;min-width:0}
+.dd-card b{font-size:.8rem}
+.dd-card small{color:var(--muted);font-size:.66rem}
 .dd-all{grid-column:1/-1;text-align:center;color:var(--caramel);font-weight:800;font-size:.8rem;padding:12px;border-top:1px solid var(--line);display:block}
 
 /* v4.5: Submenu - levels as text, only last level as cards */
 .dd-group-parent{grid-column:1/-1}
 .dd-title{display:block;font-weight:800;font-size:.82rem;color:var(--muted);padding:6px 12px 8px}
 .dd-title:hover{color:var(--caramel)}
-.dd-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px}
+.dd-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
 .sh-mnav .dd-title{color:var(--ink)}
 .sh-mnav .dd-cards{grid-template-columns:repeat(2,1fr)}
+
+/* v4.7: استایل‌های دراپ‌داون دسته‌بندی — کارتی جمع‌وجور (پیش‌فرض)، ساده فهرستی، شیشه‌ای شناور، گرید ریز */
+body.ddst-2 .dd-panel{grid-template-columns:1fr;gap:0;width:min(320px,88vw)}
+body.ddst-2 .dd-cards{grid-template-columns:1fr;gap:0}
+body.ddst-2 .dd-card{border-radius:10px;padding:9px 10px}
+body.ddst-2 .dd-card img{display:none}
+body.ddst-2 .dd-card span{align-items:flex-end}
+body.ddst-2 .dd-card small{display:none}
+body.ddst-3 .dd-panel{background:color-mix(in srgb,var(--bg) 55%,transparent);border-color:rgba(255,255,255,.5);box-shadow:0 24px 60px color-mix(in srgb,var(--c1) 22%,transparent)}
+body.ddst-3 .dd-card{background:color-mix(in srgb,#fff 35%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-radius:99px;padding:7px 14px 7px 7px}
+body.ddst-3 .dd-card img{border-radius:99px}
+body.ddst-3 .dd-card:hover{background:#fff;transform:translateY(-2px) scale(1.03)}
+body.ddst-4 .dd-panel{grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:6px}
+body.ddst-4 .dd-cards{grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:6px}
+body.ddst-4 .dd-card{flex-direction:column;text-align:center;padding:10px 6px;gap:6px;border-radius:14px}
+body.ddst-4 .dd-card img{width:44px;height:44px;border-radius:50%}
+body.ddst-4 .dd-card span{align-items:center;width:100%}
+body.ddst-4 .dd-card small{display:none}
 
 .sh-search{position:relative}
 .sh-search form{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.9);border:1px solid var(--line);border-radius:99px;padding:9px 16px;width:230px;box-shadow:var(--shadow);transition:.3s cubic-bezier(.4,0,.2,1)}
@@ -1660,7 +1681,7 @@ function sahel_shell( $content ) {
     $hide_desc = get_theme_mod( 'sahel_m_hide_desc', 1 ) ? ' hide-m-desc' : '';
     $pd_full = ( function_exists( 'is_product' ) && is_product() && get_theme_mod( 'sahel_product_fullwidth', 0 ) ) ? ' pd-full' : '';
     $bbar_off = sahel_bottombar_active() ? '' : ' bbar-off';
-    $body_cls = 'btnst-' . get_theme_mod( 'sahel_btn_style', 'pill' ) . ' catst-' . get_theme_mod( 'sahel_catcard', '1' ) . ' prodst-' . get_theme_mod( 'sahel_prodcard', '1' ) . ' postst-' . get_theme_mod( 'sahel_postcard', '1' ) . ' hstyle-' . get_theme_mod( 'sahel_header_style', 'classic' ) . $hide_desc . $pd_full . $bbar_off;
+    $body_cls = 'btnst-' . get_theme_mod( 'sahel_btn_style', 'pill' ) . ' catst-' . get_theme_mod( 'sahel_catcard', '1' ) . ' prodst-' . get_theme_mod( 'sahel_prodcard', '1' ) . ' postst-' . get_theme_mod( 'sahel_postcard', '1' ) . ' ddst-' . get_theme_mod( 'sahel_dd_style', '1' ) . ' hstyle-' . get_theme_mod( 'sahel_header_style', 'classic' ) . $hide_desc . $pd_full . $bbar_off;
     $h_img = get_theme_mod( 'sahel_header_image', '' );
     $h_op = (int) get_theme_mod( 'sahel_header_image_opacity', 30 ) / 100;
     $header_img_style = $h_img ? '--header-img:url(' . esc_url( $h_img ) . ');--header-img-op:' . $h_op . ';' : '';
