@@ -9,8 +9,14 @@ $sd = wp_trim_words( wp_strip_all_tags( $product->get_short_description() ), 14 
 <?php echo $product->get_image( 'woocommerce_thumbnail', array( 'loading' => 'lazy' ) ); ?>
 <?php if ( $product->is_on_sale() ) : $br = (float) $product->get_regular_price(); $bs = $product->get_sale_price(); $bp = $br > 0 && $bs !== '' ? round( ( ( $br - $bs ) / $br ) * 100 ) : 0; ?>
 <span class="badge hot"><?php echo sahel_fa( $bp ); ?>٪ تخفیف</span>
-<?php else : $bd = $product->get_date_created(); ?>
-<span class="badge <?php echo ( $bd && $bd->getTimestamp() > time() - 15 * DAY_IN_SECONDS ) ? 'new">جدید' : 'best">' . ( function_exists('sahel_brand_short') ? sahel_brand_short() : 'ساحل' ); ?></span>
+<?php else :
+    $bd = $product->get_date_created();
+    $is_new = $bd && $bd->getTimestamp() > time() - 15 * DAY_IN_SECONDS;
+?>
+<span class="badge <?php echo $is_new ? 'new' : 'best'; ?>"><?php echo $is_new ? 'جدید' : esc_html( sahel_brand_short() ); ?></span>
+<?php endif; ?>
+<?php if ( $product->is_type( 'variable' ) ) : ?>
+<span class="badge variant">دارای گزینه</span>
 <?php endif; ?>
 </a>
 <div class="prod-body">

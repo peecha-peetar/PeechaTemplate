@@ -13,8 +13,8 @@
 <header id="header">
   <div class="wrap header-inner">
     <a class="brand" href="<?php echo esc_url( home_url( '/' ) ); ?>">
-      <img src="<?php echo esc_url( barones_logo_url() ); ?>" alt="لوگو بارونس">
-      <span class="brand-name"><?php bloginfo( 'name' ); ?><small>BARONES SPORT</small></span>
+      <img src="<?php echo esc_url( sahel_logo_url() ); ?>" alt="<?php echo esc_attr( sahel_brand() ); ?>">
+      <span class="brand-name"><?php bloginfo( 'name' ); ?><small><?php echo esc_html( sahel_brand_en() ); ?></small></span>
     </a>
 
     <nav id="nav">
@@ -23,10 +23,9 @@
       <?php else : ?>
         <ul>
           <li><a class="active" href="<?php echo esc_url( home_url( '/' ) ); ?>">خانه</a></li>
-          <li><a href="<?php echo esc_url( home_url( '/' ) ); ?>#categories">دسته‌بندی‌ها</a></li>
-          <li><a href="<?php echo esc_url( home_url( '/' ) ); ?>#shop">فروشگاه</a></li>
-          <li><a href="<?php echo esc_url( home_url( '/' ) ); ?>#offer">پیشنهاد ویژه</a></li>
-          <li><a href="<?php echo esc_url( home_url( '/' ) ); ?>#about">درباره بارونس</a></li>
+          <li><a href="<?php echo esc_url( sahel_shop_url() ); ?>">فروشگاه</a></li>
+          <li><a href="<?php echo esc_url( sahel_page_url( 'about-us' ) ); ?>">درباره ما</a></li>
+          <li><a href="<?php echo esc_url( sahel_page_url( 'contact-us' ) ); ?>">تماس با ما</a></li>
         </ul>
       <?php endif; ?>
     </nav>
@@ -42,10 +41,10 @@
 
       <button class="icon-btn" id="cartBtn" aria-label="سبد خرید">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1.6"/><circle cx="19" cy="21" r="1.6"/><path d="M2 3h3l2.7 12.4A2 2 0 0 0 9.7 17h9.7a2 2 0 0 0 2-1.6L23 7H6"/></svg>
-        <span id="cartCount"><?php echo barones_cart_count(); ?></span>
+        <span id="cartCount"><?php echo sahel_cart_count(); ?></span>
       </button>
 
-      <a class="btn btn-primary login-btn" href="<?php echo esc_url( barones_account_url() ); ?>">
+      <a class="btn btn-primary login-btn" href="<?php echo esc_url( sahel_account_url() ); ?>">
         <?php echo is_user_logged_in() ? 'حساب کاربری' : 'ورود | ثبت‌نام'; ?>
       </a>
 
@@ -57,16 +56,16 @@
 </header>
 
 <div id="overlay"></div>
-<aside id="cartDrawer" aria-label="سبد خرید بارونس">
+<aside id="cartDrawer" aria-label="سبد خرید">
   <div class="cart-head">
-    <h3>سبد خرید بارونس</h3>
+    <h3>سبد خرید <?php echo esc_html( sahel_brand() ); ?></h3>
     <button id="closeCart" aria-label="بستن"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
   </div>
   <div class="drawer-body widget_shopping_cart_content">
     <?php if ( function_exists( 'woocommerce_mini_cart' ) ) { woocommerce_mini_cart(); } else { echo '<p class="woocommerce-mini-cart__empty-message">ووکامرس فعال نیست</p>'; } ?>
   </div>
   <div class="cart-foot">
-    <a class="btn btn-primary" href="<?php echo esc_url( barones_checkout_url() ); ?>">ادامه و پرداخت امن</a>
-    <a class="cart-foot-link" href="<?php echo esc_url( barones_cart_url() ); ?>">مشاهده سبد خرید</a>
+    <a class="btn btn-primary" href="<?php echo esc_url( sahel_checkout_url() ); ?>">ادامه و پرداخت امن</a>
+    <a class="cart-foot-link" href="<?php echo esc_url( sahel_cart_url() ); ?>">مشاهده سبد خرید</a>
   </div>
 </aside>

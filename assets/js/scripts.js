@@ -10,7 +10,7 @@ jQuery(function($){
   $(document).on('click', '#closeCart, #overlay', closeCart);
 
   var toastTimer;
-  function baronesToast(msg){
+  function showToast(msg){
     $('#toastMsg').text(msg);
     $('#toast').addClass('show');
     clearTimeout(toastTimer);
@@ -18,14 +18,14 @@ jQuery(function($){
   }
 
   $(document.body).on('added_to_cart', function(){
-    baronesToast('محصول به سبد خرید بارونس اضافه شد ✔');
+    showToast('محصول به سبد خرید اضافه شد ✔');
     var bubble = $('#cartCount');
     bubble.addClass('bump');
     setTimeout(function(){ bubble.removeClass('bump'); }, 450);
   });
 
   var offerEnd = Date.now() + ((2*24 + 14) * 3600 + 45 * 60 + 30) * 1000;
-  function faDigits(s){ return s.replace(/\d/g, function(d){ return '۰۱۳۴۵۷۸۹'[d]; }); }
+  function faDigits(s){ return s.replace(/\d/g, function(d){ return '۰۱۲۳۴۵۶۷۸۹'[d]; }); }
   function pad2(n){ return String(n).padStart(2, '0'); }
   function tickOffer(){
     if(!$('#cdS').length) return;
@@ -50,7 +50,7 @@ jQuery(function($){
 
   $(document).on('submit', '#newsForm', function(e){
     e.preventDefault();
-    baronesToast('عضویت شما در باشگاه بارونس ثبت شد 🏆');
+    showToast('عضویت شما در باشگاه مشتریان ثبت شد 🏆');
     this.reset();
   });
 });
