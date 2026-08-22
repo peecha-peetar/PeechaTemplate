@@ -849,7 +849,7 @@ function sahel_render_menu_items() {
             elseif ( $type === 'shop' ) { $url = sahel_shop_url(); }
             elseif ( $type === 'url' ) { $url = $val; }
             elseif ( $type === 'page' ) { $url = sahel_page_url( $val ); }
-            else { continue; }
+            else { $url = $val ? $val : '#'; }
             $html .= '<a href="' . esc_url( $url ) . '">' . esc_html( $label ) . '</a>';
         }
     }
