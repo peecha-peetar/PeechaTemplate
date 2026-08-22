@@ -183,6 +183,33 @@ add_action( 'switch_theme', function() {
     sahel_purge_all_caches();
 } );
 
+/* صفحه‌ی تشخیصی موقت: مقدار واقعیِ همین‌الانِ تنظیمات رو مستقیم از پایگاه‌داده نشون می‌ده.
+   چون این صفحه داخل پیش‌خوانه، هیچ‌وقت توسط کش سرور/صفحه ذخیره نمی‌شه؛ پس اگه بعد از
+   زدن «انتشار» مقدار جدید اینجا اومد ولی توی سایت اصلی نیومد، یعنی مشکل از کشه نه ذخیره‌سازی. */
+add_action( 'admin_menu', function() {
+    add_management_page( 'بررسی زنده‌ی تنظیمات قالب', 'بررسی تنظیمات قالب', 'manage_options', 'sahel-live-check', 'sahel_live_check_page' );
+} );
+function sahel_live_check_page() {
+    echo '<div class="wrap"><h1>بررسی زنده‌ی تنظیمات (بدون کش)</h1>';
+    echo '<p>این صفحه همیشه مستقیم از پایگاه‌داده خونده می‌شه و هیچ‌وقت کش نمی‌شه. یه تغییر بده، «انتشار» بزن، بعد همین صفحه رو (F5) تازه‌سازی کن و ببین مقدار جدید اینجا اومده یا نه.</p>';
+    echo '<p><b>زمان همین لحظه‌ی سرور:</b> ' . esc_html( current_time( 'Y-m-d H:i:s' ) ) . '</p>';
+    echo '<table class="widefat striped" style="max-width:820px"><thead><tr><th>تنظیم</th><th>مقدار فعلی در پایگاه‌داده</th></tr></thead><tbody>';
+    echo '<tr><td>نام برند</td><td>' . esc_html( get_theme_mod( 'sahel_brand', '(خالی)' ) ) . '</td></tr>';
+    for ( $i = 1; $i <= 12; $i++ ) {
+        $label = get_theme_mod( 'sahel_m' . $i . '_label', '' );
+        if ( '' === $label ) { continue; }
+        echo '<tr><td>آیتم منوی قالب #' . (int) $i . '</td><td>' . esc_html( $label ) . '</td></tr>';
+    }
+    $locations = get_nav_menu_locations();
+    $primary_name = '(هیچ منویی به موقعیت اصلی نسبت داده نشده)';
+    if ( ! empty( $locations['primary'] ) ) {
+        $menu_obj = wp_get_nav_menu_object( $locations['primary'] );
+        if ( $menu_obj ) { $primary_name = $menu_obj->name; }
+    }
+    echo '<tr><td>منوی وردپرسی (موقعیت اصلی)</td><td>' . esc_html( $primary_name ) . '</td></tr>';
+    echo '</tbody></table></div>';
+}
+
 add_action( 'wp_enqueue_scripts', function() {
     $map = array( 'vazirmatn' => 'vazirmatn', 'tajawal' => 'tajawal', 'cairo' => 'cairo', 'readex' => 'readex-pro', 'almarai' => 'almarai' );
     $f = get_theme_mod( 'sahel_font', 'vazirmatn' );
