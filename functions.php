@@ -1437,6 +1437,8 @@ ul.products li.product{margin:0 !important;width:auto !important;float:none !imp
 .prod-vars span{font-size:.6rem;font-weight:800;color:var(--caramel);background:color-mix(in srgb,var(--c2) 14%,transparent);border-radius:99px;padding:2px 9px}
 .prod-price{flex:1;align-self:flex-end;margin:0}
 .prod-footer{display:contents}
+.prod-notch{display:contents}
+.prod-notch-curve{display:none}
 .prod-price .amount{font-weight:900;font-size:.82rem;color:var(--pricec)}
 .prod-price ins{text-decoration:none;color:var(--pricec);font-weight:900}
 .prod-price del{color:var(--muted);font-size:.62rem;margin-inline-end:6px}
@@ -2808,19 +2810,24 @@ body.prodst-14 .prod-card{border-radius:14px}
 body.prodst-14 .prod-media{border-radius:10px}
 body.prodst-14 .badge{border-radius:0;clip-path:polygon(0 0,100% 0,100% 100%,15% 100%);padding:6px 16px 6px 10px}
 body.prodst-14 .prod-body a.button{border-radius:8px!important}
-body.prodst-15 .prod-card{border:none;box-shadow:none;background:var(--cardbg);border-radius:0}
-body.prodst-15 .prod-media{margin:0;aspect-ratio:1/1;border-radius:24px}
-body.prodst-15 .badge.variant{display:inline-block;top:12px;inset-inline-start:auto;inset-inline-end:12px;background-color:rgba(220,238,255,.9);color:#0d2a4a;font-weight:700;padding:6px 14px;border-radius:20px;border:none;backdrop-filter:blur(4px)}
-body.prodst-15 .prod-body{display:block;padding:16px 8px 8px}
+body.prodst-15 .prod-card{border:1px solid #f3f4f6;box-shadow:0 1px 2px rgba(0,0,0,.05);background:#fff;border-radius:24px}
+body.prodst-15 .prod-media{margin:10px 10px 0;aspect-ratio:9/8;border-radius:16px}
+body.prodst-15 .badge.variant{display:inline-block;top:12px;inset-inline-start:auto;inset-inline-end:12px;background-color:rgba(219,234,254,.9);color:#172554;font-weight:600;font-size:.7rem;padding:6px 12px;border-radius:20px;border:none;backdrop-filter:blur(4px)}
+body.prodst-15 .prod-body{display:block;padding:10px}
 body.prodst-15 .prod-cat,body.prodst-15 .prod-vars{display:none}
-body.prodst-15 .prod-name{width:auto;display:block;font-size:1.05rem;font-weight:800;line-height:1.4;margin-bottom:8px;min-height:0;-webkit-line-clamp:initial;overflow:visible}
+body.prodst-15 .prod-name{width:auto;display:block;font-size:1rem;font-weight:700;line-height:1.4;margin-bottom:4px;min-height:0;-webkit-line-clamp:initial;overflow:visible;color:#0f172a}
+body.prodst-15 .prod-name a{color:inherit}
 body.prodst-15 .prod-name a:hover{color:#1a365d}
-body.prodst-15 .prod-desc{width:auto;color:#a0aec0;font-size:.8rem;line-height:1.6;margin-bottom:16px;min-height:0;font-weight:500}
-body.prodst-15 .prod-footer{display:flex!important;align-items:center;justify-content:space-between}
-body.prodst-15 .prod-price{width:auto;flex:none;align-self:auto;order:2;font-size:1.05rem;font-weight:800;color:#1a202c}
-body.prodst-15 .prod-price .amount{color:#1a202c;font-size:1.05rem}
-body.prodst-15 .prod-body a.button{order:1;position:static!important;display:inline-flex!important;align-items:center;justify-content:center;background-color:transparent!important;border:none!important;box-shadow:none!important;width:26px!important;height:26px!important;background-size:22px!important;background-repeat:no-repeat!important;background-position:center!important;border-radius:0!important;margin:0!important;padding:6px!important}
-body.prodst-15 .prod-body a.button:hover{transform:scale(1.15)}
+body.prodst-15 .prod-desc{width:auto;color:#9ca3af;font-size:.75rem;line-height:1.6;margin-bottom:22px;min-height:0;font-weight:500}
+body.prodst-15 .prod-footer{display:flex!important;align-items:center;justify-content:space-between;position:relative}
+body.prodst-15 .prod-price{width:auto;flex:none;align-self:auto;order:2;display:flex;align-items:baseline;gap:4px}
+body.prodst-15 .prod-price .amount{color:#0f172a;font-size:1.05rem;font-weight:800}
+body.prodst-15 .prod-notch{display:flex!important;align-items:center;justify-content:center;order:1;position:absolute;bottom:-10px;left:-10px;background:#f9fafb;padding:6px;border-radius:0 16px 0 24px}
+body.prodst-15 .prod-notch-curve{display:block;position:absolute;width:16px;height:16px;background:transparent}
+body.prodst-15 .prod-notch-curve-1{top:-16px;left:0;border-radius:0 0 0 12px;box-shadow:-4px 4px 0 0 #f9fafb}
+body.prodst-15 .prod-notch-curve-2{bottom:0;right:-16px;border-radius:0 0 0 12px;box-shadow:-4px 4px 0 0 #f9fafb}
+body.prodst-15 .prod-body a.button{position:relative!important;z-index:1;display:inline-flex!important;align-items:center;justify-content:center;background-color:#fff!important;border:1px solid #f3f4f6!important;box-shadow:0 1px 2px rgba(0,0,0,.05)!important;width:40px!important;height:40px!important;background-size:20px!important;background-repeat:no-repeat!important;background-position:center!important;border-radius:12px!important;margin:0!important;padding:0!important}
+body.prodst-15 .prod-body a.button:hover{background-color:#f3f4f6!important}
 body.prodst-2 .prod-card{border:none;box-shadow:none;background:transparent}
 body.prodst-2 .prod-card:hover{box-shadow:none;transform:none}
 body.prodst-2 .prod-card:hover .prod-media img{transform:scale(1.04)}

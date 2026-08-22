@@ -32,7 +32,11 @@ $sd = wp_trim_words( wp_strip_all_tags( $product->get_short_description() ), 14 
 <?php if ( $sd ) : ?><p class="prod-desc"><?php echo esc_html( $sd ); ?></p><?php endif; ?>
 <div class="prod-footer">
 <div class="prod-price"><?php echo $product->get_price_html(); ?></div>
+<div class="prod-notch">
+<span class="prod-notch-curve prod-notch-curve-1"></span>
+<span class="prod-notch-curve prod-notch-curve-2"></span>
 <?php woocommerce_template_loop_add_to_cart(); ?>
+</div>
 </div>
 </div>
 </article>
