@@ -16,7 +16,7 @@ $sd = wp_trim_words( wp_strip_all_tags( $product->get_short_description() ), 14 
 <span class="badge <?php echo $is_new ? 'new' : 'best'; ?>"><?php echo $is_new ? 'جدید' : esc_html( sahel_brand_short() ); ?></span>
 <?php endif; ?>
 <?php if ( $product->is_type( 'variable' ) ) : ?>
-<span class="badge variant">دارای رنگ‌بندی</span>
+<span class="badge variant">دارای گزینه</span>
 <?php endif; ?>
 </a>
 <div class="prod-body">
