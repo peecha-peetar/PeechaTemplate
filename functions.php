@@ -1436,6 +1436,7 @@ ul.products li.product{margin:0 !important;width:auto !important;float:none !imp
 .prod-vars{width:100%;display:flex;flex-wrap:wrap;gap:4px;margin-top:2px}
 .prod-vars span{font-size:.6rem;font-weight:800;color:var(--caramel);background:color-mix(in srgb,var(--c2) 14%,transparent);border-radius:99px;padding:2px 9px}
 .prod-price{flex:1;align-self:flex-end;margin:0}
+.prod-footer{display:contents}
 .prod-price .amount{font-weight:900;font-size:.82rem;color:var(--pricec)}
 .prod-price ins{text-decoration:none;color:var(--pricec);font-weight:900}
 .prod-price del{color:var(--muted);font-size:.62rem;margin-inline-end:6px}
@@ -2807,16 +2808,19 @@ body.prodst-14 .prod-card{border-radius:14px}
 body.prodst-14 .prod-media{border-radius:10px}
 body.prodst-14 .badge{border-radius:0;clip-path:polygon(0 0,100% 0,100% 100%,15% 100%);padding:6px 16px 6px 10px}
 body.prodst-14 .prod-body a.button{border-radius:8px!important}
-body.prodst-15 .prod-card{border:none;box-shadow:var(--shadow);border-radius:26px;overflow:visible}
-body.prodst-15 .prod-media{margin:0;border-radius:26px 26px 0 0}
-body.prodst-15 .prod-body{padding:14px 16px 26px}
+body.prodst-15 .prod-card{border:none;box-shadow:none;background:var(--cardbg);border-radius:0}
+body.prodst-15 .prod-media{margin:0;aspect-ratio:1/1;border-radius:24px}
+body.prodst-15 .badge.variant{display:inline-block;top:12px;inset-inline-start:auto;inset-inline-end:12px;background-color:rgba(220,238,255,.9);color:#0d2a4a;font-weight:700;padding:6px 14px;border-radius:20px;border:none;backdrop-filter:blur(4px)}
+body.prodst-15 .prod-body{display:block;padding:16px 8px 8px}
 body.prodst-15 .prod-cat,body.prodst-15 .prod-vars{display:none}
-body.prodst-15 .prod-name{font-size:.88rem;margin-bottom:2px}
-body.prodst-15 .prod-desc{-webkit-line-clamp:2;min-height:0}
-body.prodst-15 .prod-price{width:100%;margin-top:2px}
-body.prodst-15 .prod-body a.button{position:absolute!important;bottom:-16px!important;inset-inline-start:16px!important;margin:0!important;width:42px!important;height:42px!important;border-radius:50%!important;background-color:color-mix(in srgb,var(--cream) 55%,#fff)!important;border:1px solid var(--line)!important;box-shadow:0 4px 14px color-mix(in srgb,var(--ink) 18%,transparent)!important}
-body.prodst-15 .prod-body a.button:hover{transform:translateY(-4px)!important}
-body.prodst-15 .badge.variant{display:inline-block;background:color-mix(in srgb,#2f6fed 12%,#fff);color:#2f6fed;border:1px solid color-mix(in srgb,#2f6fed 30%,transparent)}
+body.prodst-15 .prod-name{width:auto;display:block;font-size:1.05rem;font-weight:800;line-height:1.4;margin-bottom:8px;min-height:0;-webkit-line-clamp:initial;overflow:visible}
+body.prodst-15 .prod-name a:hover{color:#1a365d}
+body.prodst-15 .prod-desc{width:auto;color:#a0aec0;font-size:.8rem;line-height:1.6;margin-bottom:16px;min-height:0;font-weight:500}
+body.prodst-15 .prod-footer{display:flex!important;align-items:center;justify-content:space-between}
+body.prodst-15 .prod-price{width:auto;flex:none;align-self:auto;order:2;font-size:1.05rem;font-weight:800;color:#1a202c}
+body.prodst-15 .prod-price .amount{color:#1a202c;font-size:1.05rem}
+body.prodst-15 .prod-body a.button{order:1;position:static!important;display:inline-flex!important;align-items:center;justify-content:center;background-color:transparent!important;border:none!important;box-shadow:none!important;width:26px!important;height:26px!important;background-size:22px!important;background-repeat:no-repeat!important;background-position:center!important;border-radius:0!important;margin:0!important;padding:6px!important}
+body.prodst-15 .prod-body a.button:hover{transform:scale(1.15)}
 body.prodst-2 .prod-card{border:none;box-shadow:none;background:transparent}
 body.prodst-2 .prod-card:hover{box-shadow:none;transform:none}
 body.prodst-2 .prod-card:hover .prod-media img{transform:scale(1.04)}

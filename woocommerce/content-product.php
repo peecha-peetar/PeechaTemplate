@@ -30,8 +30,10 @@ $sd = wp_trim_words( wp_strip_all_tags( $product->get_short_description() ), 14 
 </div>
 <?php endif; ?>
 <?php if ( $sd ) : ?><p class="prod-desc"><?php echo esc_html( $sd ); ?></p><?php endif; ?>
+<div class="prod-footer">
 <div class="prod-price"><?php echo $product->get_price_html(); ?></div>
 <?php woocommerce_template_loop_add_to_cart(); ?>
+</div>
 </div>
 </article>
 </li>
