@@ -2807,14 +2807,15 @@ body.prodst-14 .prod-card{border-radius:14px}
 body.prodst-14 .prod-media{border-radius:10px}
 body.prodst-14 .badge{border-radius:0;clip-path:polygon(0 0,100% 0,100% 100%,15% 100%);padding:6px 16px 6px 10px}
 body.prodst-14 .prod-body a.button{border-radius:8px!important}
-body.prodst-15 .prod-card{border:none;box-shadow:var(--shadow);border-radius:26px;overflow:hidden}
-body.prodst-15 .prod-media{margin:0;border-radius:0;aspect-ratio:3/4}
-body.prodst-15 .prod-body{padding:14px 16px 16px;align-items:center}
-body.prodst-15 .prod-cat,body.prodst-15 .prod-desc,body.prodst-15 .prod-vars{display:none}
+body.prodst-15 .prod-card{border:none;box-shadow:var(--shadow);border-radius:26px;overflow:visible}
+body.prodst-15 .prod-media{margin:0;border-radius:26px 26px 0 0}
+body.prodst-15 .prod-body{padding:14px 16px 26px}
+body.prodst-15 .prod-cat,body.prodst-15 .prod-vars{display:none}
 body.prodst-15 .prod-name{font-size:.88rem;margin-bottom:2px}
-body.prodst-15 .prod-price{align-self:center}
-body.prodst-15 .prod-body a.button{background-color:transparent!important;border:1.5px solid var(--line2)!important;border-radius:50%!important}
-body.prodst-15 .prod-body a.button:hover{background-color:var(--c1)!important}
+body.prodst-15 .prod-desc{-webkit-line-clamp:2;min-height:0}
+body.prodst-15 .prod-price{width:100%;margin-top:2px}
+body.prodst-15 .prod-body a.button{position:absolute!important;bottom:-16px!important;inset-inline-start:16px!important;margin:0!important;width:46px!important;height:46px!important;border-radius:50%!important;background-color:color-mix(in srgb,var(--cream) 55%,#fff)!important;border:1px solid var(--line)!important;box-shadow:var(--shadow-lg)!important}
+body.prodst-15 .prod-body a.button:hover{transform:translateY(-4px)!important}
 body.prodst-15 .badge.variant{display:inline-block;background:color-mix(in srgb,#2f6fed 12%,#fff);color:#2f6fed;border:1px solid color-mix(in srgb,#2f6fed 30%,transparent)}
 body.prodst-2 .prod-card{border:none;box-shadow:none;background:transparent}
 body.prodst-2 .prod-card:hover{box-shadow:none;transform:none}
