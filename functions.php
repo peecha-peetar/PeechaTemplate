@@ -198,7 +198,9 @@ function sahel_live_check_page() {
     for ( $i = 1; $i <= 12; $i++ ) {
         $label = get_theme_mod( 'sahel_m' . $i . '_label', '' );
         if ( '' === $label ) { continue; }
-        echo '<tr><td>آیتم منوی قالب #' . (int) $i . '</td><td>' . esc_html( $label ) . '</td></tr>';
+        $type = get_theme_mod( 'sahel_m' . $i . '_type', '' );
+        $val  = get_theme_mod( 'sahel_m' . $i . '_val', '' );
+        echo '<tr><td>آیتم منوی قالب #' . (int) $i . '</td><td>عنوان: ' . esc_html( $label ) . '<br>نوع: <b>' . esc_html( $type ?: '(خالی!)' ) . '</b><br>مقدار: ' . esc_html( $val ?: '(خالی)' ) . '</td></tr>';
     }
     $locations = get_nav_menu_locations();
     $primary_name = '(هیچ منویی به موقعیت اصلی نسبت داده نشده)';
