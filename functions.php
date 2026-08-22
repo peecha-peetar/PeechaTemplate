@@ -2814,7 +2814,7 @@ body.prodst-15 .prod-cat,body.prodst-15 .prod-vars{display:none}
 body.prodst-15 .prod-name{font-size:.88rem;margin-bottom:2px}
 body.prodst-15 .prod-desc{-webkit-line-clamp:2;min-height:0}
 body.prodst-15 .prod-price{width:100%;margin-top:2px}
-body.prodst-15 .prod-body a.button{position:absolute!important;bottom:-16px!important;inset-inline-start:16px!important;margin:0!important;width:46px!important;height:46px!important;border-radius:50%!important;background-color:color-mix(in srgb,var(--cream) 55%,#fff)!important;border:1px solid var(--line)!important;box-shadow:var(--shadow-lg)!important}
+body.prodst-15 .prod-body a.button{position:absolute!important;bottom:-16px!important;inset-inline-start:16px!important;margin:0!important;width:42px!important;height:42px!important;border-radius:50%!important;background-color:color-mix(in srgb,var(--cream) 55%,#fff)!important;border:1px solid var(--line)!important;box-shadow:0 4px 14px color-mix(in srgb,var(--ink) 18%,transparent)!important}
 body.prodst-15 .prod-body a.button:hover{transform:translateY(-4px)!important}
 body.prodst-15 .badge.variant{display:inline-block;background:color-mix(in srgb,#2f6fed 12%,#fff);color:#2f6fed;border:1px solid color-mix(in srgb,#2f6fed 30%,transparent)}
 body.prodst-2 .prod-card{border:none;box-shadow:none;background:transparent}
