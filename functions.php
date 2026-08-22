@@ -599,7 +599,8 @@ add_action( 'customize_register', function( $w ) {
     $w->add_control( 'sahel_prodcard', array( 'label' => 'کارت محصول', 'section' => 'sahel_styles', 'type' => 'select', 'choices' => array(
         '1' => 'کلاسیک', '2' => 'مینیمال', '3' => 'خط رنگی', '4' => 'شیشه‌ای تیره', '5' => 'شیشه‌ای روشن', '6' => 'نئون', '7' => 'مجله‌ای',
         '8' => '✨ شیشه‌ای مدرن', '9' => '🌙 نئون درخشان', '10' => '⚡ درخشش عبوری', '11' => '🎯 سه‌بعدی Tilt',
-        '12' => '🛒 سبد شناور گوشه‌ای', '13' => '🎨 مسطح مدرن', '14' => '🏷 برچسب گوشه‌بریده' ) ) );
+        '12' => '🛒 سبد شناور گوشه‌ای', '13' => '🎨 مسطح مدرن', '14' => '🏷 برچسب گوشه‌بریده',
+        '15' => '🔵 مینیمال با بج رنگ‌بندی و دکمه دایره‌ای' ) ) );
     $w->add_setting( 'sahel_postcard', array( 'default' => '1', 'sanitize_callback' => 'sanitize_key' ) );
     $w->add_control( 'sahel_postcard', array( 'label' => 'کارت مقاله', 'section' => 'sahel_styles', 'type' => 'select', 'choices' => array(
         '1' => 'کلاسیک', '2' => 'مینیمال بدون قاب', '3' => 'متن روی تصویر', '4' => 'افقی',
@@ -887,6 +888,29 @@ add_action( 'customize_register', function( $w ) {
     $w->add_control( 'sahel_fab_bale', array( 'label' => 'بله', 'section' => 'sahel_fab' ) );
     $w->add_setting( 'sahel_fab_instagram', array( 'default' => '', 'sanitize_callback' => 'esc_url_raw' ) );
     $w->add_control( 'sahel_fab_instagram', array( 'label' => 'اینستاگرام', 'section' => 'sahel_fab' ) );
+
+    /* ===== تبلیغ شناور گوشه سایت ===== */
+    $w->add_section( 'sahel_promo', array( 'title' => '۱۵. تبلیغ شناور گوشه سایت', 'priority' => 44 ) );
+    $w->add_setting( 'sahel_promo_on', array( 'default' => 0, 'sanitize_callback' => 'absint' ) );
+    $w->add_control( 'sahel_promo_on', array( 'label' => '✔ نمایش تبلیغ شناور', 'section' => 'sahel_promo', 'type' => 'checkbox' ) );
+    $w->add_setting( 'sahel_promo_img', array( 'default' => '', 'sanitize_callback' => 'esc_url_raw' ) );
+    $w->add_control( new WP_Customize_Image_Control( $w, 'sahel_promo_img', array( 'label' => 'تصویر تبلیغ', 'section' => 'sahel_promo' ) ) );
+    $w->add_setting( 'sahel_promo_title', array( 'default' => '', 'sanitize_callback' => 'sanitize_text_field' ) );
+    $w->add_control( 'sahel_promo_title', array( 'label' => 'متن/عنوان تبلیغ', 'section' => 'sahel_promo' ) );
+    $w->add_setting( 'sahel_promo_link', array( 'default' => '', 'sanitize_callback' => 'esc_url_raw' ) );
+    $w->add_control( 'sahel_promo_link', array( 'label' => 'لینک مقصد', 'section' => 'sahel_promo' ) );
+    $w->add_setting( 'sahel_promo_pos', array( 'default' => 'br', 'sanitize_callback' => 'sanitize_key' ) );
+    $w->add_control( 'sahel_promo_pos', array( 'label' => '📍 موقعیت', 'section' => 'sahel_promo', 'type' => 'select', 'choices' => array(
+        'bl' => 'پایین چپ', 'br' => 'پایین راست', 'tl' => 'بالا چپ', 'tr' => 'بالا راست' ) ) );
+    $w->add_setting( 'sahel_promo_style', array( 'default' => 'card', 'sanitize_callback' => 'sanitize_key' ) );
+    $w->add_control( 'sahel_promo_style', array( 'label' => '🎨 طراحی', 'section' => 'sahel_promo', 'type' => 'select', 'choices' => array(
+        'card' => 'کارتی با سایه', 'circle' => 'دایره‌ای کوچک', 'ribbon' => 'روبان مورب گوشه', 'overlay' => 'تمام‌عکس با گرادیانت' ) ) );
+    $w->add_setting( 'sahel_promo_size', array( 'default' => 130, 'sanitize_callback' => 'absint' ) );
+    $w->add_control( 'sahel_promo_size', array( 'label' => '📐 اندازه تصویر (px)', 'section' => 'sahel_promo', 'type' => 'number', 'input_attrs' => array( 'min' => 50, 'max' => 320 ) ) );
+    $w->add_setting( 'sahel_promo_font_size', array( 'default' => 13, 'sanitize_callback' => 'absint' ) );
+    $w->add_control( 'sahel_promo_font_size', array( 'label' => '🔠 اندازه فونت متن (px)', 'section' => 'sahel_promo', 'type' => 'number', 'input_attrs' => array( 'min' => 9, 'max' => 28 ) ) );
+    $w->add_setting( 'sahel_promo_closable', array( 'default' => 1, 'sanitize_callback' => 'absint' ) );
+    $w->add_control( 'sahel_promo_closable', array( 'label' => '✖ دکمه بستن داشته باشد (و تا پایان جلسه مرورگر دوباره نمایش داده نشود)', 'section' => 'sahel_promo', 'type' => 'checkbox' ) );
 
     /* ===== محتوای بخش‌های جدید ===== */
     $w->add_setting( 'sahel_campaign_btn', array( 'default' => 'مشاهده کالکشن', 'sanitize_callback' => 'sanitize_text_field' ) );
@@ -1403,6 +1427,7 @@ ul.products li.product{margin:0 !important;width:auto !important;float:none !imp
 .badge{position:absolute;top:8px;inset-inline-start:8px;padding:4px 10px;border-radius:99px;font-size:.62rem;font-weight:800;z-index:2;backdrop-filter:blur(6px)}
 .badge.hot{background:color-mix(in srgb,var(--cream) 70%,#fff);color:var(--hot);border:1px solid color-mix(in srgb,var(--hot) 35%,transparent)}
 .badge.new,.badge.best{background:color-mix(in srgb,var(--cream) 50%,#fff);color:color-mix(in srgb,var(--c1) 80%,#000);border:1px solid color-mix(in srgb,var(--c1) 40%,transparent)}
+.badge.variant{display:none}
 .prod-body{padding:8px 12px 12px;display:flex;flex-wrap:wrap;gap:4px;flex:1;position:relative;z-index:2}
 .prod-cat{width:100%;color:var(--caramel);font-size:.6rem;font-weight:800}
 .prod-name{width:100%;font-weight:800;font-size:.78rem;line-height:1.6;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.5em}
@@ -1873,6 +1898,64 @@ echo '<style id="sahel-fab-css">
 </style>';
 }, 97 );
 
+/* تبلیغ شناور گوشه سایت — موقعیت/طراحی/اندازه تصویر/فونت همه از تنظیمات قابل تغییرن */
+function sahel_promo_render() {
+    if ( ! get_theme_mod( 'sahel_promo_on', 0 ) ) { return; }
+    $img = get_theme_mod( 'sahel_promo_img', '' );
+    if ( ! $img ) { return; }
+    $title = get_theme_mod( 'sahel_promo_title', '' );
+    $link = get_theme_mod( 'sahel_promo_link', '' );
+    if ( ! $link ) { $link = '#'; }
+    $pos = get_theme_mod( 'sahel_promo_pos', 'br' );
+    $style = get_theme_mod( 'sahel_promo_style', 'card' );
+    $size = (int) get_theme_mod( 'sahel_promo_size', 130 );
+    $fs = (int) get_theme_mod( 'sahel_promo_font_size', 13 );
+    $closable = get_theme_mod( 'sahel_promo_closable', 1 );
+    $ext = ( strpos( $link, 'http' ) === 0 ) ? ' target="_blank" rel="noopener"' : '';
+    $tip = '';
+    if ( $style === 'circle' && $title ) {
+        $tip_pos = in_array( $pos, array( 'bl', 'tl' ), true ) ? 'right' : 'left';
+        $tip = ' data-tip="' . esc_attr( $title ) . '" data-tip-pos="' . $tip_pos . '"';
+    }
+    echo '<div class="promo-float pos-' . esc_attr( $pos ) . ' style-' . esc_attr( $style ) . '" id="sahelPromo" style="--promo-size:' . $size . 'px;--promo-fs:' . $fs . 'px">';
+    echo '<a class="promo-link" href="' . esc_url( $link ) . '"' . $ext . $tip . '>';
+    echo '<img src="' . esc_url( $img ) . '" alt="">';
+    if ( $title && $style !== 'circle' ) { echo '<span class="promo-cap">' . esc_html( $title ) . '</span>'; }
+    echo '</a>';
+    if ( $closable ) { echo '<button class="promo-close" aria-label="بستن" data-tip="بستن" data-tip-style="light">&times;</button>'; }
+    echo '</div>';
+}
+add_action( 'wp_head', function() {
+echo '<style id="sahel-promo-css">
+.promo-float{position:fixed;z-index:84}
+.promo-float.pos-bl{bottom:24px;left:24px}
+.promo-float.pos-br{bottom:24px;right:24px}
+.promo-float.pos-tl{top:100px;left:24px}
+.promo-float.pos-tr{top:100px;right:24px}
+.promo-link{display:block;transition:.3s cubic-bezier(.4,0,.2,1)}
+.promo-close{position:absolute;top:-10px;inset-inline-end:-10px;width:26px;height:26px;border-radius:50%;background:#fff;border:1px solid var(--line);box-shadow:var(--shadow);display:grid;place-items:center;font-size:16px;line-height:1;color:var(--ink);cursor:pointer;z-index:2;padding:0}
+.promo-close:hover{background:var(--ink);color:#fff}
+.promo-float.style-card .promo-link{display:flex;flex-direction:column;background:#fff;border-radius:18px;box-shadow:var(--shadow-lg);overflow:hidden;width:var(--promo-size,130px)}
+.promo-float.style-card .promo-link img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block}
+.promo-float.style-card .promo-cap{padding:8px 10px;font-size:var(--promo-fs,13px);font-weight:800;color:var(--ink);text-align:center}
+.promo-float.style-card .promo-link:hover{transform:translateY(-4px)}
+.promo-float.style-circle .promo-link{width:var(--promo-size,130px);height:var(--promo-size,130px);border-radius:50%;overflow:hidden;box-shadow:var(--shadow-lg);border:3px solid #fff}
+.promo-float.style-circle .promo-link img{width:100%;height:100%;object-fit:cover;display:block}
+.promo-float.style-circle .promo-link:hover{transform:scale(1.08)}
+.promo-float.style-ribbon .promo-link{display:flex;align-items:center;gap:8px;background:var(--grad);color:#fff;padding:10px 16px;border-radius:99px;box-shadow:var(--shadow-lg);width:var(--promo-size,130px)}
+.promo-float.style-ribbon .promo-link img{width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0}
+.promo-float.style-ribbon .promo-cap{font-size:var(--promo-fs,13px);font-weight:800;line-height:1.4}
+.promo-float.style-ribbon .promo-link:hover{transform:translateY(-3px)}
+.promo-float.style-overlay .promo-link{position:relative;width:var(--promo-size,130px);border-radius:18px;overflow:hidden;box-shadow:var(--shadow-lg)}
+.promo-float.style-overlay .promo-link img{width:100%;aspect-ratio:3/4;object-fit:cover;display:block}
+.promo-float.style-overlay .promo-cap{position:absolute;bottom:0;inset-inline:0;padding:16px 12px 12px;background:linear-gradient(to top,rgba(0,0,0,.82),transparent);color:#fff;font-size:var(--promo-fs,13px);font-weight:800}
+.promo-float.style-overlay .promo-link:hover img{transform:scale(1.06)}
+@media(max-width:920px){
+.promo-float.pos-bl,.promo-float.pos-br{bottom:calc(88px + env(safe-area-inset-bottom))}
+}
+</style>';
+}, 97 );
+
 /* Shell, home, engine functions - same as v4.4 with fixes */
 function sahel_shell( $content ) {
     $logo = esc_url( sahel_logo_url() );
@@ -1967,6 +2050,7 @@ function sahel_shell( $content ) {
 </footer>
 <?php sahel_bottombar_render(); ?>
 <?php sahel_fab_render(); ?>
+<?php sahel_promo_render(); ?>
 <div class="sh-searchover" id="shSearchOver">
 <div class="so-box">
 <button class="so-close" aria-label="بستن" data-tip="بستن" data-tip-style="light"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
@@ -1987,6 +2071,8 @@ var BRAND='<?php echo esc_js( $brand ); ?>';
 $(document).on('click','#cartBtn,.bbCart',function(){$('#cartDrawer').addClass('show');$('#overlay').addClass('show');});
 $(document).on('click','#closeCart,#overlay',function(){$('#cartDrawer').removeClass('show');$('#overlay').removeClass('show');});
 $(document).on('click','.dd-toggle',function(e){ if($(window).width()<920 && !$(this).closest('.sh-mnav').length){ e.preventDefault(); $(this).closest('.dd').toggleClass('open'); } });
+(function(){ try{ if(sessionStorage.getItem('sahelPromoClosed')==='1'){ $('#sahelPromo').hide(); } }catch(e){} })();
+$(document).on('click','.promo-close',function(e){ e.preventDefault(); $(this).closest('.promo-float').fadeOut(200); try{ sessionStorage.setItem('sahelPromoClosed','1'); }catch(e){} });
 var ddCloseTimer=null;
 $(document).on('mouseenter','.bnav>.dd',function(){ if($(window).width()<920) return; clearTimeout(ddCloseTimer); $('.bnav>.dd.open').not(this).removeClass('open'); $(this).addClass('open'); });
 $(document).on('mouseleave','.bnav>.dd',function(){ if($(window).width()<920) return; var el=this; ddCloseTimer=setTimeout(function(){ $(el).removeClass('open'); },250); });
@@ -2721,6 +2807,15 @@ body.prodst-14 .prod-card{border-radius:14px}
 body.prodst-14 .prod-media{border-radius:10px}
 body.prodst-14 .badge{border-radius:0;clip-path:polygon(0 0,100% 0,100% 100%,15% 100%);padding:6px 16px 6px 10px}
 body.prodst-14 .prod-body a.button{border-radius:8px!important}
+body.prodst-15 .prod-card{border:none;box-shadow:var(--shadow);border-radius:26px;overflow:hidden}
+body.prodst-15 .prod-media{margin:0;border-radius:0;aspect-ratio:3/4}
+body.prodst-15 .prod-body{padding:14px 16px 16px;align-items:center}
+body.prodst-15 .prod-cat,body.prodst-15 .prod-desc,body.prodst-15 .prod-vars{display:none}
+body.prodst-15 .prod-name{font-size:.88rem;margin-bottom:2px}
+body.prodst-15 .prod-price{align-self:center}
+body.prodst-15 .prod-body a.button{background-color:transparent!important;border:1.5px solid var(--line2)!important;border-radius:50%!important}
+body.prodst-15 .prod-body a.button:hover{background-color:var(--c1)!important}
+body.prodst-15 .badge.variant{display:inline-block;background:color-mix(in srgb,#2f6fed 12%,#fff);color:#2f6fed;border:1px solid color-mix(in srgb,#2f6fed 30%,transparent)}
 body.prodst-2 .prod-card{border:none;box-shadow:none;background:transparent}
 body.prodst-2 .prod-card:hover{box-shadow:none;transform:none}
 body.prodst-2 .prod-card:hover .prod-media img{transform:scale(1.04)}
