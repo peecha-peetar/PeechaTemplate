@@ -392,6 +392,11 @@ function sahel_sec( $key ) {
         'text_color'  => get_theme_mod( 'sahel_sec_' . $key . '_text_color', '' ),
         'hover_color' => get_theme_mod( 'sahel_sec_' . $key . '_hover_color', '' ),
         'height'      => (int) get_theme_mod( 'sahel_sec_' . $key . '_height', 0 ),
+        'height_m'    => (int) get_theme_mod( 'sahel_sec_' . $key . '_height_m', 0 ),
+        'padding_x_m' => (int) get_theme_mod( 'sahel_sec_' . $key . '_padding_x_m', 0 ),
+        'hide_mobile'  => (int) get_theme_mod( 'sahel_sec_' . $key . '_hide_mobile', 0 ),
+        'hide_tablet'  => (int) get_theme_mod( 'sahel_sec_' . $key . '_hide_tablet', 0 ),
+        'hide_desktop' => (int) get_theme_mod( 'sahel_sec_' . $key . '_hide_desktop', 0 ),
     );
 }
 function sahel_sec_head_html( $title, $sub, $extra = '' ) {
@@ -423,7 +428,12 @@ function sahel_sec_bg_attr( $sec ) {
     if ( ! empty( $sec['text_color'] ) ) { $style[] = '--sec-text-color:' . esc_attr( $sec['text_color'] ); }
     if ( ! empty( $sec['hover_color'] ) ) { $style[] = '--sec-hover-color:' . esc_attr( $sec['hover_color'] ); }
     if ( ! empty( $sec['height'] ) ) { $style[] = '--sec-min-h:' . (int) $sec['height'] . 'px'; }
+    if ( ! empty( $sec['height_m'] ) ) { $style[] = '--sec-min-h-m:' . (int) $sec['height_m'] . 'px'; }
+    if ( ! empty( $sec['padding_x_m'] ) ) { $style[] = '--sec-px-m:' . (int) $sec['padding_x_m'] . 'px'; }
     $class = 'sec-al-' . ( $sec['align'] ? $sec['align'] : 'right' );
+    if ( ! empty( $sec['hide_mobile'] ) ) { $class .= ' hide-m'; }
+    if ( ! empty( $sec['hide_tablet'] ) ) { $class .= ' hide-t'; }
+    if ( ! empty( $sec['hide_desktop'] ) ) { $class .= ' hide-d'; }
     return array( 'class' => $class, 'style' => !empty($style) ? ' style="' . implode(';', $style) . '"' : '', 'overlay' => $overlay );
 }
 
@@ -466,6 +476,10 @@ add_action( 'customize_register', function( $w ) {
     $w->add_control( new WP_Customize_Color_Control( $w, 'sahel_topbar_bg', array( 'label' => 'رنگ پس‌زمینه نوار اطلاعیه', 'section' => 'sahel_header' ) ) );
     $w->add_setting( 'sahel_topbar_color', array( 'default' => '#ffffff', 'sanitize_callback' => 'sanitize_hex_color' ) );
     $w->add_control( new WP_Customize_Color_Control( $w, 'sahel_topbar_color', array( 'label' => 'رنگ متن نوار اطلاعیه', 'section' => 'sahel_header' ) ) );
+    $w->add_setting( 'sahel_topbar_hide_mobile', array( 'default' => 0, 'sanitize_callback' => 'absint' ) );
+    $w->add_control( 'sahel_topbar_hide_mobile', array( 'label' => '🚫 پنهان در موبایل', 'section' => 'sahel_header', 'type' => 'checkbox' ) );
+    $w->add_setting( 'sahel_topbar_hide_tablet', array( 'default' => 0, 'sanitize_callback' => 'absint' ) );
+    $w->add_control( 'sahel_topbar_hide_tablet', array( 'label' => '🚫 پنهان در تبلت', 'section' => 'sahel_header', 'type' => 'checkbox' ) );
 
     $fonts = array( 'vazirmatn' => 'وزیرمتن', 'tajawal' => 'تجوال', 'cairo' => 'قاهره', 'readex' => 'ریدکس پرو', 'almarai' => 'المرای' );
     $w->add_setting( 'sahel_header_font', array( 'default' => '', 'sanitize_callback' => 'sanitize_key' ) );
@@ -517,6 +531,14 @@ add_action( 'customize_register', function( $w ) {
     $w->add_control( 'sahel_slide_height', array( 'label' => 'ارتفاع اسلاید دسکتاپ', 'section' => 'sahel_slider', 'type' => 'number' ) );
     $w->add_setting( 'sahel_slide_height_m', array( 'default' => 480, 'sanitize_callback' => 'absint' ) );
     $w->add_control( 'sahel_slide_height_m', array( 'label' => 'ارتفاع اسلاید موبایل', 'section' => 'sahel_slider', 'type' => 'number' ) );
+    $w->add_setting( 'sahel_slide_height_t', array( 'default' => 0, 'sanitize_callback' => 'absint' ) );
+    $w->add_control( 'sahel_slide_height_t', array( 'label' => 'ارتفاع اسلاید تبلت — ۰ یعنی مثل موبایل', 'section' => 'sahel_slider', 'type' => 'number' ) );
+    $w->add_setting( 'sahel_slider_hide_mobile', array( 'default' => 0, 'sanitize_callback' => 'absint' ) );
+    $w->add_control( 'sahel_slider_hide_mobile', array( 'label' => '🚫 پنهان در موبایل', 'section' => 'sahel_slider', 'type' => 'checkbox' ) );
+    $w->add_setting( 'sahel_slider_hide_tablet', array( 'default' => 0, 'sanitize_callback' => 'absint' ) );
+    $w->add_control( 'sahel_slider_hide_tablet', array( 'label' => '🚫 پنهان در تبلت', 'section' => 'sahel_slider', 'type' => 'checkbox' ) );
+    $w->add_setting( 'sahel_slider_hide_desktop', array( 'default' => 0, 'sanitize_callback' => 'absint' ) );
+    $w->add_control( 'sahel_slider_hide_desktop', array( 'label' => '🚫 پنهان در دسکتاپ', 'section' => 'sahel_slider', 'type' => 'checkbox' ) );
     $w->add_setting( 'sahel_slider_full', array( 'default' => 0, 'sanitize_callback' => 'absint' ) );
     $w->add_control( 'sahel_slider_full', array( 'label' => '↔ اسلایدر تمام‌عرض', 'section' => 'sahel_slider', 'type' => 'checkbox' ) );
     $w->add_setting( 'sahel_slider_width', array( 'default' => 0, 'sanitize_callback' => 'absint' ) );
@@ -708,6 +730,10 @@ add_action( 'customize_register', function( $w ) {
     $w->add_setting( 'sahel_footer_style', array( 'default' => '1', 'sanitize_callback' => 'sanitize_key' ) );
     $w->add_control( 'sahel_footer_style', array( 'label' => '🎨 مدل فوتر', 'section' => 'sahel_footer', 'type' => 'select', 'choices' => array(
         '1' => 'کلاسیک (چهار ستونه)', '2' => 'مینیمال (وسط‌چین تک‌ردیف)', '3' => 'تیره و پررنگ', '4' => 'خبرنامه‌محور (تمرکز روی عضویت)' ) ) );
+    $w->add_setting( 'sahel_footer_hide_mobile', array( 'default' => 0, 'sanitize_callback' => 'absint' ) );
+    $w->add_control( 'sahel_footer_hide_mobile', array( 'label' => '🚫 پنهان در موبایل', 'section' => 'sahel_footer', 'type' => 'checkbox' ) );
+    $w->add_setting( 'sahel_footer_hide_tablet', array( 'default' => 0, 'sanitize_callback' => 'absint' ) );
+    $w->add_control( 'sahel_footer_hide_tablet', array( 'label' => '🚫 پنهان در تبلت', 'section' => 'sahel_footer', 'type' => 'checkbox' ) );
     $w->add_setting( 'sahel_footer_links_title', array( 'default' => 'دسترسی سریع', 'sanitize_callback' => 'sanitize_text_field' ) );
     $w->add_control( 'sahel_footer_links_title', array( 'label' => 'عنوان ستون دسترسی سریع', 'section' => 'sahel_footer' ) );
     $footer_link_defaults = array(
@@ -795,7 +821,17 @@ add_action( 'customize_register', function( $w ) {
         $w->add_setting( 'sahel_sec_' . $key . '_hover_color', array( 'default' => '', 'sanitize_callback' => 'sanitize_hex_color' ) );
         $w->add_control( new WP_Customize_Color_Control( $w, 'sahel_sec_' . $key . '_hover_color', array( 'label' => '🎨 رنگ هاور (لینک/دکمه)', 'section' => 'sahel_secgrp_' . $key ) ) );
         $w->add_setting( 'sahel_sec_' . $key . '_height', array( 'default' => 0, 'sanitize_callback' => 'absint' ) );
-        $w->add_control( 'sahel_sec_' . $key . '_height', array( 'label' => '↕ حداقل ارتفاع بخش (px) — ۰ یعنی خودکار', 'section' => 'sahel_secgrp_' . $key, 'type' => 'number', 'input_attrs' => array( 'min' => 0, 'max' => 1200 ) ) );
+        $w->add_control( 'sahel_sec_' . $key . '_height', array( 'label' => '↕ حداقل ارتفاع بخش در دسکتاپ (px) — ۰ یعنی خودکار', 'section' => 'sahel_secgrp_' . $key, 'type' => 'number', 'input_attrs' => array( 'min' => 0, 'max' => 1200 ) ) );
+        $w->add_setting( 'sahel_sec_' . $key . '_height_m', array( 'default' => 0, 'sanitize_callback' => 'absint' ) );
+        $w->add_control( 'sahel_sec_' . $key . '_height_m', array( 'label' => '↕ حداقل ارتفاع بخش در موبایل (px) — ۰ یعنی خودکار', 'section' => 'sahel_secgrp_' . $key, 'type' => 'number', 'input_attrs' => array( 'min' => 0, 'max' => 1200 ) ) );
+        $w->add_setting( 'sahel_sec_' . $key . '_padding_x_m', array( 'default' => 0, 'sanitize_callback' => 'absint' ) );
+        $w->add_control( 'sahel_sec_' . $key . '_padding_x_m', array( 'label' => '↔ فاصله جانبی در موبایل (px) — ۰ یعنی پیش‌فرض', 'section' => 'sahel_secgrp_' . $key, 'type' => 'number', 'input_attrs' => array( 'min' => 0, 'max' => 80 ) ) );
+        $w->add_setting( 'sahel_sec_' . $key . '_hide_mobile', array( 'default' => 0, 'sanitize_callback' => 'absint' ) );
+        $w->add_control( 'sahel_sec_' . $key . '_hide_mobile', array( 'label' => '🚫 پنهان در موبایل', 'section' => 'sahel_secgrp_' . $key, 'type' => 'checkbox' ) );
+        $w->add_setting( 'sahel_sec_' . $key . '_hide_tablet', array( 'default' => 0, 'sanitize_callback' => 'absint' ) );
+        $w->add_control( 'sahel_sec_' . $key . '_hide_tablet', array( 'label' => '🚫 پنهان در تبلت', 'section' => 'sahel_secgrp_' . $key, 'type' => 'checkbox' ) );
+        $w->add_setting( 'sahel_sec_' . $key . '_hide_desktop', array( 'default' => 0, 'sanitize_callback' => 'absint' ) );
+        $w->add_control( 'sahel_sec_' . $key . '_hide_desktop', array( 'label' => '🚫 پنهان در دسکتاپ', 'section' => 'sahel_secgrp_' . $key, 'type' => 'checkbox' ) );
     }
     $w->add_setting( 'sahel_about_home_text', array( 'default' => sahel_brand() . ' با یک باور ساده متولد شد.', 'sanitize_callback' => 'sanitize_textarea_field' ) );
     $w->add_control( 'sahel_about_home_text', array( 'label' => 'متن درباره در صفحه اصلی', 'section' => 'sahel_secgrp_about', 'type' => 'textarea' ) );
@@ -999,6 +1035,8 @@ function sahel_css() {
     $mqs = (int) get_theme_mod( 'sahel_marquee_size', 15 );
     $sh = (int) get_theme_mod( 'sahel_slide_height', 620 );
     $shm = (int) get_theme_mod( 'sahel_slide_height_m', 480 );
+    $sht = (int) get_theme_mod( 'sahel_slide_height_t', 0 );
+    if ( ! $sht ) { $sht = $shm; }
     $slider_full = (int) get_theme_mod( 'sahel_slider_full', 0 );
     $br_speed = (int) get_theme_mod( 'sahel_brands_speed', 30 );
     $header_text = get_theme_mod( 'sahel_header_text_color', '#33261c' );
@@ -1011,7 +1049,7 @@ function sahel_css() {
     $prod_gap = (int) get_theme_mod( 'sahel_prod_gap', 14 );
     $post_gap = (int) get_theme_mod( 'sahel_post_gap', 18 );
     
-    $dyn = ':root{--c1:' . $c1 . ';--c2:' . $c2 . ';--hot:' . $hot . ';--bg:' . $bg . ';--ink:' . $ink . ';--muted:' . $muted . ';--headerbg:' . $hbg . ';--footerbg:' . $fbg . ';--m-h1:' . $mh1 . 'px;--m-p:' . $mp . 'px;--m-ov:' . $mov . '%;--font:\'' . $font . '\',system-ui,Tahoma,sans-serif;--font-head:\'' . $hfont . '\',system-ui,Tahoma,sans-serif;--font-header:\'' . $hfont2 . '\',system-ui,Tahoma,sans-serif;--fs:' . $fsize . 'px;--pricec:' . $pricec . ';--btnt:' . $btnt . ';--carticon:' . $carticon . ';--carticonh:' . $carticonh . ';--cardbg:' . $cardbg . ';--ftext:' . $ftext . ';--mqc:' . $mqc . ';--mqs:' . $mqs . 'px;--sh:' . $sh . 'px;--shm:' . $shm . 'px;--br-speed:' . $br_speed . 's;--slider-full:' . $slider_full . ';--caramel:var(--c1);--sand:var(--c2);--cream:color-mix(in srgb,var(--c2) 45%,#fff);--grad:linear-gradient(100deg,var(--c2),var(--c1) 55%,color-mix(in srgb,var(--c1) 75%,#000));--grad2:linear-gradient(100deg,var(--cream),var(--c2));--line:color-mix(in srgb,var(--ink) 10%,transparent);--line2:color-mix(in srgb,var(--c1) 55%,transparent);--shadow:0 10px 30px color-mix(in srgb,var(--ink) 9%,transparent);--shadow-lg:0 30px 70px color-mix(in srgb,var(--c1) 22%,transparent);--r:24px;--header-text:' . $header_text . ';--header-btn-bg:' . $header_btn_bg . ';--header-btn-text:' . $header_btn_text . ';--mq-speed:' . $mq_speed . 's;--header-style:' . $header_style . ';--cat-gap:' . $cat_gap . 'px;--prod-gap:' . $prod_gap . 'px;--post-gap:' . $post_gap . 'px}';
+    $dyn = ':root{--c1:' . $c1 . ';--c2:' . $c2 . ';--hot:' . $hot . ';--bg:' . $bg . ';--ink:' . $ink . ';--muted:' . $muted . ';--headerbg:' . $hbg . ';--footerbg:' . $fbg . ';--m-h1:' . $mh1 . 'px;--m-p:' . $mp . 'px;--m-ov:' . $mov . '%;--font:\'' . $font . '\',system-ui,Tahoma,sans-serif;--font-head:\'' . $hfont . '\',system-ui,Tahoma,sans-serif;--font-header:\'' . $hfont2 . '\',system-ui,Tahoma,sans-serif;--fs:' . $fsize . 'px;--pricec:' . $pricec . ';--btnt:' . $btnt . ';--carticon:' . $carticon . ';--carticonh:' . $carticonh . ';--cardbg:' . $cardbg . ';--ftext:' . $ftext . ';--mqc:' . $mqc . ';--mqs:' . $mqs . 'px;--sh:' . $sh . 'px;--shm:' . $shm . 'px;--sht:' . $sht . 'px;--br-speed:' . $br_speed . 's;--slider-full:' . $slider_full . ';--caramel:var(--c1);--sand:var(--c2);--cream:color-mix(in srgb,var(--c2) 45%,#fff);--grad:linear-gradient(100deg,var(--c2),var(--c1) 55%,color-mix(in srgb,var(--c1) 75%,#000));--grad2:linear-gradient(100deg,var(--cream),var(--c2));--line:color-mix(in srgb,var(--ink) 10%,transparent);--line2:color-mix(in srgb,var(--c1) 55%,transparent);--shadow:0 10px 30px color-mix(in srgb,var(--ink) 9%,transparent);--shadow-lg:0 30px 70px color-mix(in srgb,var(--c1) 22%,transparent);--r:24px;--header-text:' . $header_text . ';--header-btn-bg:' . $header_btn_bg . ';--header-btn-text:' . $header_btn_text . ';--mq-speed:' . $mq_speed . 's;--header-style:' . $header_style . ';--cat-gap:' . $cat_gap . 'px;--prod-gap:' . $prod_gap . 'px;--post-gap:' . $post_gap . 'px}';
     
     $static = <<<'SHCSS'
 *{margin:0;padding:0;box-sizing:border-box}
@@ -1221,6 +1259,9 @@ body.hide-m-desc .slide-txt p{display:none}
 .slide .wrap{padding-top:46px;padding-bottom:56px}
 .s-nav{display:none}
 }
+@media(min-width:601px) and (max-width:920px){
+.slider{min-height:var(--sht,480px)}
+}
 
 .statband{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;padding:26px 0;background:transparent;border-bottom:1px solid var(--line)}
 .stat{background:rgba(255,255,255,.8);backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:20px;padding:18px 14px;text-align:center;transition:.3s cubic-bezier(.4,0,.2,1)}
@@ -1267,6 +1308,15 @@ section[style*="--sec-text-color"] .sec-head p{color:var(--sec-text-color)}
 section[style*="--sec-hover-color"] a:hover,section[style*="--sec-hover-color"] .sec-link:hover{color:var(--sec-hover-color)}
 section[style*="--sec-hover-color"] .btn-primary:hover{background:var(--sec-hover-color);border-color:var(--sec-hover-color)}
 .sec-bg-img{position:absolute;inset:0;background-size:cover;background-position:center;background-repeat:no-repeat;z-index:0;pointer-events:none}
+section[style*="--sec-min-h-m"]{display:flex;flex-direction:column;justify-content:center}
+@media(max-width:600px){
+section[style*="--sec-min-h-m"]{min-height:var(--sec-min-h-m)}
+section[style*="--sec-px-m"] > .wrap{padding-inline:var(--sec-px-m)}
+}
+/* v4.8: نمایش/عدم‌نمایش جداگانه بر اساس دستگاه (موبایل ≤۶۰۰، تبلت ۶۰۱-۹۲۰، دسکتاپ ≥۹۲۱) */
+@media(max-width:600px){ .hide-m{display:none!important} }
+@media(min-width:601px) and (max-width:920px){ .hide-t{display:none!important} }
+@media(min-width:921px){ .hide-d{display:none!important} }
 section>.wrap{position:relative;z-index:1}
 
 .sec-head{margin-bottom:26px;display:flex;align-items:end;justify-content:space-between;gap:16px;flex-wrap:wrap}
@@ -1812,8 +1862,10 @@ function sahel_shell( $content ) {
 </head>
 <body class="<?php echo esc_attr( $body_cls ); ?>">
 <div id="toast"></div>
-<?php if ( get_theme_mod( 'sahel_topbar_on', 0 ) && get_theme_mod( 'sahel_topbar_text', '' ) ) : ?>
-<div class="topbar" style="background:<?php echo esc_attr( get_theme_mod( 'sahel_topbar_bg', '#1c1c1c' ) ); ?>;color:<?php echo esc_attr( get_theme_mod( 'sahel_topbar_color', '#ffffff' ) ); ?>"><div class="wrap"><?php echo esc_html( get_theme_mod( 'sahel_topbar_text', '' ) ); ?></div></div>
+<?php if ( get_theme_mod( 'sahel_topbar_on', 0 ) && get_theme_mod( 'sahel_topbar_text', '' ) ) :
+    $topbar_hide = ( get_theme_mod( 'sahel_topbar_hide_mobile', 0 ) ? ' hide-m' : '' ) . ( get_theme_mod( 'sahel_topbar_hide_tablet', 0 ) ? ' hide-t' : '' );
+?>
+<div class="topbar<?php echo esc_attr( $topbar_hide ); ?>" style="background:<?php echo esc_attr( get_theme_mod( 'sahel_topbar_bg', '#1c1c1c' ) ); ?>;color:<?php echo esc_attr( get_theme_mod( 'sahel_topbar_color', '#ffffff' ) ); ?>"><div class="wrap"><?php echo esc_html( get_theme_mod( 'sahel_topbar_text', '' ) ); ?></div></div>
 <?php endif; ?>
 <header id="header" style="<?php echo esc_attr( $header_img_style ); ?>">
 <div class="wrap header-inner">
@@ -1851,7 +1903,8 @@ function sahel_shell( $content ) {
 </div>
 </aside>
 <?php echo $content; ?>
-<footer class="fstyle-<?php echo esc_attr( get_theme_mod( 'sahel_footer_style', '1' ) ); ?>">
+<?php $footer_hide = ( get_theme_mod( 'sahel_footer_hide_mobile', 0 ) ? ' hide-m' : '' ) . ( get_theme_mod( 'sahel_footer_hide_tablet', 0 ) ? ' hide-t' : '' ); ?>
+<footer class="fstyle-<?php echo esc_attr( get_theme_mod( 'sahel_footer_style', '1' ) . $footer_hide ); ?>">
 <?php if ( get_theme_mod( 'sahel_footer_style', '1' ) === '4' ) : ?>
 <div class="news foot-news"><div class="wrap"><h4>برای دریافت تخفیف‌ها و اخبار <?php echo esc_html( $brand ); ?> عضو شوید</h4><form><input type="tel" placeholder="شماره موبایل شما" required><button class="btn btn-primary" type="submit">عضویت</button></form></div></div>
 <?php endif; ?>
@@ -2068,7 +2121,8 @@ function sahel_home_html() {
         $slider_full = get_theme_mod( 'sahel_slider_full', 0 ) ? ' is-full' : '';
         $slider_w = (int) get_theme_mod( 'sahel_slider_width', 0 );
         $slider_w_style = $slider_w > 0 ? ' style="--slider-w:' . $slider_w . 'px"' : '';
-        $ob .= '<div class="slider' . $slider_full . '"' . $slider_w_style . '><div class="slides">';
+        $slider_hide = ( get_theme_mod( 'sahel_slider_hide_mobile', 0 ) ? ' hide-m' : '' ) . ( get_theme_mod( 'sahel_slider_hide_tablet', 0 ) ? ' hide-t' : '' ) . ( get_theme_mod( 'sahel_slider_hide_desktop', 0 ) ? ' hide-d' : '' );
+        $ob .= '<div class="slider' . $slider_full . $slider_hide . '"' . $slider_w_style . '><div class="slides">';
         foreach ( $rendered as $i => $sd ) {
             $url = $sd['url'] ? $sd['url'] : sahel_shop_url();
             $align = 'al-' . ( $sd['align'] ? $sd['align'] : 'right' );
