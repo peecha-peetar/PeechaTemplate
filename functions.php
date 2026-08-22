@@ -149,6 +149,18 @@ add_action( 'after_setup_theme', function() {
     register_nav_menu( 'primary', 'منوی اصلی' );
 } );
 
+/* بعضی هاست‌ها یک کش سرور (Object Cache) دارن که با انتشار تنظیمات پاک نمی‌شه؛
+   این باعث می‌شه سایت زنده مقادیر قدیمی تنظیمات (مثلاً آیتم‌های منو) رو نشون بده
+   در حالی که پیش‌نمایش Customizer مقدار جدید رو می‌بینه. برای رفع این حالت،
+   کش رو صریحاً موقع انتشار پاک می‌کنیم. */
+add_action( 'customize_save_after', function() {
+    if ( function_exists( 'wp_cache_flush' ) ) { wp_cache_flush(); }
+    delete_transient( 'sahel_top_sale_id' );
+} );
+add_action( 'switch_theme', function() {
+    if ( function_exists( 'wp_cache_flush' ) ) { wp_cache_flush(); }
+} );
+
 add_action( 'wp_enqueue_scripts', function() {
     $map = array( 'vazirmatn' => 'vazirmatn', 'tajawal' => 'tajawal', 'cairo' => 'cairo', 'readex' => 'readex-pro', 'almarai' => 'almarai' );
     $f = get_theme_mod( 'sahel_font', 'vazirmatn' );
