@@ -774,6 +774,22 @@ add_action( 'customize_register', function( $w ) {
 
 /* v4.5: ساخت منو */
 function sahel_render_menu_items() {
+    $locations = get_nav_menu_locations();
+    if ( ! empty( $locations['primary'] ) ) {
+        ob_start();
+        wp_nav_menu( array(
+            'theme_location' => 'primary',
+            'container'      => false,
+            'menu_class'     => '',
+            'fallback_cb'    => false,
+            'walker'         => new Sahel_Nav_Walker(),
+        ) );
+        $menu_html = ob_get_clean();
+        if ( $menu_html ) {
+            return $menu_html;
+        }
+    }
+
     $html = '';
     for ( $i = 1; $i <= 12; $i++ ) {
         $label = trim( (string) get_theme_mod( 'sahel_m' . $i . '_label', '' ) );
@@ -809,6 +825,43 @@ function sahel_render_menu_items() {
         }
     }
     return $html;
+}
+
+/* اگه ادمین یه منو رو به موقعیت "primary" (نمایش ← فهرست‌ها) نسبت داده باشه،
+   sahel_render_menu_items() به‌جاش از همون منوی استاندارد وردپرس استفاده می‌کنه؛
+   این Walker همون ساختار dd/dd-menu/dd-panel رو برای آیتم‌های دارای زیرمجموعه می‌سازه. */
+class Sahel_Nav_Walker extends Walker_Nav_Menu {
+    public function start_lvl( &$output, $depth = 0, $args = null ) {
+        if ( 0 === $depth ) {
+            $output .= '<div class="dd-menu"><div class="dd-panel">';
+        }
+    }
+
+    public function end_lvl( &$output, $depth = 0, $args = null ) {
+        if ( 0 === $depth ) {
+            $output .= '</div></div>';
+        }
+    }
+
+    public function start_el( &$output, $item, $depth = 0, $args = null, $id = 0 ) {
+        $classes      = empty( $item->classes ) ? array() : (array) $item->classes;
+        $has_children = in_array( 'menu-item-has-children', $classes, true );
+
+        if ( $has_children && 0 === $depth ) {
+            $output .= '<div class="dd"><a href="' . esc_url( $item->url ) . '" class="dd-toggle">' . esc_html( $item->title ) . ' <svg viewBox="0 0 24 24" fill="none" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg></a>';
+        } else {
+            $output .= '<a href="' . esc_url( $item->url ) . '">' . esc_html( $item->title ) . '</a>';
+        }
+    }
+
+    public function end_el( &$output, $item, $depth = 0, $args = null ) {
+        $classes      = empty( $item->classes ) ? array() : (array) $item->classes;
+        $has_children = in_array( 'menu-item-has-children', $classes, true );
+
+        if ( $has_children && 0 === $depth ) {
+            $output .= '</div>';
+        }
+    }
 }
 
 /* CSS - اصلاح‌شده با Apple-style و رفع مشکلات */
