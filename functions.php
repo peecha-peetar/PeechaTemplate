@@ -153,12 +153,29 @@ add_action( 'after_setup_theme', function() {
    این باعث می‌شه سایت زنده مقادیر قدیمی تنظیمات (مثلاً آیتم‌های منو) رو نشون بده
    در حالی که پیش‌نمایش Customizer مقدار جدید رو می‌بینه. برای رفع این حالت،
    کش رو صریحاً موقع انتشار پاک می‌کنیم. */
-add_action( 'customize_save_after', function() {
+function sahel_purge_all_caches() {
     if ( function_exists( 'wp_cache_flush' ) ) { wp_cache_flush(); }
+    // LiteSpeed Cache (سرور/افزونه LiteSpeed - علامتش هدر Server: LiteSpeed هست)
+    do_action( 'litespeed_purge_all' );
+    // WP Rocket
+    if ( function_exists( 'rocket_clean_domain' ) ) { rocket_clean_domain(); }
+    // W3 Total Cache
+    if ( function_exists( 'w3tc_flush_all' ) ) { w3tc_flush_all(); }
+    // WP Super Cache
+    if ( function_exists( 'wp_cache_clear_cache' ) ) { wp_cache_clear_cache(); }
+    // WP Fastest Cache
+    if ( function_exists( 'wpfc_clear_all_cache' ) ) { wpfc_clear_all_cache(); }
+    // SG Optimizer (سایت‌گراند)
+    if ( function_exists( 'sg_cachepress_purge_cache' ) ) { sg_cachepress_purge_cache(); }
+    // Autoptimize / عمومی
+    do_action( 'autoptimize_action_cachepurged' );
+}
+add_action( 'customize_save_after', function() {
+    sahel_purge_all_caches();
     delete_transient( 'sahel_top_sale_id' );
 } );
 add_action( 'switch_theme', function() {
-    if ( function_exists( 'wp_cache_flush' ) ) { wp_cache_flush(); }
+    sahel_purge_all_caches();
 } );
 
 add_action( 'wp_enqueue_scripts', function() {
