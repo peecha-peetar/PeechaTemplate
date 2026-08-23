@@ -1623,7 +1623,12 @@ body.pd-full .pd-main{max-width:none;padding-inline:30px}
 .pd-pricebox .price ins{text-decoration:none}
 .pd-excerpt p{color:var(--muted);line-height:2.1}
 .pd-summary form.cart{display:flex;gap:12px;align-items:center;margin-top:20px;flex-wrap:wrap}
-.pd-summary .qty input{width:76px;height:52px;border:1px solid var(--line);border-radius:16px;text-align:center;font-family:inherit;font-weight:800;background:#fff}
+.pd-summary .quantity{display:inline-flex;margin-inline-end:10px}
+.pd-summary input.qty{width:76px;height:52px;border:1px solid var(--line);border-radius:16px;text-align:center;font-family:inherit;font-size:1rem;font-weight:800;color:var(--ink);background:#fff;transition:.25s cubic-bezier(.4,0,.2,1)}
+.pd-summary input.qty:focus{outline:none;border-color:var(--line2);box-shadow:0 0 0 4px color-mix(in srgb,var(--c2) 16%,transparent)}
+.pd-summary input.qty::-webkit-inner-spin-button,.pd-summary input.qty::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.pd-summary input.qty{-moz-appearance:textfield}
+.pd-summary .cart{display:flex;align-items:center;flex-wrap:wrap;gap:10px}
 .pd-summary .single_add_to_cart_button{background:var(--grad)!important;color:#fff!important;border:none!important;border-radius:99px!important;padding:15px 36px;font-weight:900;font-size:1rem;box-shadow:0 16px 40px color-mix(in srgb,var(--c1) 40%,transparent);cursor:pointer;transition:.3s cubic-bezier(.4,0,.2,1)}
 .pd-summary .single_add_to_cart_button:hover{transform:translateY(-4px) scale(1.03)}
 .pd-trust{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
