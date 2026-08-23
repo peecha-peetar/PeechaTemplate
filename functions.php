@@ -1031,12 +1031,12 @@ add_action( 'customize_register', function( $w ) {
 
     /* ===== برندها ===== */
     $w->add_setting( 'sahel_brands_mode', array( 'default' => 'marquee', 'sanitize_callback' => 'sanitize_key' ) );
-    $w->add_control( 'sahel_brands_mode', array( 'label' => 'حالت نمایش', 'section' => 'sahel_secgrp_brands', 'type' => 'select', 'choices' => array( 'marquee' => 'مارکی', 'float' => 'شناور', 'static' => 'ایستا' ) ) );
+    $w->add_control( 'sahel_brands_mode', array( 'label' => 'حالت نمایش', 'description' => 'اگر برندها را در ووکامرس (با عکس) تعریف کرده‌اید نیازی به تکمیل لوگوهای دستیِ پایین این بخش نیست — به‌صورت خودکار همان‌ها نمایش داده می‌شوند. لوگوهای دستی فقط وقتی استفاده می‌شوند که تاکسونومی برند در ووکامرس وجود نداشته باشد.', 'section' => 'sahel_secgrp_brands', 'type' => 'select', 'choices' => array( 'marquee' => 'مارکی', 'float' => 'شناور', 'static' => 'ایستا' ) ) );
     $w->add_setting( 'sahel_brands_speed', array( 'default' => 30, 'sanitize_callback' => 'absint' ) );
     $w->add_control( 'sahel_brands_speed', array( 'label' => 'سرعت (ثانیه)', 'section' => 'sahel_secgrp_brands', 'type' => 'number', 'input_attrs' => array( 'min' => 10, 'max' => 90 ) ) );
     for ( $i = 1; $i <= 8; $i++ ) {
         $w->add_setting( 'sahel_brand_logo' . $i, array( 'default' => '', 'sanitize_callback' => 'esc_url_raw' ) );
-        $w->add_control( new WP_Customize_Image_Control( $w, 'sahel_brand_logo' . $i, array( 'label' => 'لوگو ' . sahel_fa( $i ), 'section' => 'sahel_secgrp_brands' ) ) );
+        $w->add_control( new WP_Customize_Image_Control( $w, 'sahel_brand_logo' . $i, array( 'label' => 'لوگو دستی ' . sahel_fa( $i ) . ' (فقط در نبود برند ووکامرسی)', 'section' => 'sahel_secgrp_brands' ) ) );
         $w->add_setting( 'sahel_brand_name' . $i, array( 'default' => '', 'sanitize_callback' => 'sanitize_text_field' ) );
         $w->add_control( 'sahel_brand_name' . $i, array( 'label' => 'نام ' . sahel_fa( $i ), 'section' => 'sahel_secgrp_brands' ) );
     }
@@ -1398,15 +1398,17 @@ body.ddst-4 .dd-card small{display:none}
 .sh-search input[type=search]::placeholder{color:var(--muted)}
 .sh-search svg{width:16px;height:16px;stroke:var(--muted);flex-shrink:0}
 .sh-live{position:absolute;top:calc(100% + 10px);inset-inline-start:0;width:400px;max-width:92vw;background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow-lg);padding:10px;display:none;z-index:90;max-height:430px;overflow-y:auto}
-.sh-live.show{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;animation:appleBlurIn .3s cubic-bezier(.4,0,.2,1)}
-.lv-card{position:relative;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff;display:block;transition:.25s cubic-bezier(.4,0,.2,1);max-width:190px}
-.lv-card:hover{border-color:var(--line2);box-shadow:var(--shadow);transform:translateY(-4px) scale(1.02)}
-.lv-card img{width:100%;aspect-ratio:1/0.9;object-fit:cover}
-.lv-badge{position:absolute;top:6px;inset-inline-start:6px;z-index:1;background:rgba(255,255,255,.92);backdrop-filter:blur(4px);color:var(--ink);font-size:.6rem;font-weight:800;padding:3px 8px;border-radius:99px}
-.lv-card .lv-t{padding:7px 9px 2px;font-size:.68rem;font-weight:700;line-height:1.7;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;color:var(--ink)}
-.lv-card .lv-p{padding:2px 9px 9px;color:var(--pricec);font-size:.68rem;font-weight:800}
-.lv-card .lv-p del{color:var(--muted);font-weight:500;margin-inline-end:6px}
-.lv-empty{grid-column:1/-1;text-align:center;color:var(--muted);font-size:.75rem;font-weight:700;padding:16px}
+.sh-live.show{display:flex;flex-direction:column;gap:2px;animation:appleBlurIn .3s cubic-bezier(.4,0,.2,1)}
+.lv-card{position:relative;display:flex;align-items:center;gap:10px;padding:6px;border-radius:10px;background:transparent;transition:.2s cubic-bezier(.4,0,.2,1)}
+.lv-card:hover{background:color-mix(in srgb,var(--ink) 5%,transparent)}
+.lv-card img{width:42px;height:42px;flex-shrink:0;aspect-ratio:1/1;object-fit:cover;border-radius:9px;border:1px solid var(--line)}
+.lv-info{flex:1;min-width:0}
+.lv-card .lv-t{font-size:.76rem;font-weight:700;line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+.lv-meta{display:flex;align-items:center;gap:6px;margin-top:1px}
+.lv-badge{background:color-mix(in srgb,var(--c2) 14%,transparent);color:var(--caramel);font-size:.6rem;font-weight:800;padding:1px 7px;border-radius:99px;flex-shrink:0}
+.lv-card .lv-p{color:var(--pricec);font-size:.68rem;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lv-card .lv-p del{color:var(--muted);font-weight:500;margin-inline-end:4px}
+.lv-empty{text-align:center;color:var(--muted);font-size:.75rem;font-weight:700;padding:16px}
 .so-box .sh-live{position:static;width:100%;margin-top:12px;max-height:320px}
 @media(max-width:920px){.sh-search{display:none}}
 
@@ -2461,7 +2463,7 @@ $.getJSON(ajaxUrl,{action:'sahel_live_search',q:q},function(data){
 if(!data || !data.length){ $box.addClass('show').html('<div class="lv-empty">نتیجه‌ای یافت نشد 😕</div>'); return; }
 var html='';
 for(var i=0;i<data.length;i++){ var p=data[i];
-html+='<a class="lv-card" href="'+p.link+'"><span class="lv-badge">'+p.label+'</span><img src="'+p.img+'" alt=""><div class="lv-t">'+p.title+'</div><div class="lv-p">'+p.sub+'</div></a>';
+html+='<a class="lv-card" href="'+p.link+'"><img src="'+p.img+'" alt=""><div class="lv-info"><div class="lv-t">'+p.title+'</div><div class="lv-meta"><span class="lv-badge">'+p.label+'</span><span class="lv-p">'+p.sub+'</span></div></div></a>';
 }
 $box.addClass('show').html(html);
 });
@@ -2767,10 +2769,25 @@ function sahel_home_html() {
     if ( $sec['on'] ) {
         $mode = get_theme_mod( 'sahel_brands_mode', 'marquee' );
         $logos = array();
-        for ( $i = 1; $i <= 8; $i++ ) {
-            $img = get_theme_mod( 'sahel_brand_logo' . $i, '' );
-            $nm = get_theme_mod( 'sahel_brand_name' . $i, '' );
-            if ( $img ) { $logos[] = array( $img, $nm ); }
+        $brand_tax = sahel_brand_taxonomy();
+        if ( $brand_tax ) {
+            $brand_terms = get_terms( array( 'taxonomy' => $brand_tax, 'hide_empty' => true ) );
+            if ( $brand_terms && ! is_wp_error( $brand_terms ) ) {
+                foreach ( $brand_terms as $bt ) {
+                    $tid = get_term_meta( $bt->term_id, 'thumbnail_id', true );
+                    if ( $tid ) {
+                        $img_url = wp_get_attachment_image_url( $tid, 'medium' );
+                        if ( $img_url ) { $logos[] = array( $img_url, $bt->name ); }
+                    }
+                }
+            }
+        }
+        if ( ! $logos ) {
+            for ( $i = 1; $i <= 8; $i++ ) {
+                $img = get_theme_mod( 'sahel_brand_logo' . $i, '' );
+                $nm = get_theme_mod( 'sahel_brand_name' . $i, '' );
+                if ( $img ) { $logos[] = array( $img, $nm ); }
+            }
         }
         if ( $logos ) {
             $bg = sahel_sec_bg_attr( $sec, 'padding-top:10px' );
