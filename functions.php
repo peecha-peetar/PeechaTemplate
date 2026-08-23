@@ -233,7 +233,10 @@ function sahel_live_check_page() {
         if ( $menu_obj ) { $primary_name = $menu_obj->name; }
     }
     echo '<tr><td>منوی وردپرسی (موقعیت اصلی)</td><td>' . esc_html( $primary_name ) . '</td></tr>';
-    echo '</tbody></table></div>';
+    $sb_on = get_theme_mod( 'sahel_shop_sidebar_on', 0 );
+    echo '<tr><td>پنل فیلتر کنار فروشگاه</td><td><b>' . ( $sb_on ? '✔ فعال' : '✖ غیرفعال' ) . '</b> (مقدار خام: ' . esc_html( var_export( $sb_on, true ) ) . ')</td></tr>';
+    echo '</tbody></table>';
+    echo '<p style="margin-top:20px"><b>راهنما:</b> اگر اینجا «✔ فعال» نشون داده می‌شه ولی توی خودِ صفحه فروشگاه پنل فیلتر رو نمی‌بینید، مشکل قطعاً کش سرور/افزونه کش هست (نه ذخیره‌سازی تنظیم) — کش سایت رو کامل پاک کنید و صفحه فروشگاه رو با Ctrl+F5 (یا در حالت ناشناس مرورگر) دوباره باز کنید. اگر اینجا هم «✖ غیرفعال» نشون داده می‌شه، یعنی تیک تنظیم «نمایش پنل فیلتر» توی بخش «۸. فروشگاه» درست ذخیره نشده — دوباره تیک بزنید و حتماً روی دکمه «انتشار» در بالای پنل تنظیمات کلیک کنید (نه فقط بستن پنجره).</p></div>';
 }
 
 add_action( 'wp_enqueue_scripts', function() {
@@ -2922,6 +2925,12 @@ function sahel_engine( $template ) {
         elseif ( 'archive' === $t ) {
             $brand = sahel_brand();
             $sidebar_on = get_theme_mod( 'sahel_shop_sidebar_on', 0 );
+            // فیلترهای پنل کناری روی query string کار می‌کنن؛ اگه افزونه/سرور کش صفحه رو
+            // بدون توجه به query string سرو کنه، تغییر فیلتر هیچ اثری نشون نمی‌ده.
+            // این هدرها به کش‌کننده‌های رایج می‌گن این نسخه‌ی خاص (با این فیلترها) کش نشه.
+            if ( $sidebar_on && ( ! empty( $_GET['fcat'] ) || ! empty( $_GET['fbrand'] ) || ! empty( $_GET['fattr'] ) || ! empty( $_GET['min_price'] ) || ! empty( $_GET['max_price'] ) || ! empty( $_GET['fsale'] ) ) && ! headers_sent() ) {
+                nocache_headers();
+            }
             $h = '<main class="wrap shop-main"><nav class="crumbs">' . woocommerce_breadcrumb( array( 'echo' => false ) ) . '</nav>';
             $banner = get_theme_mod( 'sahel_shop_banner', '' );
             if ( $banner ) {
