@@ -1040,7 +1040,7 @@ add_action( 'customize_register', function( $w ) {
     $w->add_control( 'sahel_promo_link', array( 'label' => 'لینک مقصد', 'section' => 'sahel_promo' ) );
     $w->add_setting( 'sahel_promo_pos', array( 'default' => 'br', 'sanitize_callback' => 'sanitize_key' ) );
     $w->add_control( 'sahel_promo_pos', array( 'label' => '📍 موقعیت', 'section' => 'sahel_promo', 'type' => 'select', 'choices' => array(
-        'bl' => 'پایین چپ', 'br' => 'پایین راست', 'tl' => 'بالا چپ', 'tr' => 'بالا راست' ) ) );
+        'bl' => 'پایین چپ', 'br' => 'پایین راست', 'tl' => 'بالا چپ', 'tr' => 'بالا راست', 'center' => '🎯 وسط صفحه' ) ) );
     $w->add_setting( 'sahel_promo_style', array( 'default' => 'card', 'sanitize_callback' => 'sanitize_key' ) );
     $w->add_control( 'sahel_promo_style', array( 'label' => '🎨 طراحی', 'section' => 'sahel_promo', 'type' => 'select', 'choices' => array(
         'card' => 'کارتی با سایه', 'circle' => 'دایره‌ای کوچک', 'ribbon' => 'روبان مورب گوشه', 'overlay' => 'تمام‌عکس با گرادیانت', 'bare' => '🖼 شفاف / PNG بدون قاب' ) ) );
@@ -1057,7 +1057,7 @@ add_action( 'customize_register', function( $w ) {
     $w->add_control( 'sahel_promo_mobile_on', array( 'label' => '✔ نمایش در موبایل هم', 'section' => 'sahel_promo', 'type' => 'checkbox' ) );
     $w->add_setting( 'sahel_promo_pos_m', array( 'default' => '', 'sanitize_callback' => 'sanitize_key' ) );
     $w->add_control( 'sahel_promo_pos_m', array( 'label' => '📍 موقعیت اختصاصی در موبایل — خالی یعنی مثل دسکتاپ', 'section' => 'sahel_promo', 'type' => 'select', 'choices' => array(
-        '' => '— مثل دسکتاپ —', 'bl' => 'پایین چپ', 'br' => 'پایین راست', 'tl' => 'بالا چپ', 'tr' => 'بالا راست' ) ) );
+        '' => '— مثل دسکتاپ —', 'bl' => 'پایین چپ', 'br' => 'پایین راست', 'tl' => 'بالا چپ', 'tr' => 'بالا راست', 'center' => '🎯 وسط صفحه' ) ) );
     $w->add_setting( 'sahel_promo_size_m', array( 'default' => 0, 'sanitize_callback' => 'absint' ) );
     $w->add_control( 'sahel_promo_size_m', array( 'label' => '📐 اندازه اختصاصی در موبایل (px) — ۰ یعنی مثل دسکتاپ', 'section' => 'sahel_promo', 'type' => 'number', 'input_attrs' => array( 'min' => 0, 'max' => 320 ) ) );
 
@@ -2173,7 +2173,8 @@ function sahel_promo_render() {
     }
     $cls = 'promo-float pos-' . esc_attr( $pos ) . ' style-' . esc_attr( $style ) . ' fx-' . esc_attr( $effect ) . ( $mobile_on ? '' : ' promo-hide-m' ) . ( $pos_m ? ' pos-m-' . esc_attr( $pos_m ) : '' );
     $vars = '--promo-size:' . $size . 'px;--promo-fs:' . $fs . 'px' . ( $size_m > 0 ? ';--promo-size-m:' . $size_m . 'px' : '' );
-    echo '<div class="' . $cls . '" id="sahelPromo" style="' . esc_attr( $vars ) . '">';
+    $promo_key = substr( md5( $img . '|' . $style . '|' . $pos . '|' . $link . '|' . $size . '|' . $effect ), 0, 12 );
+    echo '<div class="' . $cls . '" id="sahelPromo" data-promo-key="' . esc_attr( $promo_key ) . '" style="' . esc_attr( $vars ) . '">';
     echo '<a class="promo-link" href="' . esc_url( $link ) . '"' . $ext . $tip . '>';
     echo '<img src="' . esc_url( $img ) . '" alt="">';
     if ( $title && $style !== 'circle' && $style !== 'bare' ) { echo '<span class="promo-cap">' . esc_html( $title ) . '</span>'; }
@@ -2188,6 +2189,7 @@ echo '<style id="sahel-promo-css">
 .promo-float.pos-br{bottom:24px;right:24px}
 .promo-float.pos-tl{top:100px;left:24px}
 .promo-float.pos-tr{top:100px;right:24px}
+.promo-float.pos-center{top:50%;left:50%;transform:translate(-50%,-50%)}
 .promo-link{display:block;transition:.3s cubic-bezier(.4,0,.2,1)}
 .promo-close{position:absolute;top:-10px;inset-inline-end:-10px;width:26px;height:26px;border-radius:50%;background:#fff;border:1px solid var(--line);box-shadow:var(--shadow);display:grid;place-items:center;font-size:16px;line-height:1;color:var(--ink);cursor:pointer;z-index:2;padding:0}
 .promo-close:hover{background:var(--ink);color:#fff}
@@ -2228,6 +2230,7 @@ echo '<style id="sahel-promo-css">
 .promo-float.pos-m-br{bottom:calc(88px + env(safe-area-inset-bottom));right:16px;left:auto;top:auto}
 .promo-float.pos-m-tl{top:90px;left:16px;right:auto;bottom:auto}
 .promo-float.pos-m-tr{top:90px;right:16px;left:auto;bottom:auto}
+.promo-float.pos-m-center{top:50%;left:50%;right:auto;bottom:auto;transform:translate(-50%,-50%)}
 }
 </style>';
 }, 97 );
@@ -2351,8 +2354,19 @@ var BRAND='<?php echo esc_js( $brand ); ?>';
 $(document).on('click','#cartBtn,.bbCart',function(){$('#cartDrawer').addClass('show');$('#overlay').addClass('show');});
 $(document).on('click','#closeCart,#overlay',function(){$('#cartDrawer').removeClass('show');$('#overlay').removeClass('show');});
 $(document).on('click','.dd-toggle',function(e){ if($(window).width()<920 && !$(this).closest('.sh-mnav').length){ e.preventDefault(); $(this).closest('.dd').toggleClass('open'); } });
-(function(){ try{ if(sessionStorage.getItem('sahelPromoClosed')==='1'){ $('#sahelPromo').hide(); } }catch(e){} })();
-$(document).on('click','.promo-close',function(e){ e.preventDefault(); $(this).closest('.promo-float').fadeOut(200); try{ sessionStorage.setItem('sahelPromoClosed','1'); }catch(e){} });
+(function(){ try{
+var el=document.getElementById('sahelPromo');
+if(el && window.top===window.self){
+var k='sahelPromoClosed_'+el.getAttribute('data-promo-key');
+if(sessionStorage.getItem(k)==='1'){ el.style.display='none'; }
+}
+}catch(e){} })();
+$(document).on('click','.promo-close',function(e){
+e.preventDefault();
+var $p=$(this).closest('.promo-float');
+$p.fadeOut(200);
+try{ sessionStorage.setItem('sahelPromoClosed_'+$p.attr('data-promo-key'),'1'); }catch(e){}
+});
 var ddCloseTimer=null;
 $(document).on('mouseenter','.bnav>.dd',function(){ if($(window).width()<920) return; clearTimeout(ddCloseTimer); $('.bnav>.dd.open').not(this).removeClass('open'); $(this).addClass('open'); });
 $(document).on('mouseleave','.bnav>.dd',function(){ if($(window).width()<920) return; var el=this; ddCloseTimer=setTimeout(function(){ $(el).removeClass('open'); },250); });
