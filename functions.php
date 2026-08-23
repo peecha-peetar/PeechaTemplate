@@ -277,14 +277,23 @@ add_filter( 'woocommerce_product_query', function( $q ) {
     if ( ! get_theme_mod( 'sahel_shop_sidebar_on', 0 ) ) { return; }
     $tax_query = $q->get( 'tax_query' );
     if ( ! is_array( $tax_query ) ) { $tax_query = array(); }
-    if ( ! empty( $_GET['fcat'] ) && is_array( $_GET['fcat'] ) ) {
-        $tax_query[] = array( 'taxonomy' => 'product_cat', 'field' => 'slug', 'terms' => array_map( 'sanitize_title', $_GET['fcat'] ) );
-    }
     $brand_tax = sahel_brand_taxonomy();
-    if ( $brand_tax && ! empty( $_GET['fbrand'] ) && is_array( $_GET['fbrand'] ) ) {
-        $tax_query[] = array( 'taxonomy' => $brand_tax, 'field' => 'slug', 'terms' => array_map( 'sanitize_title', $_GET['fbrand'] ) );
+    if ( ! empty( $_GET['fcat'] ) && is_array( $_GET['fcat'] ) ) {
+        // Drop any pre-existing product_cat clause (e.g. from browsing a category archive page)
+        // so our sidebar selection doesn't get AND'ed against it and return zero results.
+        foreach ( $tax_query as $tq_key => $tq_val ) {
+            if ( is_array( $tq_val ) && isset( $tq_val['taxonomy'] ) && 'product_cat' === $tq_val['taxonomy'] ) { unset( $tax_query[ $tq_key ] ); }
+        }
+        $tax_query[] = array( 'taxonomy' => 'product_cat', 'field' => 'slug', 'terms' => array_map( 'sanitize_title', wp_unslash( $_GET['fcat'] ) ) );
     }
-    if ( count( $tax_query ) > 1 ) { $tax_query['relation'] = 'AND'; }
+    if ( $brand_tax && ! empty( $_GET['fbrand'] ) && is_array( $_GET['fbrand'] ) ) {
+        foreach ( $tax_query as $tq_key => $tq_val ) {
+            if ( is_array( $tq_val ) && isset( $tq_val['taxonomy'] ) && $brand_tax === $tq_val['taxonomy'] ) { unset( $tax_query[ $tq_key ] ); }
+        }
+        $tax_query[] = array( 'taxonomy' => $brand_tax, 'field' => 'slug', 'terms' => array_map( 'sanitize_title', wp_unslash( $_GET['fbrand'] ) ) );
+    }
+    $real_clauses = array_filter( $tax_query, 'is_array' );
+    if ( count( $real_clauses ) > 1 ) { $tax_query['relation'] = 'AND'; }
     if ( ! empty( $tax_query ) ) { $q->set( 'tax_query', $tax_query ); }
     $min_price = isset( $_GET['min_price'] ) ? (float) $_GET['min_price'] : 0;
     $max_price = isset( $_GET['max_price'] ) ? (float) $_GET['max_price'] : 0;
@@ -1528,7 +1537,17 @@ ul.products li.product{margin:0 !important;width:auto !important;float:none !imp
 .shop-toolbar{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:22px;flex-wrap:wrap;background:rgba(255,255,255,.8);border:1px solid var(--line);border-radius:16px;padding:10px 16px}
 .woocommerce-result-count{color:var(--muted);font-size:.8rem;margin:0}
 .woocommerce-ordering{margin:0}
-.woocommerce-ordering select{padding:9px 12px;border-radius:10px;border:1px solid var(--line);background:#fff;font-family:inherit;font-size:.82rem}
+.woocommerce-ordering select,.pd-wrap select,table.variations select{appearance:none;-webkit-appearance:none;-moz-appearance:none;padding:9px 34px 9px 14px;border-radius:10px;border:1px solid var(--line);background-color:#fff;font-family:inherit;font-size:.82rem;color:var(--ink);cursor:pointer;transition:.25s cubic-bezier(.4,0,.2,1);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:left 10px center;background-size:16px}
+.woocommerce-ordering select option,.pd-wrap select option,table.variations select option{font-family:inherit}
+.woocommerce-ordering select:focus,.pd-wrap select:focus,table.variations select:focus{outline:none;border-color:var(--line2);box-shadow:0 0 0 4px color-mix(in srgb,var(--c2) 16%,transparent)}
+table.variations{width:100%;border-collapse:collapse;margin-bottom:16px}
+table.variations tr{display:block;margin-bottom:14px}
+table.variations tr:last-child{margin-bottom:0}
+table.variations th{display:block;text-align:start;font-size:.82rem;font-weight:800;color:var(--ink);padding:0 0 8px}
+table.variations td{display:block;padding:0}
+table.variations td select{width:100%}
+.reset_variations{display:inline-block;margin-top:10px;font-size:.76rem;font-weight:700;color:var(--muted)}
+.reset_variations:hover{color:var(--caramel)}
 .shop-pagination{margin-top:36px;display:flex;justify-content:center}
 .woocommerce-pagination ul,.shop-pagination .nav-links{display:flex;gap:8px;list-style:none;border:none;padding:0}
 .woocommerce-pagination ul li a,.woocommerce-pagination ul li span,.nav-links a,.nav-links span{display:grid;place-items:center;min-width:42px;height:42px;padding:0 12px;border-radius:14px;border:1px solid var(--line);background:#fff;font-weight:800;transition:.25s cubic-bezier(.4,0,.2,1)}
@@ -2241,6 +2260,9 @@ $(window).on('resize', applyCols);
 applyCols();
 $(document).on('click','.sf-toggle-mob',function(){
 $('.shop-filters').toggleClass('open');
+});
+$(document).on('change','.shop-filters-form input[type=checkbox]',function(){
+this.closest('form').submit();
 });
 (function(){
 if(!document.body.classList.contains('catst-9') && !document.body.classList.contains('prodst-11')) return;
