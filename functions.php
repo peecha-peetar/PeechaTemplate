@@ -352,7 +352,9 @@ function sahel_shop_filters_sidebar_html() {
     $cur_min = isset( $_GET['min_price'] ) ? sanitize_text_field( wp_unslash( $_GET['min_price'] ) ) : '';
     $cur_max = isset( $_GET['max_price'] ) ? sanitize_text_field( wp_unslash( $_GET['max_price'] ) ) : '';
     $cur_stock = isset( $_GET['mstock'] ) && $_GET['mstock'] === 'in';
-    $h = '<button type="button" class="sf-toggle-mob">☰ فیلترها</button><div class="shop-flex"><aside class="shop-filters"><form method="get" class="shop-filters-form">';
+    // خارج از فروشگاه (مثلاً صفحه محصول) نتیجه فیلتر باید صفحه فروشگاه رو باز کنه، نه همون صفحه رو.
+    $form_action = ( function_exists( 'is_shop' ) && ( is_shop() || is_product_category() || is_product_tag() ) ) ? '' : ' action="' . esc_url( sahel_shop_url() ) . '"';
+    $h = '<button type="button" class="sf-toggle-mob">☰ فیلترها</button><div class="shop-flex"><aside class="shop-filters"><form method="get" class="shop-filters-form"' . $form_action . '>';
     $fcats = sahel_product_cats_flat();
     if ( $fcats ) {
         $h .= '<div class="sf-group"><h4>دسته‌بندی</h4><div class="sf-list">';
@@ -1694,6 +1696,10 @@ ul.products li.product{margin:0 !important;width:auto !important;float:none !imp
 .woocommerce-breadcrumb{display:inline-flex;flex-wrap:wrap;align-items:center;gap:4px;color:var(--muted);font-size:.8rem;font-weight:600;background:#fff;border:1px solid var(--line);border-radius:99px;padding:8px 18px}
 .woocommerce-breadcrumb a{color:var(--ink);font-weight:700;transition:.2s cubic-bezier(.4,0,.2,1)}
 .woocommerce-breadcrumb a:hover{color:var(--caramel)}
+.star-rating{overflow:hidden;position:relative;height:1em;line-height:1em;width:5.4em;font-size:1rem;font-family:inherit!important;letter-spacing:.15em}
+.star-rating::before{content:"☆☆☆☆☆";position:absolute;top:0;right:0;color:var(--line2)}
+.star-rating span{overflow:hidden;position:absolute;top:0;right:0;padding-top:1.5em;height:0;width:100%}
+.star-rating span::before{content:"★★★★★";position:absolute;top:0;right:0;color:var(--c2)}
 .catbar{display:flex;gap:10px;overflow-x:auto;padding-bottom:12px;margin-bottom:16px;flex-wrap:nowrap;scrollbar-width:none}
 .catbar::-webkit-scrollbar{display:none}
 .catbar a{flex-shrink:0;padding:9px 22px;border-radius:99px;border:1px solid var(--line);background:#fff;color:var(--muted);font-weight:800;font-size:.82rem;transition:.25s cubic-bezier(.4,0,.2,1)}
@@ -2243,8 +2249,7 @@ function sahel_promo_render() {
     }
     $cls = 'promo-float pos-' . esc_attr( $pos ) . ' style-' . esc_attr( $style ) . ' fx-' . esc_attr( $effect ) . ( $mobile_on ? '' : ' promo-hide-m' ) . ( $pos_m ? ' pos-m-' . esc_attr( $pos_m ) : '' );
     $vars = '--promo-size:' . $size . 'px;--promo-fs:' . $fs . 'px' . ( $size_m > 0 ? ';--promo-size-m:' . $size_m . 'px' : '' );
-    $promo_key = substr( md5( $img . '|' . $style . '|' . $pos . '|' . $link . '|' . $size . '|' . $effect ), 0, 12 );
-    echo '<div class="' . $cls . '" id="sahelPromo" data-promo-key="' . esc_attr( $promo_key ) . '" style="' . esc_attr( $vars ) . '">';
+    echo '<div class="' . $cls . '" id="sahelPromo" style="' . esc_attr( $vars ) . '">';
     echo '<a class="promo-link" href="' . esc_url( $link ) . '"' . $ext . $tip . '>';
     echo '<img src="' . esc_url( $img ) . '" alt="">';
     if ( $title && $style !== 'circle' && $style !== 'bare' ) { echo '<span class="promo-cap">' . esc_html( $title ) . '</span>'; }
@@ -2431,16 +2436,12 @@ $(document).on('click','#closeCart,#overlay',function(){$('#cartDrawer').removeC
 $(document).on('click','.dd-toggle',function(e){ if($(window).width()<920 && !$(this).closest('.sh-mnav').length){ e.preventDefault(); $(this).closest('.dd').toggleClass('open'); } });
 (function(){ try{
 var el=document.getElementById('sahelPromo');
-if(el && window.top===window.self){
-var k='sahelPromoClosed_'+el.getAttribute('data-promo-key');
-if(sessionStorage.getItem(k)==='1'){ el.style.display='none'; }
-}
+if(el && window.top===window.self && sessionStorage.getItem('sahelPromoClosed')==='1'){ el.style.display='none'; }
 }catch(e){} })();
 $(document).on('click','.promo-close',function(e){
 e.preventDefault();
-var $p=$(this).closest('.promo-float');
-$p.fadeOut(200);
-try{ sessionStorage.setItem('sahelPromoClosed_'+$p.attr('data-promo-key'),'1'); }catch(e){}
+$(this).closest('.promo-float').fadeOut(200);
+try{ sessionStorage.setItem('sahelPromoClosed','1'); }catch(e){}
 });
 var ddCloseTimer=null;
 $(document).on('mouseenter','.bnav>.dd',function(){ if($(window).width()<920) return; clearTimeout(ddCloseTimer); $('.bnav>.dd.open').not(this).removeClass('open'); $(this).addClass('open'); });
