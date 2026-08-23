@@ -1690,6 +1690,7 @@ ul.products li.product{margin:0 !important;width:auto !important;float:none !imp
 
 .shop-main{padding:24px 24px 70px}
 .crumbs{margin-bottom:18px}
+.pd-wrap > .crumbs{grid-column:1/-1;margin-bottom:20px;width:100%}
 .woocommerce-breadcrumb{display:inline-flex;flex-wrap:wrap;align-items:center;gap:4px;color:var(--muted);font-size:.8rem;font-weight:600;background:#fff;border:1px solid var(--line);border-radius:99px;padding:8px 18px}
 .woocommerce-breadcrumb a{color:var(--ink);font-weight:700;transition:.2s cubic-bezier(.4,0,.2,1)}
 .woocommerce-breadcrumb a:hover{color:var(--caramel)}
@@ -3044,12 +3045,12 @@ function sahel_engine( $template ) {
         } elseif ( 'product' === $t ) {
             $brand_short = sahel_brand_short();
             $pd_sidebar_on = get_theme_mod( 'sahel_product_sidebar_on', 0 );
-            $h = '<main class="wrap pd-main"><nav class="crumbs">' . woocommerce_breadcrumb( array( 'echo' => false ) ) . '</nav>';
+            $h = '<main class="wrap pd-main">';
             if ( $pd_sidebar_on ) { $h .= sahel_shop_filters_sidebar_html(); }
             while ( have_posts() ) {
                 the_post();
                 $p = wc_get_product( get_the_ID() );
-                $h .= '<div class="pd-wrap"><div class="pd-gallery">';
+                $h .= '<div class="pd-wrap"><nav class="crumbs">' . woocommerce_breadcrumb( array( 'echo' => false ) ) . '</nav><div class="pd-gallery">';
                 ob_start(); woocommerce_show_product_images(); $h .= ob_get_clean();
                 $h .= '</div><div class="pd-summary"><div class="pd-cats">' . wc_get_product_category_list( $p->get_id() ) . '</div>';
                 ob_start(); woocommerce_template_single_title(); woocommerce_template_single_rating(); $h .= ob_get_clean();
