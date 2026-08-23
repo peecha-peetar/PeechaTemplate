@@ -272,8 +272,38 @@ add_filter( 'woocommerce_cart_item_subtotal', 'sahel_fa_safe' );
 add_action( 'elementor/theme/register_locations', function( $m ) { $m->register_all_core_location(); } );
 add_filter( 'loop_shop_per_page', function() { return (int) get_theme_mod( 'sahel_shop_per_page', 15 ); }, 99 );
 add_filter( 'woocommerce_product_query', function( $q ) {
-    if ( ! is_admin() && isset( $_GET['mstock'] ) && $_GET['mstock'] === 'in' ) { $q->set( 'stock_status', array( 'instock' ) ); }
+    if ( is_admin() ) { return; }
+    if ( isset( $_GET['mstock'] ) && $_GET['mstock'] === 'in' ) { $q->set( 'stock_status', array( 'instock' ) ); }
+    if ( ! get_theme_mod( 'sahel_shop_sidebar_on', 0 ) ) { return; }
+    $tax_query = $q->get( 'tax_query' );
+    if ( ! is_array( $tax_query ) ) { $tax_query = array(); }
+    if ( ! empty( $_GET['fcat'] ) && is_array( $_GET['fcat'] ) ) {
+        $tax_query[] = array( 'taxonomy' => 'product_cat', 'field' => 'slug', 'terms' => array_map( 'sanitize_title', $_GET['fcat'] ) );
+    }
+    $brand_tax = sahel_brand_taxonomy();
+    if ( $brand_tax && ! empty( $_GET['fbrand'] ) && is_array( $_GET['fbrand'] ) ) {
+        $tax_query[] = array( 'taxonomy' => $brand_tax, 'field' => 'slug', 'terms' => array_map( 'sanitize_title', $_GET['fbrand'] ) );
+    }
+    if ( count( $tax_query ) > 1 ) { $tax_query['relation'] = 'AND'; }
+    if ( ! empty( $tax_query ) ) { $q->set( 'tax_query', $tax_query ); }
+    $min_price = isset( $_GET['min_price'] ) ? (float) $_GET['min_price'] : 0;
+    $max_price = isset( $_GET['max_price'] ) ? (float) $_GET['max_price'] : 0;
+    if ( $min_price > 0 || $max_price > 0 ) {
+        $meta_query = $q->get( 'meta_query' );
+        if ( ! is_array( $meta_query ) ) { $meta_query = array(); }
+        $price_query = array( 'key' => '_price', 'type' => 'DECIMAL(10,2)' );
+        if ( $min_price > 0 && $max_price > 0 ) { $price_query['value'] = array( $min_price, $max_price ); $price_query['compare'] = 'BETWEEN'; }
+        elseif ( $min_price > 0 ) { $price_query['value'] = $min_price; $price_query['compare'] = '>='; }
+        else { $price_query['value'] = $max_price; $price_query['compare'] = '<='; }
+        $meta_query[] = $price_query;
+        $q->set( 'meta_query', $meta_query );
+    }
 } );
+function sahel_brand_taxonomy() {
+    if ( taxonomy_exists( 'product_brand' ) ) { return 'product_brand'; }
+    if ( taxonomy_exists( 'pa_brand' ) ) { return 'pa_brand'; }
+    return '';
+}
 
 /* جستجوی زنده */
 add_action( 'wp_ajax_sahel_live_search', 'sahel_live_search' );
@@ -686,6 +716,8 @@ add_action( 'customize_register', function( $w ) {
     $w->add_control( 'sahel_shop_stock', array( 'label' => 'فیلتر موجودی', 'section' => 'sahel_shop', 'type' => 'checkbox' ) );
     $w->add_setting( 'sahel_shop_per_page', array( 'default' => 15, 'sanitize_callback' => 'absint' ) );
     $w->add_control( 'sahel_shop_per_page', array( 'label' => 'تعداد در صفحه', 'section' => 'sahel_shop', 'type' => 'number' ) );
+    $w->add_setting( 'sahel_shop_sidebar_on', array( 'default' => 0, 'sanitize_callback' => 'absint' ) );
+    $w->add_control( 'sahel_shop_sidebar_on', array( 'label' => '✔ نمایش پنل فیلتر کنار محصولات (دسته‌بندی، برند، قیمت، موجودی)', 'section' => 'sahel_shop', 'type' => 'checkbox' ) );
 
     /* ===== محصول ===== */
     $w->add_section( 'sahel_product', array( 'title' => '۹. محصول', 'priority' => 36 ) );
@@ -1503,6 +1535,31 @@ ul.products li.product{margin:0 !important;width:auto !important;float:none !imp
 .woocommerce-pagination ul li a:hover,.nav-links a:hover{transform:translateY(-2px);border-color:var(--line2)}
 .woocommerce-pagination ul li .current,.nav-links .current{background:var(--grad);color:#fff;border-color:transparent}
 .empty-state{text-align:center;background:#fff;border:1px dashed var(--line);border-radius:24px;padding:60px 20px;color:var(--muted);font-weight:700;display:grid;gap:16px;justify-items:center}
+.shop-flex{display:flex;align-items:flex-start;gap:28px}
+.shop-main-col{flex:1;min-width:0}
+.shop-filters{width:260px;flex-shrink:0;background:#fff;border:1px solid var(--line);border-radius:20px;padding:20px;position:sticky;top:90px}
+.shop-filters-form{display:flex;flex-direction:column;gap:20px}
+.sf-group h4{margin:0 0 12px;font-size:.85rem;font-weight:900;color:var(--ink)}
+.sf-group{border-bottom:1px solid var(--line);padding-bottom:18px}
+.sf-group:last-of-type{border-bottom:none;padding-bottom:0}
+.sf-list{display:flex;flex-direction:column;gap:10px;max-height:220px;overflow-y:auto}
+.sf-check{display:flex;align-items:center;gap:9px;font-size:.82rem;color:var(--muted);font-weight:600;cursor:pointer}
+.sf-check input{width:17px;height:17px;accent-color:var(--c1);flex-shrink:0;cursor:pointer}
+.sf-check:hover{color:var(--ink)}
+.sf-price{display:flex;align-items:center;gap:8px}
+.sf-price input{width:0;flex:1;border:1px solid var(--line);border-radius:10px;padding:9px 10px;font-family:inherit;font-size:.8rem;color:var(--ink)}
+.sf-price input:focus{outline:none;border-color:var(--line2)}
+.sf-price span{color:var(--muted);font-size:.75rem;flex-shrink:0}
+.sf-apply{width:100%;justify-content:center;padding:11px 0;font-size:.85rem}
+.sf-clear{display:block;text-align:center;color:var(--muted);font-size:.78rem;font-weight:700;margin-top:-6px}
+.sf-clear:hover{color:var(--caramel)}
+.sf-toggle-mob{display:none}
+@media(max-width:920px){
+.shop-flex{flex-direction:column}
+.shop-filters{width:100%;position:static;display:none}
+.shop-filters.open{display:block}
+.sf-toggle-mob{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;border:1px solid var(--line);border-radius:14px;background:#fff;font-weight:800;font-size:.85rem;color:var(--ink);margin-bottom:16px}
+}
 .page-hero{display:flex;align-items:center;gap:46px;padding:26px 6px 54px;flex-wrap:wrap}
 .page-hero-img{width:340px;flex-shrink:0;border-radius:28px;overflow:hidden;box-shadow:var(--shadow-lg)}
 .page-hero-img img{width:100%;height:300px;object-fit:cover}
@@ -1561,6 +1618,35 @@ body.pd-full .pd-main{max-width:none;padding-inline:30px}
 .pd-tabs .wc-tabs li.active a{background:var(--grad);color:#fff;border-color:transparent}
 .pd-tabs .woocommerce-Tabs-panel{color:var(--muted);line-height:2.2}
 .pd-tabs h2{font-size:1rem;font-weight:900;margin:0 0 12px;color:var(--ink)}
+.pd-tabs table.shop_attributes{width:100%;border-collapse:collapse;font-size:.85rem;border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.pd-tabs table.shop_attributes tr{border-bottom:1px solid var(--line)}
+.pd-tabs table.shop_attributes tr:last-child{border-bottom:none}
+.pd-tabs table.shop_attributes th,.pd-tabs table.shop_attributes td{padding:12px 16px;text-align:start;font-family:inherit}
+.pd-tabs table.shop_attributes th{width:34%;font-weight:800;color:var(--ink);background:color-mix(in srgb,var(--ink) 4%,transparent)}
+.pd-tabs table.shop_attributes td{color:var(--muted)}
+.pd-tabs table.shop_attributes td p{margin:0}
+.woocommerce-Reviews-title{font-size:1rem;font-weight:900;margin:0 0 18px;color:var(--ink)}
+.pd-tabs .commentlist{list-style:none;margin:0 0 26px;padding:0;display:grid;gap:16px}
+.pd-tabs .comment_container{display:flex;gap:14px;align-items:flex-start}
+.pd-tabs .comment_container .avatar{width:44px;height:44px;border-radius:50%;flex-shrink:0;border:1px solid var(--line)}
+.pd-tabs .comment-text{flex:1;background:color-mix(in srgb,var(--ink) 3%,transparent);border:1px solid var(--line);border-radius:16px;padding:14px 16px}
+.pd-tabs .comment-text .meta{font-weight:800;color:var(--ink);font-size:.82rem;margin-bottom:4px;font-family:inherit}
+.pd-tabs .comment-text .star-rating{color:var(--c2);margin-bottom:6px;font-size:.9rem}
+.pd-tabs .comment-text .description p{margin:0;color:var(--muted);font-size:.82rem;line-height:1.9;font-family:inherit}
+.pd-tabs .woocommerce-noreviews{color:var(--muted);font-size:.85rem;margin-bottom:20px}
+.pd-tabs #review_form_wrapper{margin-top:10px}
+.pd-tabs #review_form_wrapper h3{font-size:.95rem;font-weight:900;color:var(--ink);margin-bottom:14px}
+.pd-tabs .comment-form-rating label,.pd-tabs .comment-form-comment label,.pd-tabs .comment-form-author label,.pd-tabs .comment-form-email label{display:block;font-weight:700;font-size:.8rem;color:var(--ink);margin-bottom:6px;font-family:inherit}
+.pd-tabs .comment-form-rating{margin-bottom:16px}
+.pd-tabs .comment-form-rating select{display:none}
+.pd-tabs p.comment-form-comment,.pd-tabs p.comment-form-author,.pd-tabs p.comment-form-email,.pd-tabs p.comment-form-cookies-consent{margin-bottom:16px}
+.pd-tabs textarea,.pd-tabs #review_form_wrapper input[type=text],.pd-tabs #review_form_wrapper input[type=email]{width:100%;border:1px solid var(--line);border-radius:14px;padding:12px 16px;font-family:inherit;font-size:.85rem;color:var(--ink);background:#fff;transition:.25s cubic-bezier(.4,0,.2,1)}
+.pd-tabs textarea{min-height:110px;resize:vertical}
+.pd-tabs textarea:focus,.pd-tabs #review_form_wrapper input:focus{outline:none;border-color:var(--line2);box-shadow:0 0 0 4px color-mix(in srgb,var(--c2) 16%,transparent)}
+.pd-tabs .comment-form-cookies-consent{display:flex;align-items:center;gap:8px;font-size:.78rem;color:var(--muted)}
+.pd-tabs .comment-form-cookies-consent label{display:inline;margin:0;font-weight:500}
+.pd-tabs #submit{background:var(--grad)!important;color:#fff!important;border:none!important;border-radius:99px!important;padding:13px 30px;font-weight:800;font-size:.88rem;font-family:inherit;cursor:pointer;transition:.25s cubic-bezier(.4,0,.2,1)}
+.pd-tabs #submit:hover{transform:translateY(-3px)}
 .pd-related{margin-top:54px}
 .pd-related-title{font-weight:900;font-size:1.25rem;margin-bottom:22px}
 .pd-related-title span{background:var(--grad);-webkit-background-clip:text;color:transparent}
@@ -2153,6 +2239,9 @@ applyCols();
 });
 $(window).on('resize', applyCols);
 applyCols();
+$(document).on('click','.sf-toggle-mob',function(){
+$('.shop-filters').toggleClass('open');
+});
 (function(){
 if(!document.body.classList.contains('catst-9') && !document.body.classList.contains('prodst-11')) return;
 var sels=[];
@@ -2575,10 +2664,38 @@ function sahel_engine( $template ) {
         if ( 'home' === $t ) { sahel_shell( sahel_home_html() ); }
         elseif ( 'archive' === $t ) {
             $brand = sahel_brand();
+            $sidebar_on = get_theme_mod( 'sahel_shop_sidebar_on', 0 );
             $h = '<main class="wrap shop-main"><nav class="crumbs">' . woocommerce_breadcrumb( array( 'echo' => false ) ) . '</nav>';
             $banner = get_theme_mod( 'sahel_shop_banner', '' );
             if ( $banner ) {
                 $h .= '<div class="page-banner rv in"><img src="' . esc_url( $banner ) . '" alt=""><div class="pb-ovl"></div><div class="pb-txt"><h1>' . esc_html( get_theme_mod( 'sahel_shop_title', 'فروشگاه ' . $brand ) ) . '</h1><p>' . esc_html( get_theme_mod( 'sahel_shop_sub', 'استایل تو، امضای تو' ) ) . '</p></div></div>';
+            }
+            if ( $sidebar_on ) {
+                $cur_fcat = ( isset( $_GET['fcat'] ) && is_array( $_GET['fcat'] ) ) ? array_map( 'sanitize_title', wp_unslash( $_GET['fcat'] ) ) : array();
+                $cur_fbrand = ( isset( $_GET['fbrand'] ) && is_array( $_GET['fbrand'] ) ) ? array_map( 'sanitize_title', wp_unslash( $_GET['fbrand'] ) ) : array();
+                $cur_min = isset( $_GET['min_price'] ) ? sanitize_text_field( wp_unslash( $_GET['min_price'] ) ) : '';
+                $cur_max = isset( $_GET['max_price'] ) ? sanitize_text_field( wp_unslash( $_GET['max_price'] ) ) : '';
+                $cur_stock = isset( $_GET['mstock'] ) && $_GET['mstock'] === 'in';
+                $h .= '<button type="button" class="sf-toggle-mob">☰ فیلترها</button><div class="shop-flex"><aside class="shop-filters"><form method="get" class="shop-filters-form">';
+                $fcats = sahel_product_cats_flat();
+                if ( $fcats ) {
+                    $h .= '<div class="sf-group"><h4>دسته‌بندی</h4><div class="sf-list">';
+                    foreach ( $fcats as $c ) { $h .= '<label class="sf-check"><input type="checkbox" name="fcat[]" value="' . esc_attr( $c->slug ) . '"' . ( in_array( $c->slug, $cur_fcat, true ) ? ' checked' : '' ) . '><span>' . esc_html( $c->name ) . '</span></label>'; }
+                    $h .= '</div></div>';
+                }
+                $brand_tax = sahel_brand_taxonomy();
+                if ( $brand_tax ) {
+                    $brand_terms = get_terms( array( 'taxonomy' => $brand_tax, 'hide_empty' => true ) );
+                    if ( $brand_terms && ! is_wp_error( $brand_terms ) && count( $brand_terms ) ) {
+                        $h .= '<div class="sf-group"><h4>برند</h4><div class="sf-list">';
+                        foreach ( $brand_terms as $bt ) { $h .= '<label class="sf-check"><input type="checkbox" name="fbrand[]" value="' . esc_attr( $bt->slug ) . '"' . ( in_array( $bt->slug, $cur_fbrand, true ) ? ' checked' : '' ) . '><span>' . esc_html( $bt->name ) . '</span></label>'; }
+                        $h .= '</div></div>';
+                    }
+                }
+                $h .= '<div class="sf-group"><h4>محدوده قیمت (تومان)</h4><div class="sf-price"><input type="number" min="0" name="min_price" placeholder="از" value="' . esc_attr( $cur_min ) . '"><span>—</span><input type="number" min="0" name="max_price" placeholder="تا" value="' . esc_attr( $cur_max ) . '"></div></div>';
+                $h .= '<div class="sf-group"><label class="sf-check"><input type="checkbox" name="mstock" value="in"' . ( $cur_stock ? ' checked' : '' ) . '><span>فقط کالاهای موجود</span></label></div>';
+                $h .= '<button type="submit" class="btn btn-primary sf-apply">اعمال فیلتر</button><a href="' . esc_url( sahel_shop_url() ) . '" class="sf-clear">حذف فیلترها</a>';
+                $h .= '</form></aside><div class="shop-main-col">';
             }
             if ( get_theme_mod( 'sahel_shop_filters', 1 ) ) {
                 $h .= '<div class="catbar"><a class="' . ( is_shop() ? 'active' : '' ) . '" href="' . esc_url( sahel_shop_url() ) . '">همه</a>';
@@ -2606,6 +2723,7 @@ function sahel_engine( $template ) {
             } else {
                 $h .= '<div class="empty-state"><p>محصولی یافت نشد 😕</p><a class="btn btn-ghost" href="' . esc_url( sahel_shop_url() ) . '">مشاهده همه محصولات</a></div>';
             }
+            if ( $sidebar_on ) { $h .= '</div></div>'; }
             $h .= '</main>';
             sahel_shell( $h );
         } elseif ( 'product' === $t ) {
