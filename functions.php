@@ -510,6 +510,9 @@ function sahel_home_sec_defs() {
         'custom3'  => array( 'بخش اختصاصی HTML - ۳', '', '', 21 ),
         'custom4'  => array( 'بخش اختصاصی HTML - ۴', '', '', 22 ),
         'custom5'  => array( 'بخش اختصاصی HTML - ۵', '', '', 23 ),
+        'services' => array( 'خدمات ما (سازمانی)', 'خدمات ما', 'راهکارهایی متناسب با نیاز شما', 24 ),
+        'team'     => array( 'تیم ما (سازمانی)', 'تیم ما', 'افرادی که این مجموعه را می‌سازند', 25 ),
+        'projects' => array( 'نمونه‌کارها (سازمانی)', 'نمونه‌کارها', 'پروژه‌ها و همکاری‌های اخیر ما', 26 ),
     );
 }
 function sahel_sec( $key ) {
@@ -1027,6 +1030,40 @@ add_action( 'customize_register', function( $w ) {
     for ( $ci = 1; $ci <= 5; $ci++ ) {
         $w->add_setting( 'sahel_custom' . $ci . '_html', array( 'default' => '', 'sanitize_callback' => null ) );
         $w->add_control( 'sahel_custom' . $ci . '_html', array( 'label' => '💻 کد HTML اختصاصی', 'section' => 'sahel_secgrp_custom' . $ci, 'type' => 'textarea' ) );
+    }
+
+    /* ===== خدمات (برای وب‌سایت‌های سازمانی/بدون فروشگاه) ===== */
+    for ( $si = 1; $si <= 6; $si++ ) {
+        $w->add_setting( 'sahel_service' . $si . '_icon', array( 'default' => '', 'sanitize_callback' => 'esc_url_raw' ) );
+        $w->add_control( new WP_Customize_Image_Control( $w, 'sahel_service' . $si . '_icon', array( 'label' => 'آیکن/تصویر خدمت ' . sahel_fa( $si ), 'section' => 'sahel_secgrp_services' ) ) );
+        $w->add_setting( 'sahel_service' . $si . '_title', array( 'default' => '', 'sanitize_callback' => 'sanitize_text_field' ) );
+        $w->add_control( 'sahel_service' . $si . '_title', array( 'label' => 'عنوان خدمت ' . sahel_fa( $si ), 'section' => 'sahel_secgrp_services' ) );
+        $w->add_setting( 'sahel_service' . $si . '_desc', array( 'default' => '', 'sanitize_callback' => 'sanitize_textarea_field' ) );
+        $w->add_control( 'sahel_service' . $si . '_desc', array( 'label' => 'توضیح خدمت ' . sahel_fa( $si ), 'section' => 'sahel_secgrp_services', 'type' => 'textarea' ) );
+    }
+
+    /* ===== تیم (برای وب‌سایت‌های سازمانی/بدون فروشگاه) ===== */
+    for ( $ti = 1; $ti <= 6; $ti++ ) {
+        $w->add_setting( 'sahel_team' . $ti . '_img', array( 'default' => '', 'sanitize_callback' => 'esc_url_raw' ) );
+        $w->add_control( new WP_Customize_Image_Control( $w, 'sahel_team' . $ti . '_img', array( 'label' => 'عکس عضو تیم ' . sahel_fa( $ti ), 'section' => 'sahel_secgrp_team' ) ) );
+        $w->add_setting( 'sahel_team' . $ti . '_name', array( 'default' => '', 'sanitize_callback' => 'sanitize_text_field' ) );
+        $w->add_control( 'sahel_team' . $ti . '_name', array( 'label' => 'نام عضو تیم ' . sahel_fa( $ti ), 'section' => 'sahel_secgrp_team' ) );
+        $w->add_setting( 'sahel_team' . $ti . '_role', array( 'default' => '', 'sanitize_callback' => 'sanitize_text_field' ) );
+        $w->add_control( 'sahel_team' . $ti . '_role', array( 'label' => 'سمت عضو تیم ' . sahel_fa( $ti ), 'section' => 'sahel_secgrp_team' ) );
+        $w->add_setting( 'sahel_team' . $ti . '_link', array( 'default' => '', 'sanitize_callback' => 'esc_url_raw' ) );
+        $w->add_control( 'sahel_team' . $ti . '_link', array( 'label' => 'لینک (لینکدین/شبکه اجتماعی) عضو تیم ' . sahel_fa( $ti ) . ' — اختیاری', 'section' => 'sahel_secgrp_team' ) );
+    }
+
+    /* ===== نمونه‌کارها (برای وب‌سایت‌های سازمانی/بدون فروشگاه) ===== */
+    for ( $pi = 1; $pi <= 6; $pi++ ) {
+        $w->add_setting( 'sahel_project' . $pi . '_img', array( 'default' => '', 'sanitize_callback' => 'esc_url_raw' ) );
+        $w->add_control( new WP_Customize_Image_Control( $w, 'sahel_project' . $pi . '_img', array( 'label' => 'تصویر نمونه‌کار ' . sahel_fa( $pi ), 'section' => 'sahel_secgrp_projects' ) ) );
+        $w->add_setting( 'sahel_project' . $pi . '_title', array( 'default' => '', 'sanitize_callback' => 'sanitize_text_field' ) );
+        $w->add_control( 'sahel_project' . $pi . '_title', array( 'label' => 'عنوان نمونه‌کار ' . sahel_fa( $pi ), 'section' => 'sahel_secgrp_projects' ) );
+        $w->add_setting( 'sahel_project' . $pi . '_cat', array( 'default' => '', 'sanitize_callback' => 'sanitize_text_field' ) );
+        $w->add_control( 'sahel_project' . $pi . '_cat', array( 'label' => 'دسته/برچسب نمونه‌کار ' . sahel_fa( $pi ), 'section' => 'sahel_secgrp_projects' ) );
+        $w->add_setting( 'sahel_project' . $pi . '_link', array( 'default' => '', 'sanitize_callback' => 'esc_url_raw' ) );
+        $w->add_control( 'sahel_project' . $pi . '_link', array( 'label' => 'لینک نمونه‌کار ' . sahel_fa( $pi ) . ' — اختیاری', 'section' => 'sahel_secgrp_projects' ) );
     }
 
     /* ===== برندها ===== */
@@ -2818,6 +2855,84 @@ function sahel_home_html() {
         $parts[] = array( $sec['order'], $h );
     }
 
+    $sec = sahel_sec( 'services' );
+    if ( $sec['on'] ) {
+        $services = array();
+        for ( $si = 1; $si <= 6; $si++ ) {
+            $s_icon = get_theme_mod( 'sahel_service' . $si . '_icon', '' );
+            $s_title = get_theme_mod( 'sahel_service' . $si . '_title', '' );
+            $s_desc = get_theme_mod( 'sahel_service' . $si . '_desc', '' );
+            if ( $s_title ) { $services[] = array( $s_icon, $s_title, $s_desc ); }
+        }
+        if ( $services ) {
+            $bg = sahel_sec_bg_attr( $sec, 'padding-top:10px' );
+            $h = '<section' . ( $sec['full'] ? ' class="sec-full ' . $bg['class'] . '"' : ' class="' . $bg['class'] . '"' ) . $bg['style'] . ( $sec['btn_color'] ? ' data-btn-color="' . esc_attr( $sec['btn_color'] ) . '"' : '' ) . ( $sec['btn_text'] ? ' data-btn-text="' . esc_attr( $sec['btn_text'] ) . '"' : '' ) . '>';
+            $h .= $bg['overlay'];
+            $h .= '<div class="wrap">';
+            $h .= sahel_sec_head_html( $sec['title'], $sec['sub'], '' );
+            $h .= '<div class="services-grid">';
+            foreach ( $services as $sv ) {
+                $h .= '<div class="service-card rv">' . ( $sv[0] ? '<img class="service-icon" src="' . esc_url( $sv[0] ) . '" alt="">' : '' ) . '<h4>' . esc_html( $sv[1] ) . '</h4>' . ( $sv[2] ? '<p>' . esc_html( $sv[2] ) . '</p>' : '' ) . '</div>';
+            }
+            $h .= '</div></div></section>';
+            $parts[] = array( $sec['order'], $h );
+        }
+    }
+
+    $sec = sahel_sec( 'team' );
+    if ( $sec['on'] ) {
+        $team = array();
+        for ( $ti = 1; $ti <= 6; $ti++ ) {
+            $t_img = get_theme_mod( 'sahel_team' . $ti . '_img', '' );
+            $t_name = get_theme_mod( 'sahel_team' . $ti . '_name', '' );
+            $t_role = get_theme_mod( 'sahel_team' . $ti . '_role', '' );
+            $t_link = get_theme_mod( 'sahel_team' . $ti . '_link', '' );
+            if ( $t_name ) { $team[] = array( $t_img, $t_name, $t_role, $t_link ); }
+        }
+        if ( $team ) {
+            $bg = sahel_sec_bg_attr( $sec, 'padding-top:10px' );
+            $h = '<section' . ( $sec['full'] ? ' class="sec-full ' . $bg['class'] . '"' : ' class="' . $bg['class'] . '"' ) . $bg['style'] . ( $sec['btn_color'] ? ' data-btn-color="' . esc_attr( $sec['btn_color'] ) . '"' : '' ) . ( $sec['btn_text'] ? ' data-btn-text="' . esc_attr( $sec['btn_text'] ) . '"' : '' ) . '>';
+            $h .= $bg['overlay'];
+            $h .= '<div class="wrap">';
+            $h .= sahel_sec_head_html( $sec['title'], $sec['sub'], '' );
+            $h .= '<div class="team-grid">';
+            foreach ( $team as $tm ) {
+                $t_av = function_exists( 'mb_substr' ) ? mb_substr( $tm[1], 0, 1 ) : substr( $tm[1], 0, 2 );
+                $t_photo = $tm[0] ? '<img src="' . esc_url( $tm[0] ) . '" alt="">' : '<span class="av">' . esc_html( $t_av ) . '</span>';
+                $h .= '<div class="team-card rv"><div class="team-photo">' . $t_photo . '</div><h4>' . esc_html( $tm[1] ) . '</h4>' . ( $tm[2] ? '<p>' . esc_html( $tm[2] ) . '</p>' : '' ) . ( $tm[3] ? '<a class="team-link" href="' . esc_url( $tm[3] ) . '" target="_blank" rel="noopener">مشاهده پروفایل ←</a>' : '' ) . '</div>';
+            }
+            $h .= '</div></div></section>';
+            $parts[] = array( $sec['order'], $h );
+        }
+    }
+
+    $sec = sahel_sec( 'projects' );
+    if ( $sec['on'] ) {
+        $projects = array();
+        for ( $pi = 1; $pi <= 6; $pi++ ) {
+            $p_img = get_theme_mod( 'sahel_project' . $pi . '_img', '' );
+            $p_title = get_theme_mod( 'sahel_project' . $pi . '_title', '' );
+            $p_cat = get_theme_mod( 'sahel_project' . $pi . '_cat', '' );
+            $p_link = get_theme_mod( 'sahel_project' . $pi . '_link', '' );
+            if ( $p_img && $p_title ) { $projects[] = array( $p_img, $p_title, $p_cat, $p_link ); }
+        }
+        if ( $projects ) {
+            $bg = sahel_sec_bg_attr( $sec, 'padding-top:10px' );
+            $h = '<section' . ( $sec['full'] ? ' class="sec-full ' . $bg['class'] . '"' : ' class="' . $bg['class'] . '"' ) . $bg['style'] . ( $sec['btn_color'] ? ' data-btn-color="' . esc_attr( $sec['btn_color'] ) . '"' : '' ) . ( $sec['btn_text'] ? ' data-btn-text="' . esc_attr( $sec['btn_text'] ) . '"' : '' ) . '>';
+            $h .= $bg['overlay'];
+            $h .= '<div class="wrap">';
+            $h .= sahel_sec_head_html( $sec['title'], $sec['sub'], '' );
+            $h .= '<div class="projects-grid">';
+            foreach ( $projects as $pr ) {
+                $p_tag = $pr[3] ? 'a' : 'div';
+                $p_attrs = $pr[3] ? ' href="' . esc_url( $pr[3] ) . '"' . ( strpos( $pr[3], 'http' ) === 0 ? ' target="_blank" rel="noopener"' : '' ) : '';
+                $h .= '<' . $p_tag . ' class="project-card rv"' . $p_attrs . '><img loading="lazy" src="' . esc_url( $pr[0] ) . '" alt=""><div class="project-ovl"></div><div class="project-txt">' . ( $pr[2] ? '<span class="project-cat">' . esc_html( $pr[2] ) . '</span>' : '' ) . '<h4>' . esc_html( $pr[1] ) . '</h4></div></' . $p_tag . '>';
+            }
+            $h .= '</div></div></section>';
+            $parts[] = array( $sec['order'], $h );
+        }
+    }
+
     $sec = sahel_sec( 'campaign' );
     if ( $sec['on'] ) {
         $btn = get_theme_mod( 'sahel_campaign_btn', 'مشاهده کالکشن' );
@@ -3343,6 +3458,32 @@ body.postst-6 .post-card:hover{transform:translateY(-6px)}
 .testi .av{width:42px;height:42px;border-radius:50%;background:var(--grad);color:#fff;display:grid;place-items:center;font-weight:900;flex-shrink:0}
 .testi .who b{display:block;font-size:.82rem}
 .testi .who span{color:var(--muted);font-size:.68rem}
+.services-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.service-card{background:var(--cardbg);border:1px solid var(--line);border-radius:22px;padding:26px;text-align:center;transition:.35s cubic-bezier(.4,0,.2,1)}
+.service-card:hover{transform:translateY(-6px);box-shadow:var(--shadow-lg);border-color:var(--line2)}
+.service-icon{width:48px;height:48px;object-fit:contain;margin:0 auto 14px}
+.service-card h4{font-size:.95rem;font-weight:900;margin-bottom:8px;color:var(--ink)}
+.service-card p{color:var(--muted);font-size:.8rem;line-height:1.9}
+.team-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.team-card{background:var(--cardbg);border:1px solid var(--line);border-radius:22px;padding:24px;text-align:center;transition:.35s cubic-bezier(.4,0,.2,1)}
+.team-card:hover{transform:translateY(-6px);box-shadow:var(--shadow-lg);border-color:var(--line2)}
+.team-photo{width:84px;height:84px;border-radius:50%;overflow:hidden;margin:0 auto 14px;display:grid;place-items:center;background:var(--grad)}
+.team-photo img{width:100%;height:100%;object-fit:cover}
+.team-photo .av{color:#fff;font-weight:900;font-size:1.6rem}
+.team-card h4{font-size:.9rem;font-weight:900;margin-bottom:4px;color:var(--ink)}
+.team-card p{color:var(--muted);font-size:.76rem;margin-bottom:10px}
+.team-link{color:var(--caramel);font-size:.74rem;font-weight:700}
+.team-link:hover{color:var(--c1)}
+.projects-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.project-card{position:relative;display:block;border-radius:22px;overflow:hidden;aspect-ratio:4/3;box-shadow:var(--shadow)}
+.project-card img{width:100%;height:100%;object-fit:cover;transition:.4s cubic-bezier(.4,0,.2,1)}
+.project-card:hover img{transform:scale(1.08)}
+.project-ovl{position:absolute;inset:0;background:linear-gradient(to top,rgba(15,10,6,.82),transparent 60%)}
+.project-txt{position:absolute;bottom:0;inset-inline:0;padding:20px}
+.project-cat{display:inline-block;background:color-mix(in srgb,#fff 20%,transparent);backdrop-filter:blur(4px);color:#fff;font-size:.68rem;font-weight:800;padding:4px 12px;border-radius:99px;margin-bottom:8px}
+.project-txt h4{color:#fff;font-size:1rem;font-weight:900}
+@media(max-width:920px){.services-grid{grid-template-columns:repeat(2,1fr)}.team-grid{grid-template-columns:repeat(2,1fr)}.projects-grid{grid-template-columns:1fr}}
+@media(max-width:600px){.services-grid{grid-template-columns:1fr}}
 .faq-list{display:grid;gap:12px;max-width:840px;margin:0 auto}
 .faq-item{background:var(--cardbg);border:1px solid var(--line);border-radius:18px;overflow:hidden;transition:.25s cubic-bezier(.4,0,.2,1)}
 .faq-item summary{cursor:pointer;padding:16px 20px;font-weight:800;font-size:.9rem;display:flex;justify-content:space-between;align-items:center;gap:10px;list-style:none}
