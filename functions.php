@@ -1611,10 +1611,11 @@ section.sec-al-left .wrap{text-align:left}
 section.sec-al-left .sec-head{flex-direction:row-reverse}
 section[style*="--sec-title-fs"] .sec-head h2{font-size:var(--sec-title-fs)}
 section[style*="--sec-sub-fs"] .sec-head p{font-size:var(--sec-sub-fs)}
-section[style*="--sec-px"] > .wrap{padding-inline:var(--sec-px)}
-section[style*="--sec-py"]{padding-block:var(--sec-py)}
-section[style*="--sec-my"]{margin-block:var(--sec-my)}
-section[style*="--sec-min-h"]{min-height:var(--sec-min-h);display:flex;flex-direction:column;justify-content:center}
+section[style*="--sec-pt-base:"]{padding-top:var(--sec-pt-base)}
+section[style*="--sec-px:"] > .wrap{padding-inline:var(--sec-px)}
+section[style*="--sec-py:"]{padding-block:var(--sec-py)}
+section[style*="--sec-my:"]{margin-block:var(--sec-my)}
+section[style*="--sec-min-h:"]{min-height:var(--sec-min-h);display:flex;flex-direction:column;justify-content:center}
 section[style*="--sec-title-color"] .sec-head h2{color:var(--sec-title-color)}
 section[style*="--sec-text-color"]{color:var(--sec-text-color)}
 section[style*="--sec-text-color"] .sec-head p{color:var(--sec-text-color)}
@@ -1626,12 +1627,12 @@ section[style*="--sec-hover-color"] .btn-primary:hover{background:var(--sec-hove
 .media-sec-el{display:block;width:100%;max-height:640px;object-fit:cover}
 .media-sec-link{display:block}
 .custom-html-sec{width:100%}
-section[style*="--sec-min-h-m"]{display:flex;flex-direction:column;justify-content:center}
+section[style*="--sec-min-h-m:"]{display:flex;flex-direction:column;justify-content:center}
 @media(max-width:600px){
-section[style*="--sec-min-h-m"]{min-height:var(--sec-min-h-m)}
-section[style*="--sec-px-m"] > .wrap{padding-inline:var(--sec-px-m)}
-section[style*="--sec-py-m"]{padding-block:var(--sec-py-m)}
-section[style*="--sec-my-m"]{margin-block:var(--sec-my-m)}
+section[style*="--sec-min-h-m:"]{min-height:var(--sec-min-h-m)}
+section[style*="--sec-px-m:"] > .wrap{padding-inline:var(--sec-px-m)}
+section[style*="--sec-py-m:"]{padding-block:var(--sec-py-m)}
+section[style*="--sec-my-m:"]{margin-block:var(--sec-my-m)}
 }
 /* v4.8: نمایش/عدم‌نمایش جداگانه بر اساس دستگاه (موبایل ≤۶۰۰، تبلت ۶۰۱-۹۲۰، دسکتاپ ≥۹۲۱) */
 @media(max-width:600px){ .hide-m{display:none!important} }
@@ -2731,7 +2732,7 @@ function sahel_home_html() {
         $st2 = get_theme_mod( 'sahel_stat2', '450' ); $st2l = get_theme_mod( 'sahel_stat2_label', 'محصول متنوع' );
         $st3 = get_theme_mod( 'sahel_stat3', '98' ); $st3l = get_theme_mod( 'sahel_stat3_label', 'رضایت خرید' );
         $st4 = get_theme_mod( 'sahel_stat4_text', 'سراسر کشور' ); $st4l = get_theme_mod( 'sahel_stat4_label', 'ارسال سریع' );
-        $bg = sahel_sec_bg_attr( $sec, 'padding-top:10px' );
+        $bg = sahel_sec_bg_attr( $sec, '--sec-pt-base:10px' );
         $h = '<section' . ( $sec['full'] ? ' class="sec-full ' . $bg['class'] . '"' : ' class="' . $bg['class'] . '"' ) . $bg['style'] . ( $sec['btn_color'] ? ' data-btn-color="' . esc_attr( $sec['btn_color'] ) . '"' : '' ) . ( $sec['btn_text'] ? ' data-btn-text="' . esc_attr( $sec['btn_text'] ) . '"' : '' ) . '>';
         $h .= $bg['overlay'];
         $h .= '<div class="wrap"><div class="statband rv">';
@@ -2793,7 +2794,7 @@ function sahel_home_html() {
     if ( class_exists( 'WooCommerce' ) ) {
         $sec = sahel_sec( 'new' );
         if ( $sec['on'] ) {
-            $bg = sahel_sec_bg_attr( $sec, 'padding-top:10px' );
+            $bg = sahel_sec_bg_attr( $sec, '--sec-pt-base:10px' );
             $h = '<section' . ( $sec['full'] ? ' class="sec-full ' . $bg['class'] . '"' : ' class="' . $bg['class'] . '"' ) . $bg['style'] . ( $sec['btn_color'] ? ' data-btn-color="' . esc_attr( $sec['btn_color'] ) . '"' : '' ) . ( $sec['btn_text'] ? ' data-btn-text="' . esc_attr( $sec['btn_text'] ) . '"' : '' ) . '>';
             $h .= $bg['overlay'];
             $h .= '<div class="wrap">';
@@ -2813,7 +2814,7 @@ function sahel_home_html() {
         }
         $sec = sahel_sec( 'best' );
         if ( $sec['on'] ) {
-            $bg = sahel_sec_bg_attr( $sec, 'padding-top:10px' );
+            $bg = sahel_sec_bg_attr( $sec, '--sec-pt-base:10px' );
             $h = '<section' . ( $sec['full'] ? ' class="sec-full ' . $bg['class'] . '"' : ' class="' . $bg['class'] . '"' ) . $bg['style'] . ( $sec['btn_color'] ? ' data-btn-color="' . esc_attr( $sec['btn_color'] ) . '"' : '' ) . ( $sec['btn_text'] ? ' data-btn-text="' . esc_attr( $sec['btn_text'] ) . '"' : '' ) . '>';
             $h .= $bg['overlay'];
             $h .= '<div class="wrap">';
@@ -2848,7 +2849,7 @@ function sahel_home_html() {
             }
         }
         if ( $logos ) {
-            $bg = sahel_sec_bg_attr( $sec, 'padding-top:10px' );
+            $bg = sahel_sec_bg_attr( $sec, '--sec-pt-base:10px' );
             $mode_class = $mode === 'marquee' ? '' : ( $mode === 'float' ? ' is-float' : ' is-static' );
             $h = '<section' . ( $sec['full'] ? ' class="sec-full ' . $bg['class'] . '"' : ' class="' . $bg['class'] . '"' ) . $bg['style'] . ( $sec['btn_color'] ? ' data-btn-color="' . esc_attr( $sec['btn_color'] ) . '"' : '' ) . ( $sec['btn_text'] ? ' data-btn-text="' . esc_attr( $sec['btn_text'] ) . '"' : '' ) . '>';
             $h .= $bg['overlay'];
@@ -2864,7 +2865,7 @@ function sahel_home_html() {
 
     $sec = sahel_sec( 'features' );
     if ( $sec['on'] ) {
-        $bg = sahel_sec_bg_attr( $sec, 'padding-top:10px' );
+        $bg = sahel_sec_bg_attr( $sec, '--sec-pt-base:10px' );
         $h = '<section' . ( $sec['full'] ? ' class="sec-full ' . $bg['class'] . '"' : ' class="' . $bg['class'] . '"' ) . $bg['style'] . ( $sec['btn_color'] ? ' data-btn-color="' . esc_attr( $sec['btn_color'] ) . '"' : '' ) . ( $sec['btn_text'] ? ' data-btn-text="' . esc_attr( $sec['btn_text'] ) . '"' : '' ) . '>';
         $h .= $bg['overlay'];
         $h .= '<div class="wrap features">';
@@ -2886,7 +2887,7 @@ function sahel_home_html() {
             if ( $s_title ) { $services[] = array( $s_icon, $s_title, $s_desc ); }
         }
         if ( $services ) {
-            $bg = sahel_sec_bg_attr( $sec, 'padding-top:10px' );
+            $bg = sahel_sec_bg_attr( $sec, '--sec-pt-base:10px' );
             $h = '<section' . ( $sec['full'] ? ' class="sec-full ' . $bg['class'] . '"' : ' class="' . $bg['class'] . '"' ) . $bg['style'] . ( $sec['btn_color'] ? ' data-btn-color="' . esc_attr( $sec['btn_color'] ) . '"' : '' ) . ( $sec['btn_text'] ? ' data-btn-text="' . esc_attr( $sec['btn_text'] ) . '"' : '' ) . '>';
             $h .= $bg['overlay'];
             $h .= '<div class="wrap">';
@@ -2911,7 +2912,7 @@ function sahel_home_html() {
             if ( $t_name ) { $team[] = array( $t_img, $t_name, $t_role, $t_link ); }
         }
         if ( $team ) {
-            $bg = sahel_sec_bg_attr( $sec, 'padding-top:10px' );
+            $bg = sahel_sec_bg_attr( $sec, '--sec-pt-base:10px' );
             $h = '<section' . ( $sec['full'] ? ' class="sec-full ' . $bg['class'] . '"' : ' class="' . $bg['class'] . '"' ) . $bg['style'] . ( $sec['btn_color'] ? ' data-btn-color="' . esc_attr( $sec['btn_color'] ) . '"' : '' ) . ( $sec['btn_text'] ? ' data-btn-text="' . esc_attr( $sec['btn_text'] ) . '"' : '' ) . '>';
             $h .= $bg['overlay'];
             $h .= '<div class="wrap">';
@@ -2938,7 +2939,7 @@ function sahel_home_html() {
             if ( $p_img && $p_title ) { $projects[] = array( $p_img, $p_title, $p_cat, $p_link ); }
         }
         if ( $projects ) {
-            $bg = sahel_sec_bg_attr( $sec, 'padding-top:10px' );
+            $bg = sahel_sec_bg_attr( $sec, '--sec-pt-base:10px' );
             $h = '<section' . ( $sec['full'] ? ' class="sec-full ' . $bg['class'] . '"' : ' class="' . $bg['class'] . '"' ) . $bg['style'] . ( $sec['btn_color'] ? ' data-btn-color="' . esc_attr( $sec['btn_color'] ) . '"' : '' ) . ( $sec['btn_text'] ? ' data-btn-text="' . esc_attr( $sec['btn_text'] ) . '"' : '' ) . '>';
             $h .= $bg['overlay'];
             $h .= '<div class="wrap">';
@@ -2959,7 +2960,7 @@ function sahel_home_html() {
         $btn = get_theme_mod( 'sahel_campaign_btn', 'مشاهده کالکشن' );
         $url = get_theme_mod( 'sahel_campaign_url', '' );
         if ( ! $url ) { $url = sahel_shop_url(); }
-        $bg = sahel_sec_bg_attr( $sec, 'padding-top:10px' );
+        $bg = sahel_sec_bg_attr( $sec, '--sec-pt-base:10px' );
         $h = '<section' . ( $sec['full'] ? ' class="sec-full ' . $bg['class'] . '"' : ' class="' . $bg['class'] . '"' ) . $bg['style'] . ( $sec['btn_color'] ? ' data-btn-color="' . esc_attr( $sec['btn_color'] ) . '"' : '' ) . ( $sec['btn_text'] ? ' data-btn-text="' . esc_attr( $sec['btn_text'] ) . '"' : '' ) . '>';
         $h .= $bg['overlay'];
         $h .= '<div class="wrap"><div class="campaign rv">';
@@ -2974,7 +2975,7 @@ function sahel_home_html() {
         $imgs = array();
         for ( $i = 1; $i <= 4; $i++ ) { $im = get_theme_mod( 'sahel_look' . $i, '' ); if ( $im ) { $imgs[] = $im; } }
         if ( $imgs ) {
-            $bg = sahel_sec_bg_attr( $sec, 'padding-top:10px' );
+            $bg = sahel_sec_bg_attr( $sec, '--sec-pt-base:10px' );
             $h = '<section' . ( $sec['full'] ? ' class="sec-full ' . $bg['class'] . '"' : ' class="' . $bg['class'] . '"' ) . $bg['style'] . ( $sec['btn_color'] ? ' data-btn-color="' . esc_attr( $sec['btn_color'] ) . '"' : '' ) . ( $sec['btn_text'] ? ' data-btn-text="' . esc_attr( $sec['btn_text'] ) . '"' : '' ) . '>';
             $h .= $bg['overlay'];
             $h .= '<div class="wrap">';
@@ -2990,7 +2991,7 @@ function sahel_home_html() {
 
     $sec = sahel_sec( 'testi' );
     if ( $sec['on'] ) {
-        $bg = sahel_sec_bg_attr( $sec, 'padding-top:10px' );
+        $bg = sahel_sec_bg_attr( $sec, '--sec-pt-base:10px' );
         $h = '<section' . ( $sec['full'] ? ' class="sec-full ' . $bg['class'] . '"' : ' class="' . $bg['class'] . '"' ) . $bg['style'] . ( $sec['btn_color'] ? ' data-btn-color="' . esc_attr( $sec['btn_color'] ) . '"' : '' ) . ( $sec['btn_text'] ? ' data-btn-text="' . esc_attr( $sec['btn_text'] ) . '"' : '' ) . '>';
         $h .= $bg['overlay'];
         $h .= '<div class="wrap">';
@@ -3019,7 +3020,7 @@ function sahel_home_html() {
             if ( $q && $a ) { $items[] = array( $q, $a ); }
         }
         if ( $items ) {
-            $bg = sahel_sec_bg_attr( $sec, 'padding-top:10px' );
+            $bg = sahel_sec_bg_attr( $sec, '--sec-pt-base:10px' );
             $h = '<section' . ( $sec['full'] ? ' class="sec-full ' . $bg['class'] . '"' : ' class="' . $bg['class'] . '"' ) . $bg['style'] . ( $sec['btn_color'] ? ' data-btn-color="' . esc_attr( $sec['btn_color'] ) . '"' : '' ) . ( $sec['btn_text'] ? ' data-btn-text="' . esc_attr( $sec['btn_text'] ) . '"' : '' ) . '>';
             $h .= $bg['overlay'];
             $h .= '<div class="wrap">';
@@ -3037,7 +3038,7 @@ function sahel_home_html() {
     if ( $sec['on'] ) {
         $posts = get_posts( array( 'post_type' => 'post', 'numberposts' => 3 ) );
         if ( $posts ) {
-            $bg = sahel_sec_bg_attr( $sec, 'padding-top:10px' );
+            $bg = sahel_sec_bg_attr( $sec, '--sec-pt-base:10px' );
             $h = '<section' . ( $sec['full'] ? ' class="sec-full ' . $bg['class'] . '"' : ' class="' . $bg['class'] . '"' ) . $bg['style'] . ( $sec['btn_color'] ? ' data-btn-color="' . esc_attr( $sec['btn_color'] ) . '"' : '' ) . ( $sec['btn_text'] ? ' data-btn-text="' . esc_attr( $sec['btn_text'] ) . '"' : '' ) . '>';
             $h .= $bg['overlay'];
             $h .= '<div class="wrap">';
@@ -3057,7 +3058,7 @@ function sahel_home_html() {
     if ( $sec['on'] ) {
         $about_img = get_theme_mod( 'sahel_about_image', '' );
         $about_txt = get_theme_mod( 'sahel_about_home_text', $brand . ' با یک باور ساده متولد شد.' );
-        $bg = sahel_sec_bg_attr( $sec, 'padding-top:10px' );
+        $bg = sahel_sec_bg_attr( $sec, '--sec-pt-base:10px' );
         $h = '<section' . ( $sec['full'] ? ' class="sec-full ' . $bg['class'] . '"' : ' class="' . $bg['class'] . '"' ) . $bg['style'] . ( $sec['btn_color'] ? ' data-btn-color="' . esc_attr( $sec['btn_color'] ) . '"' : '' ) . ( $sec['btn_text'] ? ' data-btn-text="' . esc_attr( $sec['btn_text'] ) . '"' : '' ) . '>';
         $h .= $bg['overlay'];
         $h .= '<div class="wrap"><div class="about-home rv">';
@@ -3074,7 +3075,7 @@ function sahel_home_html() {
     if ( $sec['on'] ) {
         $ig = get_theme_mod( 'sahel_instagram', '#' );
         $txt = get_theme_mod( 'sahel_insta_text', 'ما را دنبال کنید.' );
-        $bg = sahel_sec_bg_attr( $sec, 'padding-top:10px' );
+        $bg = sahel_sec_bg_attr( $sec, '--sec-pt-base:10px' );
         $h = '<section' . ( $sec['full'] ? ' class="sec-full ' . $bg['class'] . '"' : ' class="' . $bg['class'] . '"' ) . $bg['style'] . ( $sec['btn_color'] ? ' data-btn-color="' . esc_attr( $sec['btn_color'] ) . '"' : '' ) . ( $sec['btn_text'] ? ' data-btn-text="' . esc_attr( $sec['btn_text'] ) . '"' : '' ) . '>';
         $h .= $bg['overlay'];
         $h .= '<div class="wrap"><div class="insta-strip rv"><div><h3>📸 ما را در اینستاگرام دنبال کنید</h3><p>' . esc_html( $txt ) . '</p></div><a class="btn btn-primary" href="' . esc_url( $ig ) . '" target="_blank" rel="noopener">دنبال کردن</a></div></div></section>';
@@ -3083,7 +3084,7 @@ function sahel_home_html() {
 
     $sec = sahel_sec( 'news' );
     if ( $sec['on'] ) {
-        $bg = sahel_sec_bg_attr( $sec, 'padding-top:10px' );
+        $bg = sahel_sec_bg_attr( $sec, '--sec-pt-base:10px' );
         $h = '<section' . ( $sec['full'] ? ' class="sec-full ' . $bg['class'] . '"' : ' class="' . $bg['class'] . '"' ) . $bg['style'] . ( $sec['btn_color'] ? ' data-btn-color="' . esc_attr( $sec['btn_color'] ) . '"' : '' ) . ( $sec['btn_text'] ? ' data-btn-text="' . esc_attr( $sec['btn_text'] ) . '"' : '' ) . '>';
         $h .= $bg['overlay'];
         $h .= '<div class="wrap"><div class="news rv"><h2>' . ( $sec['title'] ? esc_html( $sec['title'] ) : 'عضو <span class="grad-text">باشگاه ' . esc_html( $brand ) . '</span> شو 🤎' ) . '</h2><p>' . ( $sec['sub'] ? esc_html( $sec['sub'] ) : 'اولین نفری باش که از کالکشن‌های جدید باخبر می‌شه' ) . '</p><form><input type="tel" placeholder="شماره موبایل" required><button class="btn btn-primary" type="submit">عضویت</button></form></div></div></section>';
@@ -3099,7 +3100,7 @@ function sahel_home_html() {
         $m_link = get_theme_mod( 'sahel_media_link', '' );
         $m_controls = get_theme_mod( 'sahel_media_controls', 0 );
         if ( ( 'video' === $m_type && $m_video ) || ( 'image' === $m_type && $m_img ) ) {
-            $bg = sahel_sec_bg_attr( $sec, 'padding-top:10px' );
+            $bg = sahel_sec_bg_attr( $sec, '--sec-pt-base:10px' );
             $h = '<section' . ( $sec['full'] ? ' class="sec-full ' . $bg['class'] . '"' : ' class="' . $bg['class'] . '"' ) . $bg['style'] . ( $sec['btn_color'] ? ' data-btn-color="' . esc_attr( $sec['btn_color'] ) . '"' : '' ) . ( $sec['btn_text'] ? ' data-btn-text="' . esc_attr( $sec['btn_text'] ) . '"' : '' ) . '>';
             $h .= $bg['overlay'];
             $h .= '<div class="wrap">';
@@ -3119,7 +3120,7 @@ function sahel_home_html() {
         $sec = sahel_sec( 'custom' . $ci );
         $code = get_theme_mod( 'sahel_custom' . $ci . '_html', '' );
         if ( $sec['on'] && $code ) {
-            $bg = sahel_sec_bg_attr( $sec, 'padding-top:10px' );
+            $bg = sahel_sec_bg_attr( $sec, '--sec-pt-base:10px' );
             $h = '<section' . ( $sec['full'] ? ' class="sec-full ' . $bg['class'] . '"' : ' class="' . $bg['class'] . '"' ) . $bg['style'] . ( $sec['btn_color'] ? ' data-btn-color="' . esc_attr( $sec['btn_color'] ) . '"' : '' ) . ( $sec['btn_text'] ? ' data-btn-text="' . esc_attr( $sec['btn_text'] ) . '"' : '' ) . '>';
             $h .= $bg['overlay'];
             $h .= '<div class="wrap">';
