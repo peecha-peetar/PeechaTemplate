@@ -1382,6 +1382,7 @@ body.btnst-soft .btn-primary{background:color-mix(in srgb,var(--c2) 25%,#fff);co
 .dd-toggle:hover{color:var(--caramel);background:color-mix(in srgb,var(--c2) 12%,transparent)}
 .dd-toggle svg{width:13px;height:13px;stroke:currentColor;transition:transform .3s cubic-bezier(.4,0,.2,1)}
 .dd:hover .dd-toggle svg{transform:rotate(180deg)}
+.bnav>.dd{position:relative}
 .dd-menu{position:absolute;top:100%;right:0;left:auto;padding-top:12px;display:none;z-index:70}
 .dd:hover .dd-menu,.dd.open .dd-menu{display:block;animation:appleBlurIn .4s cubic-bezier(.4,0,.2,1)}
 .dd-panel{width:min(620px,90vw);max-height:min(66vh,520px);overflow-y:auto;overscroll-behavior:contain;direction:ltr;background:color-mix(in srgb,var(--bg) 85%,transparent);backdrop-filter:blur(24px) saturate(1.4);-webkit-backdrop-filter:blur(24px) saturate(1.4);border:1px solid rgba(255,255,255,.8);border-radius:24px;box-shadow:var(--shadow-lg);padding:14px}
