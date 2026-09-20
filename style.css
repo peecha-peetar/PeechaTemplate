@@ -1,9 +1,9 @@
 /*
 Theme Name: Peecha
-Theme URI: https://sahelstyle.ir
+Theme URI: https://www.peecha.ir
 Author: Peecha Studio
-Author URI: https://sahelstyle.ir
-Description: پیچا — قالب فروشگاهی مدرن پوشاک و اکسسوری زنانه با پالت نود، اسلایدر، بخش‌ساز و استایل‌ساز داخلی. کاملاً فارسی و سازگار با ووکامرس و المنتور.
+Author URI: https://www.peecha.ir
+Description: پیچا — قالب فروشگاهی خام و چندمنظوره وردپرس با اسلایدر، بخش‌ساز صفحه اصلی و استایل‌ساز داخلی. کاملاً فارسی و سازگار با ووکامرس و المنتور؛ پایه‌ای برای ساخت سایت‌های فروشگاهی مختلف.
 Version: 3.4
 Requires at least: 6.0
 Tested up to: 6.7
@@ -11,7 +11,7 @@ Requires PHP: 7.4
 License: GNU General Public License v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Text Domain: peecha
-Tags: ecommerce, rtl, fashion, woocommerce, custom-colors
+Tags: ecommerce, rtl, woocommerce, custom-colors
 */
 /* تمام استایل‌ها توسط functions.php تولید می‌شود. */
 :root{
