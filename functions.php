@@ -1652,8 +1652,7 @@ section>.wrap{position:relative;z-index:1}
 .s-arrow:hover{background:var(--grad);border-color:transparent;transform:scale(1.1)}
 .s-arrow:hover svg{stroke:#fff}
 .s-arrow svg{width:16px;height:16px;stroke:var(--ink)}
-.strip{margin-inline:calc(50% - 50vw)}
-.strip ul.products{display:flex!important;flex-wrap:nowrap!important;grid-template-columns:none!important;gap:var(--prod-gap,14px);overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;padding:16px var(--sec-px, max(20px,calc((100vw - 1216px)/2))) 18px;mask-image:linear-gradient(90deg,transparent,#000 2%,#000 98%,transparent);-webkit-mask-image:linear-gradient(90deg,transparent,#000 2%,#000 98%,transparent)}
+.strip ul.products{display:flex!important;flex-wrap:nowrap!important;grid-template-columns:none!important;gap:var(--prod-gap,14px);overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;padding:32px 4px 36px;mask-image:linear-gradient(90deg,transparent,#000 2%,#000 98%,transparent);-webkit-mask-image:linear-gradient(90deg,transparent,#000 2%,#000 98%,transparent)}
 section.sec-al-center .strip ul.products{justify-content:center}
 section.sec-al-left .strip ul.products{justify-content:flex-end}
 .strip ul.products::-webkit-scrollbar{display:none}
@@ -2117,7 +2116,7 @@ body.sh-menu-open .sh-mnav{transform:translateY(0)}
 .header-inner{flex-wrap:nowrap}
 .brand-name{font-size:1.05rem}
 .brand-logo img{height:46px}
-.strip ul.products{padding-inline:var(--sec-px-m, var(--sec-px, 14px))}
+.strip ul.products{padding-inline:4px}
 .strip ul.products li.product{flex:0 0 210px!important;width:210px!important}
 .offer-inner{grid-template-columns:1fr;padding:20px}
 .pd-wrap{grid-template-columns:1fr;padding:22px}
