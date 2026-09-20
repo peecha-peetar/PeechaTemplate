@@ -1374,7 +1374,7 @@ body.btnst-soft .btn-primary{background:color-mix(in srgb,var(--c2) 25%,#fff);co
 .brand-name small{display:block;font-size:.6rem;color:var(--muted);letter-spacing:3px}
 
 /* v4.5: Desktop menu always visible */
-.bnav{display:flex;gap:2px;flex-wrap:wrap;align-items:center;font-family:var(--font-header);margin-inline-start:auto}
+.bnav{display:flex;row-gap:10px;column-gap:4px;flex-wrap:wrap;align-items:center;font-family:var(--font-header);margin-inline-start:auto}
 .bnav>a{padding:9px 16px;border-radius:99px;font-size:.88rem;font-weight:700;color:var(--header-text);transition:.25s cubic-bezier(.4,0,.2,1)}
 .bnav>a:hover{color:var(--caramel);background:color-mix(in srgb,var(--c2) 12%,transparent);transform:translateY(-2px)}
 
