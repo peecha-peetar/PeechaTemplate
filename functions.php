@@ -793,6 +793,8 @@ add_action( 'customize_register', function( $w ) {
 
     /* ===== استایل‌ساز ===== */
     $w->add_section( 'sahel_styles', array( 'title' => '۵. استایل‌ساز', 'priority' => 31 ) );
+    $w->add_setting( 'sahel_design_mode', array( 'default' => 'flat', 'sanitize_callback' => 'sanitize_key' ) );
+    $w->add_control( 'sahel_design_mode', array( 'label' => '🧩 سبک کلی طراحی', 'description' => 'فلت: بدون سایه، شیشه و جابه‌جایی هنگام هاور. با افکت: سایه‌ها، گرادیان‌ها و حرکت کارت‌ها.', 'section' => 'sahel_styles', 'type' => 'select', 'choices' => array( 'flat' => 'فلت (ساده و تمیز)', 'classic' => 'با افکت (سایه، شیشه، حرکت)' ) ) );
     $w->add_setting( 'sahel_btn_style', array( 'default' => 'pill', 'sanitize_callback' => 'sanitize_key' ) );
     $w->add_control( 'sahel_btn_style', array( 'label' => 'طراحی دکمه‌ها', 'section' => 'sahel_styles', 'type' => 'select', 'choices' => array( 'pill' => 'پیل', 'round' => 'گوشه‌گرد', 'square' => 'مربع', 'outline' => 'دورخط', 'soft' => 'نرم', 'glass' => 'شیشه‌ای', 'neon' => 'نئون' ) ) );
     $w->add_setting( 'sahel_catcard', array( 'default' => '1', 'sanitize_callback' => 'sanitize_key' ) );
@@ -2457,7 +2459,7 @@ function sahel_shell( $content ) {
         $pd_style_cls = ' pdst-' . get_theme_mod( 'sahel_product_style', '1' ) . ( $pd_style_m ? ' pdst-m-' . $pd_style_m : '' );
     }
     $bbar_off = sahel_bottombar_active() ? '' : ' bbar-off';
-    $body_cls = 'btnst-' . get_theme_mod( 'sahel_btn_style', 'pill' ) . ' catst-' . get_theme_mod( 'sahel_catcard', '1' ) . ' prodst-' . get_theme_mod( 'sahel_prodcard', '1' ) . ' postst-' . get_theme_mod( 'sahel_postcard', '1' ) . ' ddst-' . get_theme_mod( 'sahel_dd_style', '1' ) . ' sldst-' . get_theme_mod( 'sahel_slider_style', '1' ) . ' hstyle-' . get_theme_mod( 'sahel_header_style', 'classic' ) . $hide_desc . $pd_full . $pd_style_cls . $bbar_off . ' sfx-' . sanitize_html_class( get_theme_mod( 'sahel_slider_fx', 'fade' ) ) . ( is_front_page() ? ' is-home' : '' );
+    $body_cls = 'btnst-' . get_theme_mod( 'sahel_btn_style', 'pill' ) . ' catst-' . get_theme_mod( 'sahel_catcard', '1' ) . ' prodst-' . get_theme_mod( 'sahel_prodcard', '1' ) . ' postst-' . get_theme_mod( 'sahel_postcard', '1' ) . ' ddst-' . get_theme_mod( 'sahel_dd_style', '1' ) . ' sldst-' . get_theme_mod( 'sahel_slider_style', '1' ) . ' hstyle-' . get_theme_mod( 'sahel_header_style', 'classic' ) . $hide_desc . $pd_full . $pd_style_cls . $bbar_off . ' sfx-' . sanitize_html_class( get_theme_mod( 'sahel_slider_fx', 'fade' ) ) . ( is_front_page() ? ' is-home' : '' ) . ' design-' . sanitize_html_class( get_theme_mod( 'sahel_design_mode', 'flat' ) );
     $h_img = get_theme_mod( 'sahel_header_image', '' );
     $h_op = (int) get_theme_mod( 'sahel_header_image_opacity', 30 ) / 100;
     $header_img_style = $h_img ? '--header-img:url(' . esc_url( $h_img ) . ');--header-img-op:' . $h_op . ';' : '';
@@ -3873,3 +3875,54 @@ footer[style*="--fpad"] .foot-grid{padding-bottom:var(--fpad)!important}
 SHCSS53
     . '</style>';
 }, 150 );
+
+/* v5.4: رفع بریدگی هنگام هاور زیر کانتینرهای اسکرول + حالت طراحی فلت (قابل تغییر در استایل‌ساز) */
+add_action( 'wp_head', function() {
+    echo '<style id="sahel-v54">' . <<<'SHCSS54'
+/* ===== v5.4: رفع بریدگی سایه و کارت‌ها زیر کانتینرهای اسکرول (در هر دو حالت طراحی) ===== */
+/* ردیف‌های افقی اسکرول‌شونده ناچارند محتوا را ببُرند؛ پس فضای داخلی کافی می‌گیرند و سایه بزرگ داخلشان کوچک‌تر می‌شود */
+.cat-grid,.strip ul.products,.sale-sec ul.products{--shadow-lg:0 18px 34px -12px color-mix(in srgb,var(--c1) 34%,transparent)}
+.cat-grid{padding-top:26px!important;padding-bottom:66px!important;margin-top:-16px;margin-bottom:-48px!important}
+.strip ul.products{padding-top:44px!important;padding-bottom:80px!important;margin-top:-12px!important;margin-bottom:-44px!important}
+.sale-sec ul.products{padding-top:38px!important;padding-bottom:56px!important;margin-top:-22px!important;margin-bottom:-36px!important}
+/* نوار برندها و متن روان اسکرول نمی‌شوند؛ فقط افقی بریده شوند تا هاور و سایه از بالا و پایین آزاد باشد */
+@supports (overflow:clip){
+.brands-strip,.marquee{overflow:visible;overflow-x:clip;overflow-y:visible}
+}
+.brands-strip{padding:24px 0 34px}
+
+/* ===== v5.4: طراحی فلت (پیش‌فرض) — بدون سایه، شیشه و جابه‌جایی هنگام هاور؛ مدل‌های کارت و دکمه همچنان متمایزند ===== */
+body.design-flat{--shadow:none;--shadow-lg:none;--grad:var(--c1);--grad2:var(--c2)}
+body.design-flat *,body.design-flat *::before,body.design-flat *::after{box-shadow:none!important;text-shadow:none!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+body.design-flat .cat-grid,body.design-flat .strip ul.products,body.design-flat .sale-sec ul.products{--shadow-lg:none}
+body.design-flat .brand-logo img,body.design-flat .logo3d-float img.main{filter:none}
+/* هاور فقط با رنگ و حاشیه؛ هیچ المانی جابه‌جا یا بزرگ نمی‌شود */
+body.design-flat:not(.catst-9) .cat-card:hover,
+body.design-flat:not(.prodst-11) .prod-card:hover,
+body.design-flat :is(.post-card,.feat,.testi,.brand-partner,.look-item,.stat,.btn,.icon-btn,.s-arrow,.sec-link,.foot-social a,.dd-card,.lv-card,.bb-item,.fab-menu a,.fab-btn,.catbar a,.pd-cats a,.bnav>a,.dd-toggle,.peecha-link,.team-card,.service-card,.project-card,.prod-body a.button,.stock-toggle,.col-switch button,.sh-mnav nav>a,.sh-mnav .dd-sublink,.pd-gallery .flex-control-thumbs img,.woocommerce-pagination a,.nav-links a,.faq-item):hover{transform:none!important}
+body.design-flat :is(.cat-card,.prod-card,.post-card,.feat,.testi,.brand-partner,.team-card,.service-card,.project-card):hover{border-color:var(--c1)!important}
+body.design-flat .s-nav:hover{transform:translateY(-50%)!important}
+body.design-flat .cat-card:hover img{transform:none}
+/* پنل‌ها و لایه‌های شناور به‌جای سایه حاشیه می‌گیرند */
+body.design-flat :is(.dd-menu,.sh-live,.fab-menu a,.slide-brand,.s-nav,.icon-btn,.s-arrow){border:1px solid var(--line)}
+body.design-flat #cartDrawer{border-right:1px solid var(--line)}
+/* سطوح شیشه‌ای بدون مات‌شدن خوانا نیستند؛ رنگ یکدست می‌گیرند */
+body.design-flat:not(.hstyle-transparent) #header,body.design-flat.hstyle-transparent #header.scrolled{background:var(--headerbg)!important}
+body.design-flat.hstyle-transparent.is-home #header:not(.scrolled){background:transparent!important}
+body.design-flat :is(.sh-mnav,.sh-searchover){background:var(--bg)!important}
+body.design-flat.sldst-8 .slide-txt,body.design-flat.sldst-2 .slide-txt{background:var(--bg)}
+body.design-flat .slide-brand,body.design-flat .s-nav{background:var(--cardbg)}
+body.design-flat.catst-5 .cat-card,body.design-flat.catst-7 .cat-card{background:color-mix(in srgb,var(--c1) 8%,var(--cardbg));border-color:color-mix(in srgb,var(--c1) 25%,transparent)}
+body.design-flat.prodst-5 .prod-card,body.design-flat.prodst-8 .prod-card{background:color-mix(in srgb,var(--c1) 6%,var(--cardbg));border-color:color-mix(in srgb,var(--c1) 22%,transparent)}
+body.design-flat.prodst-4 .prod-card{background:var(--footerbg)}
+body.design-flat.btnst-glass .btn-primary{background:color-mix(in srgb,var(--c2) 25%,var(--cardbg))}
+body.design-flat .sale-sec .prod-card{background:rgba(255,255,255,.06)}
+/* تزئینات گرادیانی پس‌زمینه حذف و رنگ یکدست جایگزین می‌شود */
+body.design-flat :is(.offer,.news,.campaign,.sale-sec,footer)::before{display:none}
+body.design-flat .sale-sec::after{display:none}
+body.design-flat .news{background:color-mix(in srgb,var(--c2) 14%,var(--cardbg))}
+body.design-flat #header::after{background:var(--line);opacity:1}
+body.design-flat .logo3d-glow{display:none}
+SHCSS54
+    . '</style>';
+}, 160 );
