@@ -133,6 +133,31 @@ add_action( 'after_setup_theme', function() {
     add_theme_support( 'post-thumbnails' ); add_theme_support( 'title-tag' ); add_theme_support( 'custom-logo', array( 'height' => 64, 'width' => 140 ) );
 } );
 
+/* انتقال خودکار تنظیمات سفارشی‌سازی: وردپرس تنظیمات را به نام پوشه قالب ذخیره می‌کند؛ اگر قالب با نام پوشه دیگری نصب شود
+   و هنوز تنظیمی ندارد، تنظیمات نسخه قبلی (هر قالبی که تنظیمات sahel_ دارد) یک‌بار کپی می‌شود */
+add_action( 'after_setup_theme', function() {
+    $slug = get_stylesheet();
+    if ( get_option( 'sahel_mods_migrated_' . $slug ) ) { return; }
+    $cur = get_option( 'theme_mods_' . $slug, array() );
+    $has = false;
+    foreach ( (array) $cur as $k => $v ) { if ( strpos( (string) $k, 'sahel_' ) === 0 ) { $has = true; break; } }
+    if ( ! $has ) {
+        global $wpdb;
+        $rows = $wpdb->get_results( $wpdb->prepare( "SELECT option_name, option_value FROM {$wpdb->options} WHERE option_name LIKE %s", $wpdb->esc_like( 'theme_mods_' ) . '%' ) );
+        $best = null; $best_n = 0;
+        foreach ( (array) $rows as $r ) {
+            if ( $r->option_name === 'theme_mods_' . $slug ) { continue; }
+            $m = maybe_unserialize( $r->option_value );
+            if ( ! is_array( $m ) ) { continue; }
+            $n = 0;
+            foreach ( $m as $k => $v ) { if ( strpos( (string) $k, 'sahel_' ) === 0 ) { $n++; } }
+            if ( $n > $best_n ) { $best_n = $n; $best = $m; }
+        }
+        if ( $best ) { update_option( 'theme_mods_' . $slug, array_merge( $best, (array) $cur ) ); }
+    }
+    update_option( 'sahel_mods_migrated_' . $slug, 1 );
+}, 1 );
+
 add_action( 'wp_enqueue_scripts', function() {
     $map = array( 'vazirmatn' => 'vazirmatn', 'tajawal' => 'tajawal', 'cairo' => 'cairo', 'readex' => 'readex-pro', 'almarai' => 'almarai' );
     $f = get_theme_mod( 'sahel_font', 'vazirmatn' );
