@@ -3,14 +3,13 @@ global $product;
 if ( empty( $product ) || ! $product->is_visible() ) { return; }
 $sd = wp_trim_words( wp_strip_all_tags( $product->get_short_description() ), 14 );
 ?>
-<li <?php wc_product_class( '', $product ); ?>>
-<article class="prod-card">
+<li <?php wc_product_class( 'prod-card', $product ); ?>>
 <a class="prod-media" href="<?php the_permalink(); ?>">
 <?php echo $product->get_image( 'woocommerce_thumbnail', array( 'loading' => 'lazy' ) ); ?>
 <?php if ( $product->is_on_sale() ) : $br = (float) $product->get_regular_price(); $bs = $product->get_sale_price(); $bp = $br > 0 && $bs !== '' ? round( ( ( $br - $bs ) / $br ) * 100 ) : 0; ?>
 <span class="badge hot"><?php echo sahel_fa( $bp ); ?>٪ تخفیف</span>
 <?php else : $bd = $product->get_date_created(); ?>
-<span class="badge <?php echo ( $bd && $bd->getTimestamp() > time() - 15 * DAY_IN_SECONDS ) ? 'new">جدید' : 'best">' . ( function_exists('sahel_brand_short') ? sahel_brand_short() : 'ساحل' ); ?></span>
+<span class="badge <?php echo ( $bd && $bd->getTimestamp() > time() - 15 * DAY_IN_SECONDS ) ? 'new">جدید' : 'best">' . esc_html( function_exists( 'sahel_brand_short' ) ? sahel_brand_short() : 'ساحل' ); ?></span>
 <?php endif; ?>
 </a>
 <div class="prod-body">
@@ -27,5 +26,4 @@ $sd = wp_trim_words( wp_strip_all_tags( $product->get_short_description() ), 14 
 <div class="prod-price"><?php echo $product->get_price_html(); ?></div>
 <?php woocommerce_template_loop_add_to_cart(); ?>
 </div>
-</article>
 </li>
