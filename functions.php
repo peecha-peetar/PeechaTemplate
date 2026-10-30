@@ -94,7 +94,7 @@ function sahel_render_cat_dd_node( $node, $fbimg ) {
         $html .= '</div></div>';
         return $html;
     }
-    return '<a class="dd-card" href="' . esc_url( get_term_link( $c ) ) . '"><img src="' . esc_url( sahel_cat_img( $c, $fbimg ) ) . '" alt=""><span><b>' . esc_html( $c->name ) . '</b><small>' . sahel_num( $c->count ) . '</small></span></a>';
+    return '<a class="dd-card" href="' . esc_url( get_term_link( $c ) ) . '"><img src="' . esc_url( sahel_cat_img( $c, $fbimg ) ) . '" alt="" loading="lazy" decoding="async"><span><b>' . esc_html( $c->name ) . '</b><small>' . sahel_num( $c->count ) . '</small></span></a>';
 }
 function sahel_page_url( $slug ) { $p = get_page_by_path( $slug ); return $p ? get_permalink( $p ) : home_url( '/' ); }
 function sahel_footer_link_url( $type, $val ) {
@@ -125,6 +125,44 @@ add_action( 'woocommerce_update_product', function() { delete_transient( 'sahel_
 function sahel_arrows() {
     return '<div class="strip-arrows"><button class="s-arrow prev" aria-label="قبلی"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></button><button class="s-arrow next" aria-label="بعدی"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button></div>';
 }
+/* v5.5: فهرست مدل‌های اسلایدر (برای انتخاب مدل جداگانه هر اسلاید) */
+function sahel_slider_style_choices() {
+    return array(
+        '1' => 'کلاسیک (تصویر تمام‌عرض + متن روی آن)',
+        '2' => 'دوستونه (تصویر یک‌طرف، متن طرف دیگر)',
+        '3' => 'متن‌محور وسط‌چین (بدون تصویر، مناسب پس‌زمینه رنگی)',
+        '4' => 'بنر جمع‌وجور (ارتفاع کم، شبیه کارت تبلیغاتی)',
+        '5' => '🔲 جعبه‌ای گوشه‌گرد (داخل کادر سایت)',
+        '6' => '🖼 قاب مدرن (تصویر در قاب گرد کنار متن)',
+        '7' => '🎬 سینمایی (متن سفید وسط، روکش تیره)',
+        '8' => '🧊 کارت شیشه‌ای (متن داخل کارت مات)',
+        '9' => '📺 تمام‌صفحه (هم‌ارتفاع صفحه نمایش)',
+        '10' => '📐 برش مورب (تصویر با لبه اریب کنار متن)',
+    );
+}
+function sahel_absint_or_empty( $v ) { return ( '' === $v || null === $v ) ? '' : absint( $v ); }
+/* متغیرهای CSS تایپوگرافی اختصاصی یک اسلاید */
+function sahel_slide_type_vars( $i ) {
+    $map = sahel_font_map();
+    $k = 'sahel_slide' . $i;
+    $v = array();
+    foreach ( array( '_t_font' => '--st-tf', '_d_font' => '--st-df' ) as $suf => $var ) {
+        $f = get_theme_mod( $k . $suf, '' );
+        if ( $f && isset( $map[ $f ] ) ) { $v[] = $var . ":'" . $map[ $f ] . "',system-ui,Tahoma,sans-serif"; }
+    }
+    foreach ( array( '_t_size' => '--st-ts', '_t_size_m' => '--st-tsm', '_d_size' => '--st-ds', '_d_size_m' => '--st-dsm' ) as $suf => $var ) {
+        $n = (int) get_theme_mod( $k . $suf, '' );
+        if ( $n > 0 ) { $v[] = $var . ':' . $n . 'px'; }
+    }
+    $wt = get_theme_mod( $k . '_t_weight', '' );
+    if ( $wt && ctype_digit( (string) $wt ) ) { $v[] = '--st-tw:' . $wt; }
+    foreach ( array( '_t_color' => '--st-tc', '_t2_color' => '--st-t2c', '_d_color' => '--st-dc', '_p_bg' => '--st-pb', '_p_color' => '--st-pc', '_b_bg' => '--st-bb', '_b_color' => '--st-bc' ) as $suf => $var ) {
+        $c = sanitize_hex_color( (string) get_theme_mod( $k . $suf, '' ) );
+        if ( $c ) { $v[] = $var . ':' . $c; }
+    }
+    return $v ? ';' . implode( ';', $v ) : '';
+}
+
 function sahel_slide_data( $i ) {
     $d = array(
         1 => array( 'img' => 'https://image.qwenlm.ai/public_source/593f1887-5498-4920-ad1d-3f467426cd05/1762ba743-5206-44f2-8090-f738bd071c0d.png', 'pill' => 'کالکشن جدید', 't1' => 'عنوان اسلاید ۱؛', 't2' => 'قابل ویرایش', 'desc' => 'این متن نمونه است؛ از تنظیمات نمایش ← اسلاید ۱ آن را با توضیحات خودتان جایگزین کنید.', 'btn' => 'مشاهده محصولات', 'url' => '' ),
@@ -144,6 +182,8 @@ function sahel_slide_data( $i ) {
         'btn' => get_theme_mod( 'sahel_slide' . $i . '_btn', $b['btn'] ),
         'url' => get_theme_mod( 'sahel_slide' . $i . '_url', $b['url'] ),
         'btn2' => get_theme_mod( 'sahel_slide' . $i . '_btn2', '' ),
+        'style' => get_theme_mod( 'sahel_slide' . $i . '_style', '' ),
+        'video' => get_theme_mod( 'sahel_slide' . $i . '_video', '' ),
         'url2' => get_theme_mod( 'sahel_slide' . $i . '_url2', '' ),
         'align' => get_theme_mod( 'sahel_slide' . $i . '_align', 'right' ),
         'ovl_color' => get_theme_mod( 'sahel_slide' . $i . '_ovl_color', '#faf7f2' ),
@@ -760,7 +800,7 @@ add_action( 'customize_register', function( $w ) {
     for ( $i = 1; $i <= $slide_max; $i++ ) {
         $w->add_section( 'sahel_slide' . $i, array( 'title' => 'اسلاید ' . sahel_fa( $i ), 'priority' => 30 ) );
         $w->add_setting( 'sahel_slide' . $i . '_bgtype', array( 'default' => 'image', 'sanitize_callback' => 'sanitize_key' ) );
-        $w->add_control( 'sahel_slide' . $i . '_bgtype', array( 'label' => 'نوع پس‌زمینه', 'section' => 'sahel_slide' . $i, 'type' => 'select', 'choices' => array( 'image' => 'تصویر', 'color' => 'رنگ ساده', 'gradient' => 'گرادیانت' ) ) );
+        $w->add_control( 'sahel_slide' . $i . '_bgtype', array( 'label' => 'نوع پس‌زمینه', 'section' => 'sahel_slide' . $i, 'type' => 'select', 'choices' => array( 'image' => 'تصویر', 'color' => 'رنگ ساده', 'gradient' => 'گرادیانت', 'video' => 'ویدئو' ) ) );
         $w->add_setting( 'sahel_slide' . $i . '_image', array( 'default' => '', 'sanitize_callback' => 'esc_url_raw' ) );
         $w->add_control( new WP_Customize_Image_Control( $w, 'sahel_slide' . $i . '_image', array( 'label' => 'تصویر اسلاید (وقتی نوع پس‌زمینه = تصویر)', 'section' => 'sahel_slide' . $i ) ) );
         $w->add_setting( 'sahel_slide' . $i . '_bgcolor1', array( 'default' => '#f3ede4', 'sanitize_callback' => 'sanitize_hex_color' ) );
@@ -789,10 +829,50 @@ add_action( 'customize_register', function( $w ) {
         $w->add_control( 'sahel_slide' . $i . '_btn2', array( 'label' => 'متن دکمه دوم (اختیاری)', 'section' => 'sahel_slide' . $i ) );
         $w->add_setting( 'sahel_slide' . $i . '_url2', array( 'default' => '', 'sanitize_callback' => 'esc_url_raw' ) );
         $w->add_control( 'sahel_slide' . $i . '_url2', array( 'label' => 'لینک دکمه دوم', 'section' => 'sahel_slide' . $i ) );
+        /* v5.5: مدل، ویدئو و تایپوگرافی اختصاصی هر اسلاید */
+        $sl = 'sahel_slide' . $i;
+        $w->add_setting( $sl . '_style', array( 'default' => '', 'sanitize_callback' => 'sanitize_key' ) );
+        $w->add_control( $sl . '_style', array( 'label' => '🎨 مدل این اسلاید', 'section' => $sl, 'type' => 'select', 'choices' => array( '' => 'مثل قالب کلی اسلایدر' ) + sahel_slider_style_choices() ) );
+        $w->add_setting( $sl . '_video', array( 'default' => '', 'sanitize_callback' => 'esc_url_raw' ) );
+        $w->add_control( new WP_Customize_Upload_Control( $w, $sl . '_video', array( 'label' => '🎬 ویدئوی پس‌زمینه (وقتی نوع پس‌زمینه = ویدئو) — MP4 کم‌حجم پیشنهاد می‌شود؛ تصویر اسلاید به‌عنوان پیش‌نمایش استفاده می‌شود', 'section' => $sl, 'mime_type' => 'video' ) ) );
+        $sl_fonts = array( '' => 'فونت کلی قالب' ) + array( 'vazirmatn' => 'وزیرمتن', 'tajawal' => 'تجوال', 'cairo' => 'قاهره', 'readex' => 'ریدکس پرو', 'almarai' => 'المرای' );
+        $sl_weights = array( '' => 'پیش‌فرض', '300' => 'نازک', '400' => 'معمولی', '500' => 'متوسط', '700' => 'ضخیم', '900' => 'خیلی ضخیم' );
+        $sl_ctl = array(
+            '_t_font'   => array( '🔤 فونت تیتر', 'select', $sl_fonts ),
+            '_t_size'   => array( 'اندازه تیتر دسکتاپ (px) — خالی = پیش‌فرض', 'number', null ),
+            '_t_size_m' => array( 'اندازه تیتر موبایل (px)', 'number', null ),
+            '_t_weight' => array( 'ضخامت تیتر', 'select', $sl_weights ),
+            '_t_color'  => array( 'رنگ خط اول تیتر', 'color', null ),
+            '_t2_color' => array( 'رنگ خط دوم تیتر (رنگی)', 'color', null ),
+            '_d_font'   => array( '🔤 فونت توضیح', 'select', $sl_fonts ),
+            '_d_size'   => array( 'اندازه توضیح دسکتاپ (px)', 'number', null ),
+            '_d_size_m' => array( 'اندازه توضیح موبایل (px)', 'number', null ),
+            '_d_color'  => array( 'رنگ توضیح', 'color', null ),
+            '_p_bg'     => array( 'رنگ پس‌زمینه برچسب', 'color', null ),
+            '_p_color'  => array( 'رنگ متن برچسب', 'color', null ),
+            '_b_bg'     => array( 'رنگ دکمه', 'color', null ),
+            '_b_color'  => array( 'رنگ متن دکمه', 'color', null ),
+        );
+        foreach ( $sl_ctl as $suf => $c ) {
+            $san = 'color' === $c[1] ? 'sanitize_hex_color' : ( 'number' === $c[1] ? 'sahel_absint_or_empty' : 'sanitize_key' );
+            $w->add_setting( $sl . $suf, array( 'default' => '', 'sanitize_callback' => $san ) );
+            if ( 'color' === $c[1] ) {
+                $w->add_control( new WP_Customize_Color_Control( $w, $sl . $suf, array( 'label' => $c[0], 'section' => $sl ) ) );
+            } else {
+                $args = array( 'label' => $c[0], 'section' => $sl, 'type' => $c[1] );
+                if ( $c[2] ) { $args['choices'] = $c[2]; }
+                if ( 'number' === $c[1] ) { $args['input_attrs'] = array( 'min' => 8, 'max' => 160 ); }
+                $w->add_control( $sl . $suf, $args );
+            }
+        }
     }
 
     /* ===== استایل‌ساز ===== */
     $w->add_section( 'sahel_styles', array( 'title' => '۵. استایل‌ساز', 'priority' => 31 ) );
+    $w->add_setting( 'sahel_wrap_width', array( 'default' => 1260, 'sanitize_callback' => 'absint' ) );
+    $w->add_control( 'sahel_wrap_width', array( 'label' => '↔ عرض محتوای سایت (px)', 'section' => 'sahel_styles', 'type' => 'number', 'input_attrs' => array( 'min' => 960, 'max' => 2400 ) ) );
+    $w->add_setting( 'sahel_wide_screen', array( 'default' => 'scale', 'sanitize_callback' => 'sanitize_key' ) );
+    $w->add_control( 'sahel_wide_screen', array( 'label' => '🖥 نمایش در مانیتورهای بزرگ (عرض بیش از ۱۶۰۰px)', 'section' => 'sahel_styles', 'type' => 'select', 'choices' => array( 'scale' => 'پهن‌تر و بزرگ‌تر (متناسب با صفحه)', 'wide' => 'فقط پهن‌تر', 'fixed' => 'ثابت (مثل قبل)' ) ) );
     $w->add_setting( 'sahel_design_mode', array( 'default' => 'flat', 'sanitize_callback' => 'sanitize_key' ) );
     $w->add_control( 'sahel_design_mode', array( 'label' => '🧩 سبک کلی طراحی', 'description' => 'فلت: بدون سایه، شیشه و جابه‌جایی هنگام هاور. با افکت: سایه‌ها، گرادیان‌ها و حرکت کارت‌ها.', 'section' => 'sahel_styles', 'type' => 'select', 'choices' => array( 'flat' => 'فلت (ساده و تمیز)', 'classic' => 'با افکت (سایه، شیشه، حرکت)' ) ) );
     $w->add_setting( 'sahel_btn_style', array( 'default' => 'pill', 'sanitize_callback' => 'sanitize_key' ) );
@@ -1589,23 +1669,23 @@ body.ddst-4 .dd-card small{display:none}
 .slide-txt h1{font-size:clamp(2.2rem,5vw,3.9rem);font-weight:900;line-height:1.35;margin:20px 0 16px;letter-spacing:-.5px}
 .slide-txt p{color:var(--muted);line-height:2.1;margin-bottom:28px;font-size:1rem}
 .hero-cta{display:flex;gap:14px;flex-wrap:wrap}
-body.sldst-2 .sb-wrap{left:0;right:auto;width:56%}
-body.sldst-2 .slide-txt{background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(6px);padding:30px;border-radius:22px}
-body.sldst-3 .slide{background:var(--bg)}
-body.sldst-3 .slide-bg{display:none}
-body.sldst-3 .slide-ovl{display:none}
-body.sldst-3 .slide-txt{max-width:820px;margin-inline:auto;text-align:center}
-body.sldst-3 .slide-txt .hero-cta{justify-content:center}
-body.sldst-3 .slide-txt .pill{margin-inline:auto}
-body.sldst-3 .slide-txt h1{font-size:clamp(2.6rem,6vw,4.6rem)}
-body.sldst-4 .slider{min-height:260px}
-body.sldst-4 .slider:not(.is-full){border-radius:20px}
-body.sldst-4 .slide .wrap{padding-top:20px;padding-bottom:20px}
-body.sldst-4 .slide-txt h1{font-size:clamp(1.5rem,3vw,2.2rem);margin:10px 0 10px}
-body.sldst-4 .slide-txt p{display:none}
+.slide.slst-2 .sb-wrap{left:0;right:auto;width:56%}
+.slide.slst-2 .slide-txt{background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(6px);padding:30px;border-radius:22px}
+.slide.slst-3{background:var(--bg)}
+.slide.slst-3 .slide-bg{display:none}
+.slide.slst-3 .slide-ovl{display:none}
+.slide.slst-3 .slide-txt{max-width:820px;margin-inline:auto;text-align:center}
+.slide.slst-3 .slide-txt .hero-cta{justify-content:center}
+.slide.slst-3 .slide-txt .pill{margin-inline:auto}
+.slide.slst-3 .slide-txt h1{font-size:clamp(2.6rem,6vw,4.6rem)}
+.slider:has(.slide.active.slst-4){min-height:260px}
+.slider:has(.slide.active.slst-4):not(.is-full){border-radius:20px}
+.slide.slst-4 .wrap{padding-top:20px;padding-bottom:20px}
+.slide.slst-4 .slide-txt h1{font-size:clamp(1.5rem,3vw,2.2rem);margin:10px 0 10px}
+.slide.slst-4 .slide-txt p{display:none}
 @media(max-width:920px){
-body.sldst-2 .sb-wrap{position:absolute;left:0;right:0;width:100%;opacity:.35}
-body.sldst-2 .slide-txt{background:transparent;backdrop-filter:none;padding:0}
+.slide.slst-2 .sb-wrap{position:absolute;left:0;right:0;width:100%;opacity:.35}
+.slide.slst-2 .slide-txt{background:transparent;backdrop-filter:none;padding:0}
 }
 .s-nav{position:absolute;top:50%;transform:translateY(-50%);width:50px;height:50px;border-radius:99px;background:rgba(255,255,255,.9);backdrop-filter:blur(10px);border:1px solid var(--line);box-shadow:var(--shadow);display:grid;place-items:center;z-index:6;transition:.25s cubic-bezier(.4,0,.2,1)}
 .s-nav:hover{background:var(--grad);border-color:transparent;transform:translateY(-50%) scale(1.1)}
@@ -2459,7 +2539,7 @@ function sahel_shell( $content ) {
         $pd_style_cls = ' pdst-' . get_theme_mod( 'sahel_product_style', '1' ) . ( $pd_style_m ? ' pdst-m-' . $pd_style_m : '' );
     }
     $bbar_off = sahel_bottombar_active() ? '' : ' bbar-off';
-    $body_cls = 'btnst-' . get_theme_mod( 'sahel_btn_style', 'pill' ) . ' catst-' . get_theme_mod( 'sahel_catcard', '1' ) . ' prodst-' . get_theme_mod( 'sahel_prodcard', '1' ) . ' postst-' . get_theme_mod( 'sahel_postcard', '1' ) . ' ddst-' . get_theme_mod( 'sahel_dd_style', '1' ) . ' sldst-' . get_theme_mod( 'sahel_slider_style', '1' ) . ' hstyle-' . get_theme_mod( 'sahel_header_style', 'classic' ) . $hide_desc . $pd_full . $pd_style_cls . $bbar_off . ' sfx-' . sanitize_html_class( get_theme_mod( 'sahel_slider_fx', 'fade' ) ) . ( is_front_page() ? ' is-home' : '' ) . ' design-' . sanitize_html_class( get_theme_mod( 'sahel_design_mode', 'flat' ) );
+    $body_cls = 'btnst-' . get_theme_mod( 'sahel_btn_style', 'pill' ) . ' catst-' . get_theme_mod( 'sahel_catcard', '1' ) . ' prodst-' . get_theme_mod( 'sahel_prodcard', '1' ) . ' postst-' . get_theme_mod( 'sahel_postcard', '1' ) . ' ddst-' . get_theme_mod( 'sahel_dd_style', '1' ) . ' sldst-' . get_theme_mod( 'sahel_slider_style', '1' ) . ' hstyle-' . get_theme_mod( 'sahel_header_style', 'classic' ) . $hide_desc . $pd_full . $pd_style_cls . $bbar_off . ' sfx-' . sanitize_html_class( get_theme_mod( 'sahel_slider_fx', 'fade' ) ) . ( is_front_page() ? ' is-home' : '' ) . ' design-' . sanitize_html_class( get_theme_mod( 'sahel_design_mode', 'flat' ) ) . ' wscr-' . sanitize_html_class( get_theme_mod( 'sahel_wide_screen', 'scale' ) );
     $h_img = get_theme_mod( 'sahel_header_image', '' );
     $h_op = (int) get_theme_mod( 'sahel_header_image_opacity', 30 ) / 100;
     $header_img_style = $h_img ? '--header-img:url(' . esc_url( $h_img ) . ');--header-img-op:' . $h_op . ';' : '';
@@ -2622,7 +2702,8 @@ $('#shSearchOver').on('click',function(e){ if(e.target===this){ $(this).removeCl
 $(document).on('click','.fab-btn',function(e){ e.stopPropagation(); $('.fab-wrap').toggleClass('open'); });
 var $sl=$('.slide'),$dt=$('.s-dots button'),si=0,stimer;
 function sprog(){clearTimeout(stimer);var $p=$('#sprog');$p.css({transition:'none',width:'0'});setTimeout(function(){$p.css({transition:'width 7s linear',width:'100%'});},40);stimer=setTimeout(function(){sgo(si+1);},7000);}
-function sgo(n){if(!$sl.length)return;si=(n+$sl.length)%$sl.length;$sl.removeClass('leaving').filter('.active').not($sl.eq(si)).addClass('leaving');$sl.removeClass('active').eq(si).addClass('active');$dt.removeClass('active').eq(si).addClass('active');sprog();}
+function svid(){$sl.each(function(k){var v=this.querySelector('video.slide-video');if(!v)return;if(k===si){if(!v.getAttribute('src')&&v.getAttribute('data-src')){v.setAttribute('src',v.getAttribute('data-src'));}var pr=v.play();if(pr&&pr.catch){pr.catch(function(){});}}else{v.pause();}});}
+function sgo(n){if(!$sl.length)return;si=(n+$sl.length)%$sl.length;$sl.removeClass('leaving').filter('.active').not($sl.eq(si)).addClass('leaving');$sl.removeClass('active').eq(si).addClass('active');$dt.removeClass('active').eq(si).addClass('active');svid();sprog();}
 $dt.on('click',function(){sgo($(this).index());});
 $(document).on('click','.s-next',function(){sgo(si+1);});
 $(document).on('click','.s-prev',function(){sgo(si-1);});
@@ -2760,6 +2841,7 @@ function sahel_home_html() {
         $rendered = array();
         for ( $i = 1; $i <= $count; $i++ ) {
             $sd = sahel_slide_data( $i );
+            $sd['n'] = $i;
             $has_bg = $sd['img'] || $sd['bgtype'] !== 'image';
             if ( ! $has_bg ) { continue; }
             $rendered[] = $sd;
@@ -2774,13 +2856,17 @@ function sahel_home_html() {
             $url = $sd['url'] ? $sd['url'] : sahel_shop_url();
             $align = 'al-' . ( $sd['align'] ? $sd['align'] : 'right' );
             $ovl_style = '--ovl-rgb:' . sahel_rgb_str( $sd['ovl_color'] ) . ';--ovl-o:' . ( (int) $sd['ovl_opacity'] / 100 );
-            $ob .= '<section class="slide" style="' . esc_attr( $ovl_style ) . '"><div class="sb-wrap">';
-            if ( $sd['bgtype'] === 'color' ) {
+            $slst = ( isset( $sd['style'] ) && '' !== $sd['style'] ) ? $sd['style'] : get_theme_mod( 'sahel_slider_style', '1' );
+            $ovl_style .= isset( $sd['n'] ) ? sahel_slide_type_vars( $sd['n'] ) : '';
+            $ob .= '<section class="slide' . ( 0 === $i ? ' active' : '' ) . ' slst-' . sanitize_html_class( $slst ) . '" style="' . esc_attr( $ovl_style ) . '"><div class="sb-wrap">';
+            if ( $sd['bgtype'] === 'video' && ! empty( $sd['video'] ) ) {
+                $ob .= '<video class="slide-bg slide-video" muted loop playsinline' . ( 0 === $i ? ' autoplay preload="auto" src="' . esc_url( $sd['video'] ) . '"' : ' preload="none" data-src="' . esc_url( $sd['video'] ) . '"' ) . ( $sd['img'] ? ' poster="' . esc_url( $sd['img'] ) . '"' : '' ) . '></video>';
+            } elseif ( $sd['bgtype'] === 'color' ) {
                 $ob .= '<div class="slide-bg-color" style="background:' . esc_attr( $sd['bgcolor1'] ) . '"></div>';
             } elseif ( $sd['bgtype'] === 'gradient' ) {
                 $ob .= '<div class="slide-bg-color" style="background:linear-gradient(135deg,' . esc_attr( $sd['bgcolor1'] ) . ',' . esc_attr( $sd['bgcolor2'] ) . ')"></div>';
             } else {
-                $ob .= '<img class="slide-bg" src="' . esc_url( $sd['img'] ) . '" alt="">';
+                $ob .= '<img class="slide-bg" src="' . esc_url( $sd['img'] ) . '" alt=""' . ( 0 === $i ? ' fetchpriority="high" decoding="async"' : ' loading="lazy" decoding="async"' ) . '>';
             }
             $ob .= '</div><div class="slide-ovl"></div>';
             $ob .= '<div class="wrap"><div class="slide-txt ' . esc_attr( $align ) . '">';
@@ -2939,8 +3025,8 @@ function sahel_home_html() {
             $h .= '<div class="wrap">';
             $h .= sahel_sec_head_html( $sec['title'], $sec['sub'], '' );
             $h .= '<div class="brands-strip' . $mode_class . '"><div class="brands-track">';
-            foreach ( $logos as $lg ) { $h .= '<div class="brand-partner" title="' . esc_attr( $lg[1] ) . '"><img src="' . esc_url( $lg[0] ) . '" alt="' . esc_attr( $lg[1] ) . '"></div>'; }
-            if ( $mode === 'marquee' ) { foreach ( $logos as $lg ) { $h .= '<div class="brand-partner" title="' . esc_attr( $lg[1] ) . '"><img src="' . esc_url( $lg[0] ) . '" alt="' . esc_attr( $lg[1] ) . '"></div>'; } }
+            foreach ( $logos as $lg ) { $h .= '<div class="brand-partner" title="' . esc_attr( $lg[1] ) . '"><img src="' . esc_url( $lg[0] ) . '" alt="' . esc_attr( $lg[1] ) . '" loading="lazy" decoding="async"></div>'; }
+            if ( $mode === 'marquee' ) { foreach ( $logos as $lg ) { $h .= '<div class="brand-partner" title="' . esc_attr( $lg[1] ) . '"><img src="' . esc_url( $lg[0] ) . '" alt="' . esc_attr( $lg[1] ) . '" loading="lazy" decoding="async"></div>'; } }
             $h .= '</div></div></div></section>';
             $parts[] = array( $sec['order'], $h );
         }
@@ -3780,33 +3866,33 @@ section.sec-al-center .faq-item summary{justify-content:center;gap:14px}
 .marquee.has-sec-bg .marquee-track{position:relative;z-index:1}
 .marquee.has-sec-bg{padding:22px 0}
 /* قالب‌های جدید اسلایدر/هیرو */
-body.sldst-5 .slider{max-width:1212px;margin:20px auto 0;border-radius:calc(var(--rad,22px) + 10px);box-shadow:var(--shadow-lg)}
-@media(max-width:1260px){body.sldst-5 .slider{margin:16px 24px 0}}
-@media(max-width:600px){body.sldst-5 .slider{margin:12px 12px 0}}
-body.sldst-6 .slider,body.sldst-10 .slider{background:linear-gradient(135deg,var(--cream),var(--bg))}
-body.sldst-6 .slide:not(:has(.al-center)) .sb-wrap{top:36px;bottom:36px;left:5%;right:auto;width:42%;border-radius:calc(var(--rad,22px) + 16px);box-shadow:var(--shadow-lg)}
-body.sldst-6 .slide:has(.al-left) .sb-wrap{left:auto;right:5%}
-body.sldst-10 .slide:not(:has(.al-center)) .sb-wrap{left:0;right:auto;width:55%;clip-path:polygon(0 0,100% 0,82% 100%,0 100%)}
-body.sldst-10 .slide:has(.al-left) .sb-wrap{left:auto;right:0;clip-path:polygon(0 0,100% 0,100% 100%,18% 100%)}
-body:is(.sldst-6,.sldst-10) .slide:not(:has(.al-center)) .slide-ovl{display:none}
-body:is(.sldst-6,.sldst-10) .slide:not(:has(.al-center)) .slide-txt{max-width:44%}
-body:is(.sldst-6,.sldst-10) .slide.active .sb-wrap{animation:none}
-body.sldst-7 .slide-txt{margin-inline:auto;text-align:center;max-width:780px}
-body.sldst-7 .slide-txt .hero-cta{justify-content:center}
-body.sldst-7 .slide-txt .pill{margin-inline:auto;background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.35)}
-body.sldst-7 .slide .slide-ovl{background:linear-gradient(to top,rgba(10,7,5,.78),rgba(10,7,5,.3))!important}
-body.sldst-7 .slide-txt h1{color:#fff;font-size:clamp(2.4rem,6vw,4.6rem)}
-body.sldst-7 .slide-txt p{color:rgba(255,255,255,.85)}
-body.sldst-7 .slide-txt .btn-ghost{background:transparent;color:#fff;border-color:rgba(255,255,255,.6)}
-body.sldst-8 .slide .slide-ovl{opacity:.35}
-body.sldst-8 .slide-txt{padding:34px 38px;border-radius:calc(var(--rad,22px) + 8px);background:color-mix(in srgb,var(--bg) 72%,transparent);backdrop-filter:blur(18px) saturate(1.3);-webkit-backdrop-filter:blur(18px) saturate(1.3);border:1px solid rgba(255,255,255,.6);box-shadow:var(--shadow-lg)}
-body.sldst-9 .slider{min-height:calc(100vh - 80px);min-height:calc(100svh - 80px)}
+.slider:has(.slide.active.slst-5){max-width:1212px;margin:20px auto 0;border-radius:calc(var(--rad,22px) + 10px);box-shadow:var(--shadow-lg)}
+@media(max-width:1260px){.slider:has(.slide.active.slst-5){margin:16px 24px 0}}
+@media(max-width:600px){.slider:has(.slide.active.slst-5){margin:12px 12px 0}}
+.slider:has(.slide.active.slst-6),.slider:has(.slide.active.slst-10){background:linear-gradient(135deg,var(--cream),var(--bg))}
+.slide.slst-6:not(:has(.al-center)) .sb-wrap{top:36px;bottom:36px;left:5%;right:auto;width:42%;border-radius:calc(var(--rad,22px) + 16px);box-shadow:var(--shadow-lg)}
+.slide.slst-6:has(.al-left) .sb-wrap{left:auto;right:5%}
+.slide.slst-10:not(:has(.al-center)) .sb-wrap{left:0;right:auto;width:55%;clip-path:polygon(0 0,100% 0,82% 100%,0 100%)}
+.slide.slst-10:has(.al-left) .sb-wrap{left:auto;right:0;clip-path:polygon(0 0,100% 0,100% 100%,18% 100%)}
+.slide.slst-6:not(:has(.al-center)) .slide-ovl,.slide.slst-10:not(:has(.al-center)) .slide-ovl{display:none}
+.slide.slst-6:not(:has(.al-center)) .slide-txt,.slide.slst-10:not(:has(.al-center)) .slide-txt{max-width:44%}
+.slide.slst-6.active .sb-wrap,.slide.slst-10.active .sb-wrap{animation:none}
+.slide.slst-7 .slide-txt{margin-inline:auto;text-align:center;max-width:780px}
+.slide.slst-7 .slide-txt .hero-cta{justify-content:center}
+.slide.slst-7 .slide-txt .pill{margin-inline:auto;background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.35)}
+.slide.slst-7 .slide-ovl{background:linear-gradient(to top,rgba(10,7,5,.78),rgba(10,7,5,.3))!important}
+.slide.slst-7 .slide-txt h1{color:#fff;font-size:clamp(2.4rem,6vw,4.6rem)}
+.slide.slst-7 .slide-txt p{color:rgba(255,255,255,.85)}
+.slide.slst-7 .slide-txt .btn-ghost{background:transparent;color:#fff;border-color:rgba(255,255,255,.6)}
+.slide.slst-8 .slide-ovl{opacity:.35}
+.slide.slst-8 .slide-txt{padding:34px 38px;border-radius:calc(var(--rad,22px) + 8px);background:color-mix(in srgb,var(--bg) 72%,transparent);backdrop-filter:blur(18px) saturate(1.3);-webkit-backdrop-filter:blur(18px) saturate(1.3);border:1px solid rgba(255,255,255,.6);box-shadow:var(--shadow-lg)}
+.slider:has(.slide.active.slst-9){min-height:calc(100vh - 80px);min-height:calc(100svh - 80px)}
 .slide-txt .hero-cta .btn-ghost{backdrop-filter:blur(8px)}
 @media(max-width:920px){
-body:is(.sldst-6,.sldst-10) .slide .sb-wrap{inset:0!important;width:100%!important;border-radius:0!important;box-shadow:none!important;clip-path:none!important}
-body:is(.sldst-6,.sldst-10) .slide .slide-ovl{display:block!important}
-body:is(.sldst-6,.sldst-10) .slide .slide-txt{max-width:none!important}
-body.sldst-8 .slide-txt{padding:22px}
+.slide.slst-6 .sb-wrap,.slide.slst-10 .sb-wrap{inset:0!important;width:100%!important;border-radius:0!important;box-shadow:none!important;clip-path:none!important}
+.slide.slst-6 .slide-ovl,.slide.slst-10 .slide-ovl{display:block!important}
+.slide.slst-6 .slide-txt,.slide.slst-10 .slide-txt{max-width:none!important}
+.slide.slst-8 .slide-txt{padding:22px}
 }
 /* افکت جابه‌جایی اسلاید */
 body.sfx-slide .slide{opacity:1;visibility:visible;transform:translateX(-100%);transition:transform .9s cubic-bezier(.7,0,.3,1)}
@@ -3910,7 +3996,7 @@ body.design-flat #cartDrawer{border-right:1px solid var(--line)}
 body.design-flat:not(.hstyle-transparent) #header,body.design-flat.hstyle-transparent #header.scrolled{background:var(--headerbg)!important}
 body.design-flat.hstyle-transparent.is-home #header:not(.scrolled){background:transparent!important}
 body.design-flat :is(.sh-mnav,.sh-searchover){background:var(--bg)!important}
-body.design-flat.sldst-8 .slide-txt,body.design-flat.sldst-2 .slide-txt{background:var(--bg)}
+body.design-flat .slide.slst-8 .slide-txt,body.design-flat .slide.slst-2 .slide-txt{background:var(--bg)}
 body.design-flat .slide-brand,body.design-flat .s-nav{background:var(--cardbg)}
 body.design-flat.catst-5 .cat-card,body.design-flat.catst-7 .cat-card{background:color-mix(in srgb,var(--c1) 8%,var(--cardbg));border-color:color-mix(in srgb,var(--c1) 25%,transparent)}
 body.design-flat.prodst-5 .prod-card,body.design-flat.prodst-8 .prod-card{background:color-mix(in srgb,var(--c1) 6%,var(--cardbg));border-color:color-mix(in srgb,var(--c1) 22%,transparent)}
@@ -3926,3 +4012,73 @@ body.design-flat .logo3d-glow{display:none}
 SHCSS54
     . '</style>';
 }, 160 );
+
+/* v5.5: عرض محتوا و مقیاس در مانیتورهای بزرگ، تایپوگرافی و ویدئوی اسلایدها */
+add_action( 'wp_head', function() {
+    $ww = max( 960, (int) get_theme_mod( 'sahel_wrap_width', 1260 ) );
+    $mode = get_theme_mod( 'sahel_wide_screen', 'scale' );
+    $dyn = ':root{--wrap-w:' . $ww . 'px}';
+    if ( 'fixed' !== $mode ) {
+        $dyn .= '@media(min-width:1600px){:root{--wrap-w:max(' . $ww . 'px,min(88vw,1580px));--ui:1.08}}'
+            . '@media(min-width:1920px){:root{--wrap-w:max(' . $ww . 'px,min(86vw,1780px));--ui:1.18}}'
+            . '@media(min-width:2400px){:root{--wrap-w:max(' . $ww . 'px,min(84vw,2240px));--ui:1.4}}'
+            . '@media(min-width:3200px){:root{--wrap-w:max(' . $ww . 'px,min(84vw,3000px));--ui:1.75}}';
+    }
+    echo '<style id="sahel-v55">' . $dyn . <<<'SHCSS55'
+/* ===== v5.5: تایپوگرافی اختصاصی هر اسلاید (مستقل از فونت‌های کلی قالب) ===== */
+.slide[style*="--st-tf:"] .slide-txt h1,.slide[style*="--st-tf:"] .slide-txt h1 .grad-text{font-family:var(--st-tf)!important}
+.slide[style*="--st-ts:"] .slide-txt h1{font-size:var(--st-ts)!important}
+.slide[style*="--st-tw:"] .slide-txt h1,.slide[style*="--st-tw:"] .slide-txt h1 .grad-text{font-weight:var(--st-tw)!important}
+.slide[style*="--st-tc:"] .slide-txt h1{color:var(--st-tc)!important;-webkit-text-fill-color:var(--st-tc)}
+.slide[style*="--st-t2c:"] .slide-txt h1 .grad-text{background:none!important;color:var(--st-t2c)!important;-webkit-text-fill-color:var(--st-t2c)!important}
+.slide[style*="--st-df:"] .slide-txt p{font-family:var(--st-df)!important}
+.slide[style*="--st-ds:"] .slide-txt p{font-size:var(--st-ds)!important}
+.slide[style*="--st-dc:"] .slide-txt p{color:var(--st-dc)!important}
+.slide[style*="--st-pb:"] .slide-txt .pill{background:var(--st-pb)!important;border-color:var(--st-pb)!important}
+.slide[style*="--st-pc:"] .slide-txt .pill{color:var(--st-pc)!important}
+.slide[style*="--st-pc:"] .slide-txt .pill i{background:var(--st-pc)!important}
+.slide[style*="--st-bb:"] .slide-txt .hero-cta .btn-primary{background:var(--st-bb)!important;border-color:var(--st-bb)!important}
+.slide[style*="--st-bc:"] .slide-txt .hero-cta .btn-primary{color:var(--st-bc)!important}
+@media(max-width:920px){
+.slide[style*="--st-ts:"] .slide-txt h1{font-size:min(var(--st-ts),var(--m-h1,26px))!important}
+.slide[style*="--st-tsm:"] .slide-txt h1{font-size:var(--st-tsm)!important}
+.slide[style*="--st-ds:"] .slide-txt p{font-size:min(var(--st-ds),var(--m-p,13px))!important}
+.slide[style*="--st-dsm:"] .slide-txt p{font-size:var(--st-dsm)!important}
+}
+/* ویدئوی پس‌زمینه اسلاید */
+.slide-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:none!important}
+/* ===== v5.5: نمایش درست در نمایشگرهای بزرگ ===== */
+.wrap{max-width:var(--wrap-w,1260px)}
+.slider:not(.is-full){max-width:var(--wrap-w,1260px)}
+body.hstyle-boxed #header{max-width:var(--wrap-w,1260px)}
+.slider:has(.slide.active.slst-5){max-width:calc(var(--wrap-w,1260px) - 48px)}
+.sale-sec ul.products{padding-inline:max(20px,calc((100vw - var(--wrap-w,1260px) + 44px)/2))!important}
+@media(min-width:1600px){
+body.wscr-scale :is(.cat-card,.strip ul.products>li.product,.sale-sec ul.products>li.product,.brand-partner,.sec-head,.statband,.slide-txt,.feat,.testi,.post-card,.faq-item,.header-inner>*,.foot-grid>*,.foot-bottom,.offer>*,.news>*,.campaign>*,.insta-strip>*,.about-home>*,.s-arrow,.s-nav){zoom:var(--ui,1)}
+}
+SHCSS55
+    . '</style>';
+}, 170 );
+
+/* v5.5: بارگذاری فونت‌های انتخاب‌شده برای اسلایدها + اتصال زودهنگام به سرور فونت */
+add_action( 'wp_enqueue_scripts', function() {
+    $slugs = array( 'vazirmatn' => 'vazirmatn', 'tajawal' => 'tajawal', 'cairo' => 'cairo', 'readex' => 'readex-pro', 'almarai' => 'almarai' );
+    $base = get_theme_mod( 'sahel_font', 'vazirmatn' );
+    $need = array();
+    $count = max( 1, min( 10, (int) get_theme_mod( 'sahel_slide_count', 3 ) ) );
+    for ( $i = 1; $i <= $count; $i++ ) {
+        foreach ( array( '_t_font', '_d_font' ) as $suf ) {
+            $f = get_theme_mod( 'sahel_slide' . $i . $suf, '' );
+            if ( $f && $f !== $base && isset( $slugs[ $f ] ) ) { $need[ $f ] = $slugs[ $f ]; }
+        }
+    }
+    if ( ! is_front_page() ) { return; }
+    foreach ( $need as $k => $slug ) {
+        wp_enqueue_style( 'sahel-slide-font-' . $k, 'https://cdn.jsdelivr.net/fontsource/css/' . $slug . '@latest/index.css', array(), '1.0' );
+        wp_enqueue_style( 'sahel-slide-font-' . $k . '-700', 'https://cdn.jsdelivr.net/fontsource/css/' . $slug . '@latest/700.css', array(), '1.0' );
+    }
+}, 6 );
+add_filter( 'wp_resource_hints', function( $urls, $type ) {
+    if ( 'preconnect' === $type ) { $urls[] = array( 'href' => 'https://cdn.jsdelivr.net', 'crossorigin' ); }
+    return $urls;
+}, 10, 2 );
