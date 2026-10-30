@@ -2910,6 +2910,7 @@ function sahel_home_html() {
         $slider_w = (int) get_theme_mod( 'sahel_slider_width', 0 );
         $slider_w_style = $slider_w > 0 ? ' style="--slider-w:' . $slider_w . 'px"' : '';
         $slider_hide = ( get_theme_mod( 'sahel_slider_hide_mobile', 0 ) ? ' hide-m' : '' ) . ( get_theme_mod( 'sahel_slider_hide_tablet', 0 ) ? ' hide-t' : '' ) . ( get_theme_mod( 'sahel_slider_hide_desktop', 0 ) ? ' hide-d' : '' );
+        $ob .= sahel_slider_area_open( $slider_full . $slider_hide, $slider_w_style );
         $ob .= '<div class="slider' . $slider_full . $slider_hide . '"' . $slider_w_style . '><div class="slides">';
         foreach ( $rendered as $i => $sd ) {
             $url = $sd['url'] ? $sd['url'] : sahel_shop_url();
@@ -2932,6 +2933,7 @@ function sahel_home_html() {
             $ob .= $sx['top'];
             $ob .= '</div><div class="slide-ovl"></div>';
             $ob .= $sx['ui'] . $sx['under'] . $sx['over'];
+            $ob .= isset( $sd['n'] ) ? sahel_slide_showcase_html( $sd['n'] ) : '';
             $ob .= '<div class="wrap"><div class="slide-txt ' . esc_attr( $align ) . '">';
             if ( $sd['pill'] ) { $ob .= '<span class="pill"><i></i>' . esc_html( $sd['pill'] ) . '</span>'; }
             if ( $sd['t1'] || $sd['t2'] ) {
@@ -2952,6 +2954,7 @@ function sahel_home_html() {
         $ob .= '<div class="s-dots">';
         foreach ( $rendered as $i => $sd ) { $ob .= '<button' . ( $i === 0 ? ' class="active"' : '' ) . '></button>'; }
         $ob .= '</div><div class="s-progress" id="sprog"></div></div>';
+        $ob .= sahel_slider_area_close();
     }
 
     $parts = array();
@@ -4334,6 +4337,7 @@ function sahel_slide_extras( $n, $sd ) {
     if ( in_array( $mfx, array( 'parallax', 'tilt', 'spotlight', 'reveal', 'zoom' ), true ) ) { $out['cls'] .= ' mfx-' . $mfx; }
     if ( in_array( $txfx, array( 'fade', 'zoom', 'blur', 'side', 'flip', 'words' ), true ) ) { $out['cls'] .= ' txfx-' . $txfx; }
     if ( in_array( $kb, array( 'in', 'out', 'pan', 'none' ), true ) ) { $out['cls'] .= ' kb-' . $kb; }
+    if ( in_array( get_theme_mod( $k . '_sc_mode', '' ), array( 'own', 'none' ), true ) ) { $out['cls'] .= ' sc-hide-shared'; }
     $img2 = get_theme_mod( $k . '_image2', '' );
     $is_cmp = ( isset( $sd['bgtype'] ) && 'compare' === $sd['bgtype'] && $img2 );
     if ( $img2 && ( $is_cmp || 'reveal' === $mfx ) ) {
@@ -4456,3 +4460,296 @@ body.sfx-flip .slide.leaving{transform:rotateY(-80deg)}
 SHCSS57
     . '</style>';
 }, 180 );
+
+/* v5.8: منوی عمودی کنار/روی اسلایدر + ویترین دسته‌بندی‌ها و محصولات روی اسلایدها (مشترک یا جداگانه برای هر اسلاید) */
+add_action( 'after_setup_theme', function() { register_nav_menu( 'slider_menu', 'منوی عمودی کنار اسلایدر' ); }, 20 );
+function sahel_svg_arrow() { return '<svg class="sm-arr" viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>'; }
+function sahel_slider_menu_html() {
+    $pos = get_theme_mod( 'sahel_sm_pos', '' );
+    if ( ! $pos ) { return ''; }
+    $src = get_theme_mod( 'sahel_sm_src', 'cats' );
+    $max = max( 3, min( 20, (int) get_theme_mod( 'sahel_sm_max', 10 ) ) );
+    $imgs = (int) get_theme_mod( 'sahel_sm_imgs', 1 );
+    $fb = 'https://image.qwenlm.ai/public_source/593f1887-5498-4920-ad1d-3f467426cd05/16752e62d-5c58-45c7-891c-b787a0344a6c.png';
+    $items = '';
+    $locs = function_exists( 'get_nav_menu_locations' ) ? get_nav_menu_locations() : array();
+    if ( 'wp' === $src && ! empty( $locs['slider_menu'] ) ) {
+        $menu_items = wp_get_nav_menu_items( $locs['slider_menu'] );
+        $kids = array();
+        foreach ( (array) $menu_items as $mi ) { $kids[ (int) $mi->menu_item_parent ][] = $mi; }
+        $n = 0;
+        foreach ( isset( $kids[0] ) ? $kids[0] : array() as $mi ) {
+            if ( $n++ >= $max ) { break; }
+            $sub = isset( $kids[ $mi->ID ] ) ? $kids[ $mi->ID ] : array();
+            $items .= '<li><a href="' . esc_url( $mi->url ) . '"><span>' . esc_html( $mi->title ) . '</span>' . ( $sub ? sahel_svg_arrow() : '' ) . '</a>';
+            if ( $sub ) { $items .= '<div class="sm-fly">'; foreach ( $sub as $sm ) { $items .= '<a href="' . esc_url( $sm->url ) . '">' . esc_html( $sm->title ) . '</a>'; } $items .= '</div>'; }
+            $items .= '</li>';
+        }
+    } elseif ( 'header' === $src ) {
+        for ( $i = 1, $n = 0; $i <= 12 && $n < $max; $i++ ) {
+            $label = trim( (string) get_theme_mod( 'sahel_m' . $i . '_label', '' ) );
+            $type = get_theme_mod( 'sahel_m' . $i . '_type', '' );
+            $val = trim( (string) get_theme_mod( 'sahel_m' . $i . '_val', '' ) );
+            if ( ! $label || ! $type ) { continue; }
+            $n++;
+            if ( 'cats' === $type ) {
+                $items .= '<li><a href="' . esc_url( sahel_shop_url() ) . '"><span>' . esc_html( $label ) . '</span>' . sahel_svg_arrow() . '</a><div class="sm-fly">';
+                foreach ( sahel_product_cats() as $c ) { $items .= '<a href="' . esc_url( get_term_link( $c ) ) . '">' . esc_html( $c->name ) . '</a>'; }
+                $items .= '</div></li>';
+                continue;
+            }
+            $url = 'home' === $type ? home_url( '/' ) : ( 'shop' === $type ? sahel_shop_url() : ( 'page' === $type ? sahel_page_url( $val ) : $val ) );
+            $items .= '<li><a href="' . esc_url( $url ) . '"><span>' . esc_html( $label ) . '</span></a></li>';
+        }
+    }
+    if ( '' === $items ) {
+        $n = 0;
+        foreach ( sahel_product_cats_tree() as $node ) {
+            if ( $n++ >= $max ) { break; }
+            $c = $node['term'];
+            $items .= '<li><a href="' . esc_url( get_term_link( $c ) ) . '">' . ( $imgs ? '<img src="' . esc_url( sahel_cat_img( $c, $fb ) ) . '" alt="" loading="lazy" decoding="async">' : '' ) . '<span>' . esc_html( $c->name ) . '</span>' . ( $node['children'] ? sahel_svg_arrow() : '' ) . '</a>';
+            if ( $node['children'] ) {
+                $items .= '<div class="sm-fly">';
+                foreach ( $node['children'] as $ch ) { $items .= '<a href="' . esc_url( get_term_link( $ch['term'] ) ) . '">' . esc_html( $ch['term']->name ) . '</a>'; }
+                $items .= '</div>';
+            }
+            $items .= '</li>';
+        }
+    }
+    if ( '' === $items ) { return ''; }
+    $style = sanitize_html_class( get_theme_mod( 'sahel_sm_style', 'card' ) );
+    $title = get_theme_mod( 'sahel_sm_title', 'دسته‌بندی‌ها' );
+    $html = '<nav class="sl-menu smst-' . $style . ( get_theme_mod( 'sahel_sm_hidem', 0 ) ? ' sm-hidem' : '' ) . '" aria-label="' . esc_attr( $title ) . '">';
+    if ( $title ) { $html .= '<div class="sm-head"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h10"/></svg>' . esc_html( $title ) . '</div>'; }
+    $html .= '<ul>' . $items . '</ul>';
+    if ( get_theme_mod( 'sahel_sm_all', 1 ) ) { $html .= '<a class="sm-all" href="' . esc_url( sahel_shop_url() ) . '">مشاهده همه محصولات ←</a>'; }
+    return $html . '</nav>';
+}
+/* داده‌های ویترین: $p پیشوند تنظیمات (sahel_sc یا sahel_slideN_sc) */
+function sahel_showcase_render( $p, $shared ) {
+    $type = get_theme_mod( $p . '_type', 'cats' );
+    $out = '';
+    $fb = 'https://image.qwenlm.ai/public_source/593f1887-5498-4920-ad1d-3f467426cd05/16752e62d-5c58-45c7-891c-b787a0344a6c.png';
+    $first_cat = null;
+    if ( 'products' !== $type ) {
+        for ( $i = 1; $i <= 6; $i++ ) {
+            $cid = (int) get_theme_mod( $p . '_cat' . $i, 0 );
+            if ( ! $cid ) { continue; }
+            $t = get_term( $cid, 'product_cat' );
+            if ( ! $t || is_wp_error( $t ) ) { continue; }
+            if ( ! $first_cat ) { $first_cat = $t; }
+            $out .= '<a class="sc-item" href="' . esc_url( get_term_link( $t ) ) . '"><img src="' . esc_url( sahel_cat_img( $t, $fb ) ) . '" alt="" loading="lazy" decoding="async"><span><b>' . esc_html( $t->name ) . '</b><small>' . sahel_num( $t->count ) . ' محصول</small></span></a>';
+        }
+    }
+    if ( 'cats' !== $type && function_exists( 'wc_get_products' ) ) {
+        $n = max( 1, min( 8, (int) get_theme_mod( $p . '_count', 4 ) ) );
+        $src = get_theme_mod( $p . '_psrc', 'ids' );
+        $args = array( 'limit' => $n, 'status' => 'publish', 'return' => 'ids' );
+        if ( 'ids' === $src ) {
+            $ids = array_filter( array_map( 'absint', preg_split( '/[\s,،]+/u', (string) get_theme_mod( $p . '_pids', '' ) ) ) );
+            if ( $ids ) { $args['include'] = $ids; $args['orderby'] = 'include'; } else { $args = null; }
+        } elseif ( 'best' === $src ) { $args['orderby'] = 'meta_value_num'; $args['meta_key'] = 'total_sales'; $args['order'] = 'DESC'; }
+        elseif ( 'sale' === $src ) { $args['include'] = function_exists( 'wc_get_product_ids_on_sale' ) ? array_merge( array( 0 ), wc_get_product_ids_on_sale() ) : array( 0 ); }
+        elseif ( 'cat' === $src && $first_cat ) { $args['category'] = array( $first_cat->slug ); }
+        else { $args['orderby'] = 'date'; $args['order'] = 'DESC'; }
+        if ( $args ) {
+            foreach ( (array) wc_get_products( $args ) as $pid ) {
+                $pr = wc_get_product( $pid );
+                if ( ! $pr ) { continue; }
+                $img = wp_get_attachment_image_url( $pr->get_image_id(), 'woocommerce_thumbnail' );
+                if ( ! $img ) { $img = function_exists( 'wc_placeholder_img_src' ) ? wc_placeholder_img_src() : $fb; }
+                $out .= '<a class="sc-item" href="' . esc_url( $pr->get_permalink() ) . '"><img src="' . esc_url( $img ) . '" alt="" loading="lazy" decoding="async"><span><b>' . esc_html( $pr->get_name() ) . '</b><small>' . wp_kses_post( $pr->get_price_html() ) . '</small></span></a>';
+            }
+        }
+    }
+    if ( '' === $out ) { return ''; }
+    $pos = get_theme_mod( $p . '_pos', 'left' );
+    if ( ! in_array( $pos, array( 'right', 'left', 'top', 'bottom' ), true ) ) { $pos = 'left'; }
+    $st = get_theme_mod( $p . '_style', 'cards' );
+    if ( ! in_array( $st, array( 'cards', 'chips', 'circles', 'panel' ), true ) ) { $st = 'cards'; }
+    $title = get_theme_mod( $p . '_title', '' );
+    return '<div class="sl-showcase sc-pos-' . $pos . ' sc-st-' . $st . ( $shared ? ' shared' : '' ) . ( get_theme_mod( $p . '_hidem', 0 ) ? ' sc-hidem' : '' ) . '">' . ( $title ? '<div class="sc-title">' . esc_html( $title ) . '</div>' : '' ) . $out . '</div>';
+}
+function sahel_slide_showcase_html( $n ) {
+    return 'own' === get_theme_mod( 'sahel_slide' . $n . '_sc_mode', '' ) ? sahel_showcase_render( 'sahel_slide' . $n . '_sc', false ) : '';
+}
+function sahel_slider_area_open( $extra_cls, $w_style ) {
+    $menu = sahel_slider_menu_html();
+    $pos = get_theme_mod( 'sahel_sm_pos', '' );
+    $cls = 'slider-area' . $extra_cls;
+    if ( $menu ) {
+        $side = ( false !== strpos( $pos, 'left' ) ) ? 'left' : 'right';
+        $cls .= ( 0 === strpos( $pos, 'over' ) ? ' sm-over' : ' sm-beside' ) . ' sm-' . $side;
+        $w = max( 180, min( 420, (int) get_theme_mod( 'sahel_sm_w', 260 ) ) );
+        $w_style = $w_style ? str_replace( 'style="', 'style="--sm-w:' . $w . 'px;', $w_style ) : ' style="--sm-w:' . $w . 'px"';
+    }
+    $shared = get_theme_mod( 'sahel_sc_on', 0 ) ? sahel_showcase_render( 'sahel_sc', true ) : '';
+    return '<div class="' . esc_attr( trim( $cls ) ) . '"' . $w_style . '>' . $menu . $shared;
+}
+function sahel_slider_area_close() { return '</div>'; }
+function sahel_showcase_controls( $w, $sec, $p, $label_prefix ) {
+    $cats = array( 0 => '— انتخاب نشده —' );
+    if ( taxonomy_exists( 'product_cat' ) ) {
+        $terms = get_terms( 'product_cat', array( 'hide_empty' => false ) );
+        if ( ! is_wp_error( $terms ) ) { foreach ( (array) $terms as $t ) { $cats[ $t->term_id ] = $t->name; } }
+    }
+    $sel = array(
+        '_type'  => array( 'cats', 'نوع محتوای ویترین', array( 'cats' => 'دسته‌بندی‌های منتخب', 'products' => 'محصولات خاص', 'both' => 'دسته‌بندی‌ها + محصولات' ) ),
+        '_pos'   => array( 'left', 'محل قرارگیری روی اسلاید', array( 'right' => 'سمت راست', 'left' => 'سمت چپ', 'top' => 'بالا', 'bottom' => 'پایین' ) ),
+        '_style' => array( 'cards', 'طراحی آیتم‌ها', array( 'cards' => 'کارتی', 'chips' => 'برچسبی (کپسولی)', 'circles' => 'دایره‌ای', 'panel' => 'پنل شیشه‌ای با فهرست' ) ),
+        '_psrc'  => array( 'ids', 'محصولات از کجا انتخاب شوند', array( 'ids' => 'شناسه‌های واردشده', 'best' => 'پرفروش‌ترین‌ها', 'new' => 'جدیدترین‌ها', 'sale' => 'تخفیف‌دارها', 'cat' => 'از اولین دسته‌بندی انتخاب‌شده' ) ),
+    );
+    foreach ( $sel as $suf => $c ) {
+        $w->add_setting( $p . $suf, array( 'default' => $c[0], 'sanitize_callback' => 'sanitize_key' ) );
+        $w->add_control( $p . $suf, array( 'label' => $label_prefix . $c[1], 'section' => $sec, 'type' => 'select', 'choices' => $c[2] ) );
+    }
+    $w->add_setting( $p . '_title', array( 'default' => '', 'sanitize_callback' => 'sanitize_text_field' ) );
+    $w->add_control( $p . '_title', array( 'label' => $label_prefix . 'عنوان ویترین (اختیاری)', 'section' => $sec ) );
+    for ( $i = 1; $i <= 6; $i++ ) {
+        $w->add_setting( $p . '_cat' . $i, array( 'default' => 0, 'sanitize_callback' => 'absint' ) );
+        $w->add_control( $p . '_cat' . $i, array( 'label' => $label_prefix . 'دسته‌بندی منتخب ' . sahel_fa( $i ), 'section' => $sec, 'type' => 'select', 'choices' => $cats ) );
+    }
+    $w->add_setting( $p . '_pids', array( 'default' => '', 'sanitize_callback' => 'sanitize_text_field' ) );
+    $w->add_control( $p . '_pids', array( 'label' => $label_prefix . 'شناسه محصولات خاص (با کاما جدا کنید، مثلاً 12,45,78)', 'section' => $sec ) );
+    $w->add_setting( $p . '_count', array( 'default' => 4, 'sanitize_callback' => 'absint' ) );
+    $w->add_control( $p . '_count', array( 'label' => $label_prefix . 'تعداد محصولات (۱ تا ۸)', 'section' => $sec, 'type' => 'number', 'input_attrs' => array( 'min' => 1, 'max' => 8 ) ) );
+    $w->add_setting( $p . '_hidem', array( 'default' => 0, 'sanitize_callback' => 'absint' ) );
+    $w->add_control( $p . '_hidem', array( 'label' => $label_prefix . 'در موبایل نمایش داده نشود', 'section' => $sec, 'type' => 'checkbox' ) );
+}
+add_action( 'customize_register', function( $w ) {
+    if ( ! $w->get_section( 'sahel_slider' ) ) { return; }
+    $sec = 'sahel_slider';
+    $w->add_setting( 'sahel_sm_pos', array( 'default' => '', 'sanitize_callback' => 'sanitize_key' ) );
+    $w->add_control( 'sahel_sm_pos', array( 'label' => '☰ منوی عمودی اسلایدر', 'section' => $sec, 'type' => 'select', 'choices' => array( '' => 'نمایش داده نشود', 'beside-right' => 'کنار اسلایدر — سمت راست', 'beside-left' => 'کنار اسلایدر — سمت چپ', 'over-right' => 'روی اسلایدر — سمت راست', 'over-left' => 'روی اسلایدر — سمت چپ' ) ) );
+    $w->add_setting( 'sahel_sm_src', array( 'default' => 'cats', 'sanitize_callback' => 'sanitize_key' ) );
+    $w->add_control( 'sahel_sm_src', array( 'label' => 'محتوای منوی عمودی', 'section' => $sec, 'type' => 'select', 'choices' => array( 'cats' => 'دسته‌بندی‌های محصولات (با زیرمنو)', 'header' => 'همان آیتم‌های منوی هدر', 'wp' => 'منوی وردپرس «منوی عمودی کنار اسلایدر» (نمایش ← فهرست‌ها)' ) ) );
+    $w->add_setting( 'sahel_sm_style', array( 'default' => 'card', 'sanitize_callback' => 'sanitize_key' ) );
+    $w->add_control( 'sahel_sm_style', array( 'label' => 'طراحی کادر منو', 'section' => $sec, 'type' => 'select', 'choices' => array( 'card' => 'کارتی سفید', 'glass' => 'شیشه‌ای مات', 'dark' => 'تیره', 'line' => 'خطی مینیمال', 'accent' => 'با سربرگ رنگی' ) ) );
+    $w->add_setting( 'sahel_sm_title', array( 'default' => 'دسته‌بندی‌ها', 'sanitize_callback' => 'sanitize_text_field' ) );
+    $w->add_control( 'sahel_sm_title', array( 'label' => 'عنوان منو (خالی = بدون سربرگ)', 'section' => $sec ) );
+    $w->add_setting( 'sahel_sm_w', array( 'default' => 260, 'sanitize_callback' => 'absint' ) );
+    $w->add_control( 'sahel_sm_w', array( 'label' => 'عرض منو (px)', 'section' => $sec, 'type' => 'number', 'input_attrs' => array( 'min' => 180, 'max' => 420 ) ) );
+    $w->add_setting( 'sahel_sm_max', array( 'default' => 10, 'sanitize_callback' => 'absint' ) );
+    $w->add_control( 'sahel_sm_max', array( 'label' => 'حداکثر تعداد آیتم‌ها', 'section' => $sec, 'type' => 'number', 'input_attrs' => array( 'min' => 3, 'max' => 20 ) ) );
+    foreach ( array( 'sahel_sm_imgs' => array( 1, 'نمایش تصویر دسته‌بندی‌ها' ), 'sahel_sm_all' => array( 1, 'دکمه «مشاهده همه محصولات»' ), 'sahel_sm_hidem' => array( 0, 'منو در موبایل نمایش داده نشود (وگرنه زیر اسلایدر به‌صورت افقی می‌آید)' ) ) as $id => $c ) {
+        $w->add_setting( $id, array( 'default' => $c[0], 'sanitize_callback' => 'absint' ) );
+        $w->add_control( $id, array( 'label' => $c[1], 'section' => $sec, 'type' => 'checkbox' ) );
+    }
+    $w->add_setting( 'sahel_sc_on', array( 'default' => 0, 'sanitize_callback' => 'absint' ) );
+    $w->add_control( 'sahel_sc_on', array( 'label' => '🛍 ویترین مشترک دسته‌بندی/محصول روی همه اسلایدها', 'section' => $sec, 'type' => 'checkbox' ) );
+    sahel_showcase_controls( $w, $sec, 'sahel_sc', 'ویترین مشترک: ' );
+    $count = max( 1, min( 10, (int) get_theme_mod( 'sahel_slide_count', 3 ) ) + 1 );
+    for ( $i = 1; $i <= $count; $i++ ) {
+        $s = 'sahel_slide' . $i;
+        if ( ! $w->get_section( $s ) ) { continue; }
+        $w->add_setting( $s . '_sc_mode', array( 'default' => '', 'sanitize_callback' => 'sanitize_key' ) );
+        $w->add_control( $s . '_sc_mode', array( 'label' => '🛍 ویترین دسته‌بندی/محصول این اسلاید', 'section' => $s, 'type' => 'select', 'choices' => array( '' => 'ویترین مشترک (اگر فعال باشد)', 'own' => 'ویترین اختصاصی این اسلاید', 'none' => 'بدون ویترین در این اسلاید' ) ) );
+        sahel_showcase_controls( $w, $s, $s . '_sc', 'ویترین این اسلاید: ' );
+    }
+}, 25 );
+add_action( 'wp_head', function() {
+    echo '<style id="sahel-v58">' . <<<'SHCSS58'
+/* ===== v5.8: منوی عمودی کنار/روی اسلایدر ===== */
+.slider-area{position:relative;max-width:var(--wrap-w,1260px);margin-inline:auto}
+.slider-area.is-full{max-width:none}
+.slider-area[style*="--slider-w"]{max-width:var(--slider-w)}
+.slider-area .slider{max-width:none!important;margin-inline:0!important}
+.slider-area.sm-beside{display:grid;grid-template-columns:var(--sm-w,260px) minmax(0,1fr);gap:16px;align-items:stretch;padding-top:16px}
+.slider-area.sm-beside.sm-left{grid-template-columns:minmax(0,1fr) var(--sm-w,260px)}
+.slider-area.sm-beside.sm-left .sl-menu{order:2}
+.slider-area.sm-over .sl-menu{position:absolute;top:22px;max-height:calc(100% - 44px);width:var(--sm-w,260px);z-index:8}
+.slider-area.sm-over.sm-right .sl-menu{inset-inline-start:22px}
+.slider-area.sm-over.sm-left .sl-menu{inset-inline-end:22px}
+.sl-menu{display:flex;flex-direction:column;min-width:0;border-radius:calc(var(--rad,22px) - 2px);font-size:.88rem}
+.sl-menu .sm-head{display:flex;align-items:center;gap:10px;padding:14px 18px;font-weight:900;font-size:.95rem}
+.sl-menu .sm-head svg{width:18px;height:18px;stroke:currentColor;flex-shrink:0}
+.sl-menu ul{list-style:none;margin:0;padding:6px}
+.sl-menu li{position:relative}
+.sl-menu li>a{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;font-weight:700;color:inherit;transition:background-color .2s,color .2s,padding .2s}
+.sl-menu li>a img{width:30px;height:30px;border-radius:9px;object-fit:cover;flex-shrink:0}
+.sl-menu li>a span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sl-menu li>a .sm-arr{width:14px;height:14px;stroke:currentColor;opacity:.55;flex-shrink:0}
+.sl-menu li:hover>a,.sl-menu li:focus-within>a{background:color-mix(in srgb,var(--c1) 12%,transparent);color:var(--c1)}
+.sl-menu .sm-fly{position:absolute;top:-6px;inset-inline-start:calc(100% + 8px);min-width:240px;max-width:min(520px,70vw);padding:12px;border-radius:16px;background:var(--cardbg);border:1px solid var(--line);box-shadow:var(--shadow-lg);display:none;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:4px;z-index:20}
+.sm-left .sl-menu .sm-fly{inset-inline-start:auto;inset-inline-end:calc(100% + 8px)}
+.sl-menu li:hover>.sm-fly,.sl-menu li:focus-within>.sm-fly{display:grid}
+.sl-menu .sm-fly a{display:block;padding:8px 10px;border-radius:10px;color:var(--ink);font-weight:600;font-size:.82rem}
+.sl-menu .sm-fly a:hover{background:color-mix(in srgb,var(--c1) 10%,transparent);color:var(--c1)}
+.sl-menu .sm-all{margin:auto 10px 10px;padding:10px;border-radius:12px;text-align:center;font-weight:800;font-size:.8rem;color:var(--c1);border:1px dashed color-mix(in srgb,var(--c1) 45%,transparent)}
+.sl-menu .sm-all:hover{background:var(--c1);color:var(--btnt,#fff);border-style:solid}
+.sl-menu.smst-card{background:var(--cardbg);border:1px solid var(--line);box-shadow:var(--shadow)}
+.sl-menu.smst-card .sm-head{border-bottom:1px solid var(--line)}
+.sl-menu.smst-glass{background:color-mix(in srgb,var(--cardbg) 70%,transparent);backdrop-filter:blur(18px) saturate(1.4);-webkit-backdrop-filter:blur(18px) saturate(1.4);border:1px solid rgba(255,255,255,.55);box-shadow:var(--shadow-lg)}
+.sl-menu.smst-dark{background:var(--footerbg);color:var(--ftext,#eee);box-shadow:var(--shadow-lg)}
+.sl-menu.smst-dark .sm-head{color:#fff;border-bottom:1px solid rgba(255,255,255,.1)}
+.sl-menu.smst-dark li:hover>a{background:rgba(255,255,255,.08);color:var(--c2)}
+.sl-menu.smst-line{background:transparent;border:1px solid var(--line)}
+.sl-menu.smst-line li+li>a{border-top:1px solid var(--line);border-radius:0}
+.sl-menu.smst-line li:hover>a{background:none;padding-inline-start:18px}
+.sl-menu.smst-accent{background:var(--cardbg);border:1px solid var(--line);box-shadow:var(--shadow);overflow:visible}
+.sl-menu.smst-accent .sm-head{background:var(--grad);color:var(--btnt,#fff);border-radius:calc(var(--rad,22px) - 2px) calc(var(--rad,22px) - 2px) 0 0}
+.sl-menu.smst-accent li>a::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--c1);opacity:.35;flex-shrink:0}
+.sl-menu.smst-accent li>a:has(img)::before{display:none}
+body.design-flat .sl-menu.smst-glass{background:var(--cardbg)}
+@media(max-width:920px){
+.slider-area.sm-beside,.slider-area.sm-beside.sm-left,.slider-area.sm-over{display:flex;flex-direction:column;gap:0;padding-top:0}
+.slider-area .sl-menu,.slider-area.sm-over .sl-menu{position:static;order:2;width:auto;max-height:none;margin:10px 12px 0;border-radius:16px}
+.sl-menu .sm-head{display:none}
+.sl-menu ul{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:8px}
+.sl-menu ul::-webkit-scrollbar{display:none}
+.sl-menu li>a{white-space:nowrap;padding:8px 12px;background:color-mix(in srgb,var(--c1) 8%,transparent)}
+.sl-menu li>a span{overflow:visible}
+.sl-menu .sm-arr,.sl-menu .sm-fly,.sl-menu .sm-all{display:none!important}
+.sl-menu.smst-line li+li>a{border-top:0}
+.sl-menu.sm-hidem{display:none}
+}
+/* ===== v5.8: ویترین دسته‌بندی‌ها و محصولات روی اسلاید ===== */
+.sl-showcase{position:absolute;z-index:6;display:flex;gap:10px;max-width:calc(100% - 40px)}
+.slider-area>.sl-showcase{z-index:7}
+.sl-showcase.sc-pos-right{top:50%;inset-inline-start:24px;transform:translateY(-50%);flex-direction:column;width:var(--sc-w,240px)}
+.sl-showcase.sc-pos-left{top:50%;inset-inline-end:24px;transform:translateY(-50%);flex-direction:column;width:var(--sc-w,240px)}
+.sl-showcase.sc-pos-top{top:20px;left:50%;transform:translateX(-50%);flex-direction:row;flex-wrap:wrap;justify-content:center}
+.sl-showcase.sc-pos-bottom{bottom:40px;left:50%;transform:translateX(-50%);flex-direction:row;flex-wrap:wrap;justify-content:center}
+.slider-area:has(.slide.active.sc-hide-shared)>.sl-showcase{opacity:0;visibility:hidden;pointer-events:none}
+.slider-area>.sl-showcase{transition:opacity .4s,visibility .4s}
+.sc-title{width:100%;font-weight:900;font-size:.85rem;padding:0 4px;color:var(--ink)}
+.sc-item{display:flex;align-items:center;gap:10px;color:var(--ink);transition:transform .25s,box-shadow .25s,background-color .25s,border-color .25s;min-width:0}
+.sc-item img{object-fit:cover;flex-shrink:0}
+.sc-item b{display:block;font-size:.82rem;font-weight:800;line-height:1.5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sc-item small{display:block;font-size:.7rem;color:var(--muted);line-height:1.5}
+.sc-item small .amount{color:var(--pricec,var(--c1));font-weight:800}
+.sc-item>span{min-width:0}
+.sc-st-cards .sc-item{padding:8px 12px 8px 8px;border-radius:16px;background:color-mix(in srgb,var(--cardbg) 92%,transparent);border:1px solid var(--line);box-shadow:var(--shadow)}
+.sc-st-cards .sc-item img{width:52px;height:52px;border-radius:12px}
+.sc-st-cards.sc-pos-top .sc-item,.sc-st-cards.sc-pos-bottom .sc-item{max-width:240px}
+.sc-st-chips .sc-item{padding:5px 14px 5px 5px;border-radius:99px;background:color-mix(in srgb,var(--cardbg) 90%,transparent);border:1px solid var(--line)}
+.sc-st-chips .sc-item img{width:34px;height:34px;border-radius:50%}
+.sc-st-chips .sc-item small{display:none}
+.sc-st-circles .sc-item{flex-direction:column;text-align:center;gap:6px;width:92px}
+.sc-st-circles .sc-item img{width:76px;height:76px;border-radius:50%;border:3px solid var(--cardbg);box-shadow:var(--shadow)}
+.sc-st-circles .sc-item b{white-space:normal;font-size:.76rem;text-shadow:0 1px 6px rgba(255,255,255,.6)}
+.sc-st-circles.sc-pos-right,.sc-st-circles.sc-pos-left{width:auto;align-items:center}
+.sc-st-panel{padding:14px;border-radius:20px;background:color-mix(in srgb,var(--cardbg) 78%,transparent);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.5);box-shadow:var(--shadow-lg)}
+.sc-st-panel .sc-item{padding:6px;border-radius:12px}
+.sc-st-panel .sc-item+.sc-item{border-top:1px solid var(--line);border-radius:0}
+.sc-st-panel .sc-item img{width:44px;height:44px;border-radius:10px}
+.sc-item:hover{border-color:var(--c1)}
+.sc-st-cards .sc-item:hover,.sc-st-chips .sc-item:hover{transform:translateY(-3px)}
+.sc-st-circles .sc-item:hover img{border-color:var(--c1)}
+.sc-st-panel .sc-item:hover{background:color-mix(in srgb,var(--c1) 10%,transparent)}
+body.design-flat .sc-item:hover{transform:none}
+body.design-flat .sc-st-panel{background:var(--cardbg)}
+@media(max-width:920px){
+.sl-showcase,.sl-showcase.sc-pos-right,.sl-showcase.sc-pos-left,.sl-showcase.sc-pos-top,.sl-showcase.sc-pos-bottom{top:auto;bottom:34px;left:10px;right:10px;inset-inline:10px;transform:none;width:auto;max-width:none;flex-direction:row;flex-wrap:nowrap;justify-content:flex-start;overflow-x:auto;scrollbar-width:none;padding:4px}
+.sl-showcase::-webkit-scrollbar{display:none}
+.sl-showcase .sc-title{display:none}
+.sl-showcase .sc-item{flex-shrink:0}
+.sc-st-cards .sc-item{max-width:200px}
+.sc-st-cards .sc-item img{width:40px;height:40px}
+.sc-st-circles .sc-item{width:70px}
+.sc-st-circles .sc-item img{width:56px;height:56px}
+.sl-showcase.sc-hidem{display:none}
+}
+SHCSS58
+    . '</style>';
+}, 185 );
