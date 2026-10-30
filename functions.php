@@ -580,6 +580,10 @@ function sahel_home_sec_defs() {
         'services' => array( 'خدمات ما (سازمانی)', 'خدمات ما', 'راهکارهایی متناسب با نیاز شما', 24 ),
         'team'     => array( 'تیم ما (سازمانی)', 'تیم ما', 'افرادی که این مجموعه را می‌سازند', 25 ),
         'projects' => array( 'نمونه‌کارها (سازمانی)', 'نمونه‌کارها', 'پروژه‌ها و همکاری‌های اخیر ما', 26 ),
+        'bgrid1'   => array( 'چیدمان بنر/گالری - ۱', '', '', 27 ),
+        'bgrid2'   => array( 'چیدمان بنر/گالری - ۲', '', '', 28 ),
+        'bgrid3'   => array( 'چیدمان بنر/گالری - ۳', '', '', 29 ),
+        'bgrid4'   => array( 'چیدمان بنر/گالری - ۴', '', '', 30 ),
     );
 }
 function sahel_sec( $key ) {
@@ -3299,6 +3303,21 @@ function sahel_home_html() {
         }
     }
 
+    /* v5.6: بخش‌های چیدمان بنر/گالری */
+    for ( $gi = 1; $gi <= 4; $gi++ ) {
+        $sec = sahel_sec( 'bgrid' . $gi );
+        if ( ! $sec['on'] ) { continue; }
+        $grid = sahel_bgrid_html( $gi );
+        if ( ! $grid ) { continue; }
+        $bg = sahel_sec_bg_attr( $sec, '--sec-pt-base:10px' );
+        $h = '<section' . ( $sec['full'] ? ' class="sec-full ' . $bg['class'] . '"' : ' class="' . $bg['class'] . '"' ) . $bg['style'] . ( $sec['btn_color'] ? ' data-btn-color="' . esc_attr( $sec['btn_color'] ) . '"' : '' ) . ( $sec['btn_text'] ? ' data-btn-text="' . esc_attr( $sec['btn_text'] ) . '"' : '' ) . '>';
+        $h .= $bg['overlay'];
+        $h .= '<div class="wrap">';
+        if ( $sec['title'] || $sec['sub'] ) { $h .= sahel_sec_head_html( $sec['title'], $sec['sub'] ); }
+        $h .= $grid . '</div></section>';
+        $parts[] = array( $sec['order'], $h );
+    }
+
     usort( $parts, function( $a, $b ) { return $a[0] <=> $b[0]; } );
     foreach ( $parts as $p ) { $ob .= $p[1]; }
     return $ob;
@@ -4082,3 +4101,166 @@ add_filter( 'wp_resource_hints', function( $urls, $type ) {
     if ( 'preconnect' === $type ) { $urls[] = array( 'href' => 'https://cdn.jsdelivr.net', 'crossorigin' ); }
     return $urls;
 }, 10, 2 );
+
+/* v5.6: بخش‌های چیدمان بنر/گالری — تعداد ستون و ردیف دلخواه، چیدمان منظم، نامنظم (کاشی) و آبشاری */
+function sahel_bgrid_presets() {
+    return array(
+        'feature' => array( array( 2, 2 ), array( 1, 1 ), array( 1, 1 ), array( 1, 1 ), array( 1, 1 ) ),
+        'mosaic'  => array( array( 2, 1 ), array( 1, 2 ), array( 1, 1 ), array( 1, 1 ), array( 2, 1 ), array( 1, 1 ) ),
+        'zigzag'  => array( array( 2, 2 ), array( 1, 1 ), array( 1, 1 ), array( 1, 1 ), array( 1, 1 ), array( 2, 2 ) ),
+        'banners' => array( array( 2, 1 ), array( 1, 1 ), array( 1, 1 ), array( 2, 1 ) ),
+        'tall'    => array( array( 1, 2 ), array( 1, 1 ), array( 1, 1 ), array( 1, 2 ), array( 1, 1 ), array( 1, 1 ) ),
+    );
+}
+function sahel_bgrid_html( $n ) {
+    $k = 'sahel_bgrid' . $n;
+    $layout = get_theme_mod( $k . '_layout', 'grid' );
+    if ( ! in_array( $layout, array( 'grid', 'bento', 'masonry' ), true ) ) { $layout = 'grid'; }
+    $cols = max( 1, min( 8, (int) get_theme_mod( $k . '_cols', 3 ) ) );
+    $cols_t = max( 1, min( $cols, (int) get_theme_mod( $k . '_cols_t', 2 ) ) );
+    $cols_m = max( 1, min( $cols_t, (int) get_theme_mod( $k . '_cols_m', 1 ) ) );
+    $rows = max( 0, min( 12, (int) get_theme_mod( $k . '_rows', 0 ) ) );
+    $count = max( 1, min( 12, (int) get_theme_mod( $k . '_count', 6 ) ) );
+    $preset = get_theme_mod( $k . '_preset', 'feature' );
+    $presets = sahel_bgrid_presets();
+    $items = array();
+    for ( $i = 1; $i <= $count; $i++ ) {
+        $img = get_theme_mod( $k . '_i' . $i . '_img', '' );
+        if ( ! $img ) { continue; }
+        $items[] = array( $i, $img );
+    }
+    if ( ! $items ) { return ''; }
+    if ( 'grid' === $layout && $rows > 0 ) { $items = array_slice( $items, 0, $cols * $rows ); }
+    $ratios = array( '1-1' => '1/1', '4-3' => '4/3', '3-4' => '3/4', '16-9' => '16/9', '21-9' => '21/9', '3-1' => '3/1', '2-3' => '2/3' );
+    $ratio = get_theme_mod( $k . '_ratio', '4-3' );
+    $st = array(
+        '--bg-cols:' . $cols, '--bg-cols-t:' . $cols_t, '--bg-cols-m:' . $cols_m,
+        '--bg-gap:' . (int) get_theme_mod( $k . '_gap', 14 ) . 'px',
+        '--bg-rad:' . (int) get_theme_mod( $k . '_radius', 18 ) . 'px',
+        '--bg-ratio:' . ( isset( $ratios[ $ratio ] ) ? $ratios[ $ratio ] : '4/3' ),
+        '--bg-rowh:' . max( 80, (int) get_theme_mod( $k . '_rowh', 220 ) ) . 'px',
+    );
+    if ( 'bento' === $layout && $rows > 0 ) { $st[] = '--bg-rows:' . $rows; }
+    $cap = get_theme_mod( $k . '_caption', 'overlay' );
+    if ( ! in_array( $cap, array( 'none', 'overlay', 'hover', 'center', 'below' ), true ) ) { $cap = 'overlay'; }
+    $out = '<div class="bgrid bg-' . $layout . ' cap-' . $cap . '" style="' . esc_attr( implode( ';', $st ) ) . '">';
+    foreach ( $items as $idx => $it ) {
+        $i = $it[0];
+        $c = 1; $r = 1;
+        if ( 'bento' === $layout ) {
+            if ( 'custom' === $preset || ! isset( $presets[ $preset ] ) ) {
+                $c = max( 1, (int) get_theme_mod( $k . '_i' . $i . '_c', 1 ) );
+                $r = max( 1, (int) get_theme_mod( $k . '_i' . $i . '_r', 1 ) );
+            } else {
+                $pat = $presets[ $preset ][ $idx % count( $presets[ $preset ] ) ];
+                $c = $pat[0]; $r = $pat[1];
+            }
+        }
+        $c = min( $c, $cols );
+        $vars = '--c:' . $c . ';--r:' . $r . ';--ct:' . min( $c, $cols_t ) . ';--rt:' . $r . ';--cm:' . min( $c, $cols_m ) . ';--rm:' . ( $cols_m > 1 ? min( $r, 2 ) : 1 );
+        $title = get_theme_mod( $k . '_i' . $i . '_title', '' );
+        $sub = get_theme_mod( $k . '_i' . $i . '_sub', '' );
+        $link = get_theme_mod( $k . '_i' . $i . '_link', '' );
+        $inner = '<img src="' . esc_url( $it[1] ) . '" alt="' . esc_attr( $title ) . '" loading="lazy" decoding="async">';
+        if ( $title || $sub ) { $inner .= '<span class="bgi-cap">' . ( $title ? '<b>' . esc_html( $title ) . '</b>' : '' ) . ( $sub ? '<small>' . esc_html( $sub ) . '</small>' : '' ) . '</span>'; }
+        $tag = $link ? 'a' : 'div';
+        $out .= '<' . $tag . ' class="bgi rv"' . ( $link ? ' href="' . esc_url( $link ) . '"' : '' ) . ' style="' . esc_attr( $vars ) . '">' . $inner . '</' . $tag . '>';
+    }
+    return $out . '</div>';
+}
+add_action( 'customize_register', function( $w ) {
+    $layouts = array( 'grid' => 'منظم (همه هم‌اندازه)', 'bento' => 'نامنظم / کاشی‌کاری (ابعاد مختلف)', 'masonry' => 'آبشاری (ارتفاع طبیعی هر تصویر)' );
+    $presets = array( 'feature' => 'یک بنر بزرگ + کوچک‌ها', 'mosaic' => 'موزاییکی', 'zigzag' => 'زیگزاگ (بزرگ در دو طرف)', 'banners' => 'بنرهای پهن و کوچک', 'tall' => 'بنرهای بلند ستونی', 'custom' => 'دلخواه (از اندازه هر آیتم)' );
+    $ratios = array( '1-1' => 'مربع ۱:۱', '4-3' => '۴:۳', '3-4' => 'عمودی ۳:۴', '2-3' => 'عمودی ۲:۳', '16-9' => 'عریض ۱۶:۹', '21-9' => 'سینمایی ۲۱:۹', '3-1' => 'بنر باریک ۳:۱' );
+    $caps = array( 'overlay' => 'روی تصویر (پایین)', 'hover' => 'روی تصویر هنگام هاور', 'center' => 'وسط تصویر', 'below' => 'زیر تصویر', 'none' => 'بدون متن' );
+    for ( $n = 1; $n <= 4; $n++ ) {
+        $sec = 'sahel_secgrp_bgrid' . $n;
+        if ( ! $w->get_section( $sec ) ) { continue; }
+        $k = 'sahel_bgrid' . $n;
+        $ctl = array(
+            '_layout'  => array( 'grid', '🧱 نوع چیدمان', 'select', $layouts ),
+            '_preset'  => array( 'feature', '🧩 الگوی چیدمان نامنظم', 'select', $presets ),
+            '_cols'    => array( 3, '↔ تعداد ستون دسکتاپ (۱ تا ۸)', 'number', array( 1, 8 ) ),
+            '_cols_t'  => array( 2, 'تعداد ستون تبلت', 'number', array( 1, 8 ) ),
+            '_cols_m'  => array( 1, 'تعداد ستون موبایل', 'number', array( 1, 4 ) ),
+            '_rows'    => array( 0, '↕ تعداد ردیف (۰ = خودکار بر اساس تعداد تصاویر)', 'number', array( 0, 12 ) ),
+            '_count'   => array( 6, '🖼 تعداد تصاویر/بنرها (۱ تا ۱۲)', 'number', array( 1, 12 ) ),
+            '_ratio'   => array( '4-3', 'نسبت ابعاد تصاویر (چیدمان منظم)', 'select', $ratios ),
+            '_rowh'    => array( 220, 'ارتفاع هر ردیف در چیدمان نامنظم (px)', 'number', array( 80, 800 ) ),
+            '_gap'     => array( 14, 'فاصله بین تصاویر (px)', 'number', array( 0, 80 ) ),
+            '_radius'  => array( 18, 'گردی گوشه‌ها (px)', 'number', array( 0, 80 ) ),
+            '_caption' => array( 'overlay', '📝 نمایش عنوان', 'select', $caps ),
+        );
+        foreach ( $ctl as $suf => $c ) {
+            $w->add_setting( $k . $suf, array( 'default' => $c[0], 'sanitize_callback' => 'number' === $c[2] ? 'absint' : 'sanitize_key' ) );
+            $args = array( 'label' => $c[1], 'section' => $sec, 'type' => $c[2] );
+            if ( 'select' === $c[2] ) { $args['choices'] = $c[3]; } else { $args['input_attrs'] = array( 'min' => $c[3][0], 'max' => $c[3][1] ); }
+            $w->add_control( $k . $suf, $args );
+        }
+        for ( $i = 1; $i <= 12; $i++ ) {
+            $ik = $k . '_i' . $i;
+            $w->add_setting( $ik . '_img', array( 'default' => '', 'sanitize_callback' => 'esc_url_raw' ) );
+            $w->add_control( new WP_Customize_Image_Control( $w, $ik . '_img', array( 'label' => '🖼 تصویر ' . sahel_fa( $i ), 'section' => $sec ) ) );
+            $w->add_setting( $ik . '_link', array( 'default' => '', 'sanitize_callback' => 'esc_url_raw' ) );
+            $w->add_control( $ik . '_link', array( 'label' => 'لینک تصویر ' . sahel_fa( $i ), 'section' => $sec, 'type' => 'url' ) );
+            $w->add_setting( $ik . '_title', array( 'default' => '', 'sanitize_callback' => 'sanitize_text_field' ) );
+            $w->add_control( $ik . '_title', array( 'label' => 'عنوان تصویر ' . sahel_fa( $i ), 'section' => $sec ) );
+            $w->add_setting( $ik . '_sub', array( 'default' => '', 'sanitize_callback' => 'sanitize_text_field' ) );
+            $w->add_control( $ik . '_sub', array( 'label' => 'توضیح کوتاه تصویر ' . sahel_fa( $i ), 'section' => $sec ) );
+            $w->add_setting( $ik . '_c', array( 'default' => 1, 'sanitize_callback' => 'absint' ) );
+            $w->add_control( $ik . '_c', array( 'label' => 'عرض تصویر ' . sahel_fa( $i ) . ' (چند ستون — الگوی دلخواه)', 'section' => $sec, 'type' => 'number', 'input_attrs' => array( 'min' => 1, 'max' => 8 ) ) );
+            $w->add_setting( $ik . '_r', array( 'default' => 1, 'sanitize_callback' => 'absint' ) );
+            $w->add_control( $ik . '_r', array( 'label' => 'ارتفاع تصویر ' . sahel_fa( $i ) . ' (چند ردیف — الگوی دلخواه)', 'section' => $sec, 'type' => 'number', 'input_attrs' => array( 'min' => 1, 'max' => 6 ) ) );
+        }
+    }
+}, 20 );
+add_action( 'wp_head', function() {
+    echo '<style id="sahel-v56">' . <<<'SHCSS56'
+/* ===== v5.6: بخش‌های چیدمان بنر/گالری (منظم، نامنظم، آبشاری) ===== */
+.bgrid{display:grid;grid-template-columns:repeat(var(--bg-cols,3),minmax(0,1fr));gap:var(--bg-gap,14px)}
+.bgi{position:relative;display:block;min-width:0;overflow:hidden;border-radius:var(--bg-rad,18px);background:var(--cream);isolation:isolate}
+.bgi img{display:block;width:100%;height:100%;object-fit:cover;transition:transform .6s cubic-bezier(.2,.7,.2,1)}
+a.bgi:hover img{transform:scale(1.05)}
+.bg-grid .bgi{aspect-ratio:var(--bg-ratio,1/1)}
+.bg-bento{grid-auto-rows:var(--bg-rowh,220px);grid-auto-flow:dense}
+.bg-bento[style*="--bg-rows"]{grid-template-rows:repeat(var(--bg-rows),var(--bg-rowh,220px))}
+.bg-bento .bgi{grid-column:span var(--c,1);grid-row:span var(--r,1)}
+.bg-masonry{display:block;columns:var(--bg-cols,3);column-gap:var(--bg-gap,14px)}
+.bg-masonry .bgi{break-inside:avoid;margin-bottom:var(--bg-gap,14px)}
+.bg-masonry .bgi img{height:auto}
+.bgi-cap{z-index:1;color:#fff}
+.bgi-cap b{display:block;font-size:.98rem;font-weight:800;line-height:1.6}
+.bgi-cap small{display:block;font-size:.76rem;opacity:.88;line-height:1.7}
+.cap-none .bgi-cap{display:none}
+.cap-overlay .bgi-cap,.cap-hover .bgi-cap{position:absolute;inset-inline:0;bottom:0;padding:34px 16px 14px;background:linear-gradient(to top,rgba(10,7,5,.75),transparent)}
+.cap-hover .bgi-cap{opacity:0;transition:opacity .3s}
+.cap-hover .bgi:hover .bgi-cap,.cap-hover .bgi:focus-visible .bgi-cap{opacity:1}
+.cap-center .bgi-cap{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:16px;background:rgba(10,7,5,.32)}
+.cap-center .bgi-cap b{font-size:1.25rem}
+.cap-below .bgi{overflow:visible;background:none;border-radius:0;display:flex;flex-direction:column}
+.cap-below .bgi img{border-radius:var(--bg-rad,18px);flex:1 1 0;min-height:0;height:auto}
+.cap-below.bg-grid .bgi{aspect-ratio:auto}
+.cap-below.bg-grid .bgi img{aspect-ratio:var(--bg-ratio,1/1);flex:none;height:auto}
+.cap-below .bgi-cap{position:static;padding:10px 4px 0;color:var(--ink)}
+.cap-below .bgi-cap small{color:var(--muted)}
+body.design-classic .bgi:not(.cap-below .bgi){box-shadow:var(--shadow)}
+/* واکنش‌گرایی: هدر هم‌تراز با بقیه بخش‌ها و بدون چسبیدن به لبه صفحه (padding:12px 0 فاصله جانبی .wrap را صفر می‌کرد) */
+#header .wrap.header-inner{padding-inline:24px}
+@media(min-width:1600px){body.wscr-scale .slider{min-height:calc(var(--sh,620px) * var(--ui,1))}body.wscr-scale .marquee-track{zoom:var(--ui,1)}}
+@media(max-width:600px){#header .wrap.header-inner{padding-inline:14px}}
+@media(min-width:1600px){body.wscr-scale .bg-bento{grid-auto-rows:calc(var(--bg-rowh,220px) * var(--ui,1))}body.wscr-scale .bg-bento[style*="--bg-rows"]{grid-template-rows:repeat(var(--bg-rows),calc(var(--bg-rowh,220px) * var(--ui,1)))}}
+@media(max-width:920px){
+.bgrid{grid-template-columns:repeat(var(--bg-cols-t,2),minmax(0,1fr))}
+.bg-bento[style*="--bg-rows"]{grid-template-rows:none}
+.bg-bento .bgi{grid-column:span var(--ct,1);grid-row:span var(--rt,1)}
+.bg-masonry{columns:var(--bg-cols-t,2)}
+}
+@media(max-width:600px){
+.bgrid{grid-template-columns:repeat(var(--bg-cols-m,1),minmax(0,1fr))}
+.bg-bento{grid-auto-rows:calc(var(--bg-rowh,220px) * .75)}
+.bg-bento .bgi{grid-column:span var(--cm,1);grid-row:span var(--rm,1)}
+.bg-masonry{columns:var(--bg-cols-m,1)}
+}
+SHCSS56
+    . '</style>';
+}, 175 );
