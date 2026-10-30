@@ -621,6 +621,7 @@ function sahel_sec( $key ) {
         'hide_mobile'  => (int) get_theme_mod( 'sahel_sec_' . $key . '_hide_mobile', 0 ),
         'hide_tablet'  => (int) get_theme_mod( 'sahel_sec_' . $key . '_hide_tablet', 0 ),
         'hide_desktop' => (int) get_theme_mod( 'sahel_sec_' . $key . '_hide_desktop', 0 ),
+        'key'          => $key,
     );
 }
 function sahel_sec_head_html( $title, $sub, $extra = '' ) {
@@ -666,6 +667,7 @@ function sahel_sec_bg_attr( $sec, $extra_style = '' ) {
     if ( ! empty( $sec['hide_mobile'] ) ) { $class .= ' hide-m'; }
     if ( ! empty( $sec['hide_tablet'] ) ) { $class .= ' hide-t'; }
     if ( ! empty( $sec['hide_desktop'] ) ) { $class .= ' hide-d'; }
+    $class .= sahel_sec_mobile_class( $sec );
     return array( 'class' => $class, 'style' => !empty($style) ? ' style="' . implode(';', $style) . '"' : '', 'overlay' => $overlay );
 }
 
@@ -2592,7 +2594,7 @@ function sahel_shell( $content ) {
         $pd_style_cls = ' pdst-' . get_theme_mod( 'sahel_product_style', '1' ) . ( $pd_style_m ? ' pdst-m-' . $pd_style_m : '' );
     }
     $bbar_off = sahel_bottombar_active() ? '' : ' bbar-off';
-    $body_cls = 'btnst-' . get_theme_mod( 'sahel_btn_style', 'pill' ) . ' catst-' . get_theme_mod( 'sahel_catcard', '1' ) . ' prodst-' . get_theme_mod( 'sahel_prodcard', '1' ) . ' postst-' . get_theme_mod( 'sahel_postcard', '1' ) . ' ddst-' . get_theme_mod( 'sahel_dd_style', '1' ) . ' sldst-' . get_theme_mod( 'sahel_slider_style', '1' ) . ' hstyle-' . get_theme_mod( 'sahel_header_style', 'classic' ) . $hide_desc . $pd_full . $pd_style_cls . $bbar_off . ' sfx-' . sanitize_html_class( get_theme_mod( 'sahel_slider_fx', 'fade' ) ) . ( is_front_page() ? ' is-home' : '' ) . ' design-' . sanitize_html_class( get_theme_mod( 'sahel_design_mode', 'flat' ) ) . ' wscr-' . sanitize_html_class( get_theme_mod( 'sahel_wide_screen', 'scale' ) );
+    $body_cls = 'btnst-' . get_theme_mod( 'sahel_btn_style', 'pill' ) . ' catst-' . get_theme_mod( 'sahel_catcard', '1' ) . ' prodst-' . get_theme_mod( 'sahel_prodcard', '1' ) . ' postst-' . get_theme_mod( 'sahel_postcard', '1' ) . ' ddst-' . get_theme_mod( 'sahel_dd_style', '1' ) . ' sldst-' . get_theme_mod( 'sahel_slider_style', '1' ) . ' hstyle-' . get_theme_mod( 'sahel_header_style', 'classic' ) . $hide_desc . $pd_full . $pd_style_cls . $bbar_off . ' sfx-' . sanitize_html_class( get_theme_mod( 'sahel_slider_fx', 'fade' ) ) . ( is_front_page() ? ' is-home' : '' ) . ' design-' . sanitize_html_class( get_theme_mod( 'sahel_design_mode', 'flat' ) ) . ' wscr-' . sanitize_html_class( get_theme_mod( 'sahel_wide_screen', 'scale' ) ) . ' mcols-' . sanitize_html_class( get_theme_mod( 'sahel_mobile_cols', '2' ) );
     $h_img = get_theme_mod( 'sahel_header_image', '' );
     $h_op = (int) get_theme_mod( 'sahel_header_image_opacity', 30 ) / 100;
     $header_img_style = $h_img ? '--header-img:url(' . esc_url( $h_img ) . ');--header-img-op:' . $h_op . ';' : '';
@@ -2761,6 +2763,11 @@ document.querySelectorAll('.cmp-range').forEach(function(r){ ['touchstart','touc
 $('.slider').on('mousemove',function(e){ var s=this.querySelector('.slide.active'); if(!s) return; var r=this.getBoundingClientRect(); var x=(e.clientX-r.left)/r.width-.5, y=(e.clientY-r.top)/r.height-.5; s.style.setProperty('--mx',x.toFixed(3)); s.style.setProperty('--my',y.toFixed(3)); s.style.setProperty('--px',Math.round(e.clientX-r.left)+'px'); s.style.setProperty('--py',Math.round(e.clientY-r.top)+'px'); s.classList.add('m-in'); });
 $('.slider').on('mouseleave',function(){ $(this).find('.slide').each(function(){ this.style.setProperty('--mx','0'); this.style.setProperty('--my','0'); this.classList.remove('m-in'); }); });
 document.querySelectorAll('.slide.txfx-words .slide-txt h1').forEach(function(h){ var n=0; [].slice.call(h.childNodes).forEach(function(nd){ var tgt = nd.nodeType===3 ? nd : ( nd.nodeType===1 && nd.tagName!=='BR' && nd.childNodes.length===1 && nd.firstChild.nodeType===3 ? nd.firstChild : null ); if(!tgt) return; var parts=tgt.nodeValue.split(/(\s+)/); var frag=document.createDocumentFragment(); parts.forEach(function(p){ if(!p) return; if(/^\s+$/.test(p)){ frag.appendChild(document.createTextNode(p)); return; } var sp=document.createElement('span'); sp.className='wd'; sp.style.setProperty('--i',n++); sp.textContent=p; frag.appendChild(sp); }); tgt.parentNode.replaceChild(frag,tgt); }); });
+/* v5.9: دستگاه‌های لمسی — باز و بسته‌شدن منوی کشویی هدر با لمس */
+if(window.matchMedia && window.matchMedia('(hover:none)').matches){
+$(document).on('click','.bnav .dd-toggle',function(e){ var d=$(this).closest('.dd'); if(!d.hasClass('open')){ e.preventDefault(); $('.bnav .dd').not(d).removeClass('open'); d.addClass('open'); } });
+$(document).on('click',function(e){ if(!$(e.target).closest('.bnav .dd').length){ $('.bnav .dd').removeClass('open'); } });
+}
 function svid(){$sl.each(function(k){var v=this.querySelector('video.slide-video');if(!v)return;if(k===si){if(!v.getAttribute('src')&&v.getAttribute('data-src')){v.setAttribute('src',v.getAttribute('data-src'));}var pr=v.play();if(pr&&pr.catch){pr.catch(function(){});}}else{v.pause();}});}
 function sgo(n){if(!$sl.length)return;si=(n+$sl.length)%$sl.length;$sl.removeClass('leaving').filter('.active').not($sl.eq(si)).addClass('leaving');$sl.removeClass('active').eq(si).addClass('active');$dt.removeClass('active').eq(si).addClass('active');svid();sprog();}
 $dt.on('click',function(){sgo($(this).index());});
@@ -3040,7 +3047,7 @@ function sahel_home_html() {
         $sec = sahel_sec( 'sale' );
         if ( $sec['on'] ) {
             $bg = sahel_sec_bg_attr( $sec );
-            $h = '<section class="sale-sec"' . $bg['style'] . '>';
+            $h = '<section class="sale-sec' . sahel_sec_mobile_class( $sec ) . '"' . $bg['style'] . '>';
             $h .= $bg['overlay'];
             $h .= '<div class="wrap">';
             $h .= '<div class="sec-head rv"><div><h2>' . esc_html( $sec['title'] ) . '</h2><p>' . esc_html( $sec['sub'] ) . '</p></div><div style="display:flex;gap:10px;align-items:center"><a class="sec-link" style="background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.2);color:#e7cfb8" href="' . esc_url( sahel_shop_url() ) . '">مشاهده همه 🤎</a>' . sahel_arrows() . '</div></div>';
@@ -4753,3 +4760,66 @@ body.design-flat .sc-st-panel{background:var(--cardbg)}
 SHCSS58
     . '</style>';
 }, 185 );
+
+/* v5.9: ستون‌بندی بخش‌ها در موبایل (کلی و جداگانه برای هر بخش) + رفع اسکرول افقی و منوی موبایل */
+function sahel_sec_mobile_class( $sec ) {
+    $k = isset( $sec['key'] ) ? $sec['key'] : '';
+    if ( ! $k ) { return ''; }
+    $m = get_theme_mod( 'sahel_sec_' . $k . '_mcols', '' );
+    return in_array( $m, array( '1', '2', 'scroll' ), true ) ? ' msc-' . $m : '';
+}
+add_action( 'customize_register', function( $w ) {
+    $choices = array( '2' => 'دوستونه', '1' => 'یک‌ستونه', 'scroll' => 'اسلاید افقی (کشیدن به چپ و راست)' );
+    if ( $w->get_section( 'sahel_mobile' ) ) {
+        $w->add_setting( 'sahel_mobile_cols', array( 'default' => '2', 'sanitize_callback' => 'sanitize_key' ) );
+        $w->add_control( 'sahel_mobile_cols', array( 'label' => '📱 نمایش دسته‌بندی‌ها، محصولات و بقیه بخش‌ها در موبایل', 'description' => 'برای هر بخش هم در «بخش‌های صفحه اصلی» جداگانه قابل تغییر است.', 'section' => 'sahel_mobile', 'type' => 'select', 'choices' => $choices ) );
+    }
+    foreach ( sahel_home_sec_defs() as $key => $def ) {
+        $sec = 'sahel_secgrp_' . $key;
+        if ( ! $w->get_section( $sec ) ) { continue; }
+        $w->add_setting( 'sahel_sec_' . $key . '_mcols', array( 'default' => '', 'sanitize_callback' => 'sanitize_key' ) );
+        $w->add_control( 'sahel_sec_' . $key . '_mcols', array( 'label' => '📱 نمایش این بخش در موبایل', 'section' => $sec, 'type' => 'select', 'choices' => array( '' => 'مثل تنظیم کلی موبایل' ) + $choices ) );
+    }
+}, 30 );
+add_action( 'wp_head', function() {
+    echo '<style id="sahel-v59">' . <<<'SHCSS59'
+/* ===== v5.9: موبایل — بدون اسکرول افقی صفحه، منوی موبایل روان ===== */
+html{overflow-x:clip}
+body{overflow-x:clip}
+@media(max-width:920px){
+.sh-mnav{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;background:var(--bg)!important;height:100vh;height:100dvh;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+.sh-mnav .dd-menu{max-width:100%}
+.sh-mnav .dd-menu img{max-width:100%}
+}
+.sh-mnav .dd:hover .dd-menu{display:none}
+.sh-mnav .dd.open .dd-menu{display:block}
+.sh-mnav .dd:hover .dd-toggle svg{transform:none}
+.sh-mnav .dd.open .dd-toggle svg{transform:rotate(180deg)}
+@media(hover:none){
+.dd:hover .dd-menu{display:none}
+.dd.open .dd-menu{display:block}
+.dd:hover .dd-toggle svg{transform:none}
+.dd.open .dd-toggle svg{transform:rotate(180deg)}
+}
+/* نمایش یک‌ستونه / دوستونه / اسلاید افقی بخش‌ها در موبایل (تنظیم کلی + تنظیم هر بخش) */
+@media(max-width:600px){
+:is(body.mcols-1 section:not([class*="msc-"]),section.msc-1) .cat-grid{display:grid!important;grid-template-columns:repeat(1,minmax(0,1fr))!important;overflow:visible!important;margin:0!important;padding:4px 0 10px!important;-webkit-mask-image:none!important;mask-image:none!important;gap:12px!important}
+:is(body.mcols-1 section:not([class*="msc-"]),section.msc-1) .cat-grid>.cat-card{width:auto!important;min-width:0!important;flex:none!important;margin:0!important}
+:is(body.mcols-1 section:not([class*="msc-"]),section.msc-1) ul.products{display:grid!important;grid-template-columns:repeat(1,minmax(0,1fr))!important;overflow:visible!important;margin:0!important;padding:4px 0 10px!important;-webkit-mask-image:none!important;mask-image:none!important;gap:12px!important}
+:is(body.mcols-1 section:not([class*="msc-"]),section.msc-1) ul.products>li.product{width:auto!important;min-width:0!important;flex:none!important;margin:0!important}
+:is(body.mcols-1 section:not([class*="msc-"]),section.msc-1) :is(.features,.blog-grid,.testi-grid,.look-grid,.services-grid,.team-grid,.projects-grid){display:grid!important;grid-template-columns:repeat(1,minmax(0,1fr))!important}
+:is(body.mcols-1 section:not([class*="msc-"]),section.msc-1) :is(.strip-arrows,.cat-arrows){display:none!important}
+body.mcols-1 main ul.products{--pcols:1!important}
+:is(body.mcols-2 section:not([class*="msc-"]),section.msc-2) .cat-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;overflow:visible!important;margin:0!important;padding:4px 0 10px!important;-webkit-mask-image:none!important;mask-image:none!important;gap:12px!important}
+:is(body.mcols-2 section:not([class*="msc-"]),section.msc-2) .cat-grid>.cat-card{width:auto!important;min-width:0!important;flex:none!important;margin:0!important}
+:is(body.mcols-2 section:not([class*="msc-"]),section.msc-2) ul.products{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;overflow:visible!important;margin:0!important;padding:4px 0 10px!important;-webkit-mask-image:none!important;mask-image:none!important;gap:12px!important}
+:is(body.mcols-2 section:not([class*="msc-"]),section.msc-2) ul.products>li.product{width:auto!important;min-width:0!important;flex:none!important;margin:0!important}
+:is(body.mcols-2 section:not([class*="msc-"]),section.msc-2) :is(.features,.blog-grid,.testi-grid,.look-grid,.services-grid,.team-grid,.projects-grid){display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important}
+:is(body.mcols-2 section:not([class*="msc-"]),section.msc-2) :is(.strip-arrows,.cat-arrows){display:none!important}
+body.mcols-2 main ul.products{--pcols:2!important}
+:is(body.mcols-2 section:not([class*="msc-"]),section.msc-2) ul.products .prod-name{font-size:.72rem}
+:is(body.mcols-scroll section:not([class*="msc-"]),section.msc-scroll) .cat-grid{margin-inline:0!important}
+}
+SHCSS59
+    . '</style>';
+}, 190 );
