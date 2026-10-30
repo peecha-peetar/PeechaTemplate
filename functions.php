@@ -798,13 +798,14 @@ add_action( 'customize_register', function( $w ) {
     $w->add_setting( 'sahel_slider_fx', array( 'default' => 'fade', 'sanitize_callback' => 'sanitize_key' ) );
     $w->add_control( 'sahel_slider_fx', array( 'label' => '✨ افکت جابه‌جایی اسلاید', 'section' => 'sahel_slider', 'type' => 'select', 'choices' => array(
         'fade' => 'محو شدن (پیش‌فرض)', 'slide' => 'کشویی', 'zoom' => 'زوم', 'blur' => 'تار به واضح',
+        'wipe' => 'پرده‌ای (کشیده‌شدن از کنار)', 'circle' => 'دایره‌ای (باز شدن از وسط)', 'flip' => 'چرخش سه‌بعدی',
     ) ) );
 
     $slide_max = min( 10, max( 1, (int) get_theme_mod( 'sahel_slide_count', 3 ) ) + 1 );
     for ( $i = 1; $i <= $slide_max; $i++ ) {
         $w->add_section( 'sahel_slide' . $i, array( 'title' => 'اسلاید ' . sahel_fa( $i ), 'priority' => 30 ) );
         $w->add_setting( 'sahel_slide' . $i . '_bgtype', array( 'default' => 'image', 'sanitize_callback' => 'sanitize_key' ) );
-        $w->add_control( 'sahel_slide' . $i . '_bgtype', array( 'label' => 'نوع پس‌زمینه', 'section' => 'sahel_slide' . $i, 'type' => 'select', 'choices' => array( 'image' => 'تصویر', 'color' => 'رنگ ساده', 'gradient' => 'گرادیانت', 'video' => 'ویدئو' ) ) );
+        $w->add_control( 'sahel_slide' . $i . '_bgtype', array( 'label' => 'نوع پس‌زمینه', 'section' => 'sahel_slide' . $i, 'type' => 'select', 'choices' => array( 'image' => 'تصویر', 'color' => 'رنگ ساده', 'gradient' => 'گرادیانت', 'video' => 'ویدئو', 'compare' => 'مقایسه قبل/بعد (دو تصویر با دستگیره)' ) ) );
         $w->add_setting( 'sahel_slide' . $i . '_image', array( 'default' => '', 'sanitize_callback' => 'esc_url_raw' ) );
         $w->add_control( new WP_Customize_Image_Control( $w, 'sahel_slide' . $i . '_image', array( 'label' => 'تصویر اسلاید (وقتی نوع پس‌زمینه = تصویر)', 'section' => 'sahel_slide' . $i ) ) );
         $w->add_setting( 'sahel_slide' . $i . '_bgcolor1', array( 'default' => '#f3ede4', 'sanitize_callback' => 'sanitize_hex_color' ) );
@@ -868,6 +869,54 @@ add_action( 'customize_register', function( $w ) {
                 if ( 'number' === $c[1] ) { $args['input_attrs'] = array( 'min' => 8, 'max' => 160 ); }
                 $w->add_control( $sl . $suf, $args );
             }
+        }
+        /* v5.7: افکت ماوس، مقایسه قبل/بعد، انیمیشن متن، کن‌برنز و لایه‌های تصویری */
+        $sel = array(
+            '_mfx'  => array( '🖱 افکت حرکت ماوس', array( '' => 'بدون افکت ماوس (فقط حرکت ملایم پیش‌فرض)', 'parallax' => 'پارالاکس لایه‌ها (عمق سه‌بعدی)', 'tilt' => 'کج‌شدن سه‌بعدی متن و لایه‌ها', 'spotlight' => 'نورافکن (روشن‌شدن دور نشانگر ماوس)', 'reveal' => 'آشکارسازی تصویر دوم دور نشانگر ماوس', 'zoom' => 'زوم به سمت نشانگر ماوس' ) ),
+            '_txfx' => array( '✨ انیمیشن ورود متن', array( '' => 'بالا آمدن (پیش‌فرض)', 'fade' => 'محو شدن', 'zoom' => 'زوم', 'blur' => 'تار به واضح', 'side' => 'ورود از کنار', 'flip' => 'چرخش', 'words' => 'کلمه‌به‌کلمه (تیتر)' ) ),
+            '_kb'   => array( '🎞 حرکت تصویر پس‌زمینه (کن‌برنز)', array( '' => 'پیش‌فرض', 'in' => 'زوم به داخل', 'out' => 'زوم به بیرون', 'pan' => 'حرکت افقی', 'none' => 'ثابت' ) ),
+        );
+        foreach ( $sel as $suf => $c ) {
+            $w->add_setting( $sl . $suf, array( 'default' => '', 'sanitize_callback' => 'sanitize_key' ) );
+            $w->add_control( $sl . $suf, array( 'label' => $c[0], 'section' => $sl, 'type' => 'select', 'choices' => $c[1] ) );
+        }
+        $w->add_setting( $sl . '_image2', array( 'default' => '', 'sanitize_callback' => 'esc_url_raw' ) );
+        $w->add_control( new WP_Customize_Image_Control( $w, $sl . '_image2', array( 'label' => '🖼 تصویر دوم (برای مقایسه قبل/بعد و افکت آشکارسازی)', 'section' => $sl ) ) );
+        foreach ( array( '_cmp_l1' => 'برچسب سمت چپ مقایسه (مثلاً قبل)', '_cmp_l2' => 'برچسب سمت راست مقایسه (مثلاً بعد)' ) as $suf => $lab ) {
+            $w->add_setting( $sl . $suf, array( 'default' => '', 'sanitize_callback' => 'sanitize_text_field' ) );
+            $w->add_control( $sl . $suf, array( 'label' => $lab, 'section' => $sl ) );
+        }
+        $w->add_setting( $sl . '_cmp_pos', array( 'default' => 50, 'sanitize_callback' => 'absint' ) );
+        $w->add_control( $sl . '_cmp_pos', array( 'label' => 'موقعیت اولیه دستگیره مقایسه (۰ تا ۱۰۰٪)', 'section' => $sl, 'type' => 'number', 'input_attrs' => array( 'min' => 0, 'max' => 100 ) ) );
+        $l_anims = array( 'fade' => 'محو شدن', 'up' => 'ورود از پایین', 'down' => 'ورود از بالا', 'left' => 'ورود از چپ', 'right' => 'ورود از راست', 'zoom' => 'زوم', 'rotate' => 'چرخش', 'bounce' => 'پرشی', 'none' => 'بدون انیمیشن' );
+        $l_loops = array( '' => 'بدون حرکت دائمی', 'float' => 'شناور (بالا و پایین)', 'pulse' => 'تپش', 'spin' => 'چرخش آرام', 'swing' => 'تاب خوردن' );
+        for ( $L = 1; $L <= 4; $L++ ) {
+            $lk = $sl . '_l' . $L;
+            $fa = sahel_fa( $L );
+            $w->add_setting( $lk . '_img', array( 'default' => '', 'sanitize_callback' => 'esc_url_raw' ) );
+            $w->add_control( new WP_Customize_Image_Control( $w, $lk . '_img', array( 'label' => '🧩 لایه تصویری ' . $fa . ' (PNG شفاف پیشنهاد می‌شود)', 'section' => $sl ) ) );
+            $nums = array(
+                '_x' => array( 50, 'لایه ' . $fa . ': موقعیت افقی (٪ از چپ)', 0, 100 ),
+                '_y' => array( 50, 'لایه ' . $fa . ': موقعیت عمودی (٪ از بالا)', 0, 100 ),
+                '_w' => array( 220, 'لایه ' . $fa . ': عرض دسکتاپ (px)', 20, 1600 ),
+                '_wm' => array( 0, 'لایه ' . $fa . ': عرض موبایل (px) — ۰ = خودکار', 0, 900 ),
+                '_delay' => array( 300, 'لایه ' . $fa . ': تأخیر ورود (میلی‌ثانیه)', 0, 5000 ),
+                '_depth' => array( 4, 'لایه ' . $fa . ': عمق پارالاکس (۰ تا ۱۰)', 0, 10 ),
+            );
+            foreach ( $nums as $suf => $c ) {
+                $w->add_setting( $lk . $suf, array( 'default' => $c[0], 'sanitize_callback' => 'absint' ) );
+                $w->add_control( $lk . $suf, array( 'label' => $c[1], 'section' => $sl, 'type' => 'number', 'input_attrs' => array( 'min' => $c[2], 'max' => $c[3] ) ) );
+            }
+            $w->add_setting( $lk . '_anim', array( 'default' => 'up', 'sanitize_callback' => 'sanitize_key' ) );
+            $w->add_control( $lk . '_anim', array( 'label' => 'لایه ' . $fa . ': انیمیشن ورود', 'section' => $sl, 'type' => 'select', 'choices' => $l_anims ) );
+            $w->add_setting( $lk . '_loop', array( 'default' => '', 'sanitize_callback' => 'sanitize_key' ) );
+            $w->add_control( $lk . '_loop', array( 'label' => 'لایه ' . $fa . ': حرکت دائمی', 'section' => $sl, 'type' => 'select', 'choices' => $l_loops ) );
+            $w->add_setting( $lk . '_over', array( 'default' => 0, 'sanitize_callback' => 'absint' ) );
+            $w->add_control( $lk . '_over', array( 'label' => 'لایه ' . $fa . ': روی متن قرار بگیرد', 'section' => $sl, 'type' => 'checkbox' ) );
+            $w->add_setting( $lk . '_hidem', array( 'default' => 0, 'sanitize_callback' => 'absint' ) );
+            $w->add_control( $lk . '_hidem', array( 'label' => 'لایه ' . $fa . ': در موبایل نمایش داده نشود', 'section' => $sl, 'type' => 'checkbox' ) );
+            $w->add_setting( $lk . '_link', array( 'default' => '', 'sanitize_callback' => 'esc_url_raw' ) );
+            $w->add_control( $lk . '_link', array( 'label' => 'لایه ' . $fa . ': لینک (اختیاری)', 'section' => $sl, 'type' => 'url' ) );
         }
     }
 
@@ -2706,6 +2755,12 @@ $('#shSearchOver').on('click',function(e){ if(e.target===this){ $(this).removeCl
 $(document).on('click','.fab-btn',function(e){ e.stopPropagation(); $('.fab-wrap').toggleClass('open'); });
 var $sl=$('.slide'),$dt=$('.s-dots button'),si=0,stimer;
 function sprog(){clearTimeout(stimer);var $p=$('#sprog');$p.css({transition:'none',width:'0'});setTimeout(function(){$p.css({transition:'width 7s linear',width:'100%'});},40);stimer=setTimeout(function(){sgo(si+1);},7000);}
+/* v5.7: مقایسه قبل/بعد، افکت‌های ماوس و انیمیشن کلمه‌به‌کلمه */
+$(document).on('input','.cmp-range',function(){ var s=this.closest('.slide'); if(s){ s.style.setProperty('--cmp',this.value+'%'); } clearTimeout(stimer); $('#sprog').css({transition:'none',width:'0'}); });
+document.querySelectorAll('.cmp-range').forEach(function(r){ ['touchstart','touchend'].forEach(function(ev){ r.addEventListener(ev,function(e){ e.stopPropagation(); },{passive:true}); }); });
+$('.slider').on('mousemove',function(e){ var s=this.querySelector('.slide.active'); if(!s) return; var r=this.getBoundingClientRect(); var x=(e.clientX-r.left)/r.width-.5, y=(e.clientY-r.top)/r.height-.5; s.style.setProperty('--mx',x.toFixed(3)); s.style.setProperty('--my',y.toFixed(3)); s.style.setProperty('--px',Math.round(e.clientX-r.left)+'px'); s.style.setProperty('--py',Math.round(e.clientY-r.top)+'px'); s.classList.add('m-in'); });
+$('.slider').on('mouseleave',function(){ $(this).find('.slide').each(function(){ this.style.setProperty('--mx','0'); this.style.setProperty('--my','0'); this.classList.remove('m-in'); }); });
+document.querySelectorAll('.slide.txfx-words .slide-txt h1').forEach(function(h){ var n=0; [].slice.call(h.childNodes).forEach(function(nd){ var tgt = nd.nodeType===3 ? nd : ( nd.nodeType===1 && nd.tagName!=='BR' && nd.childNodes.length===1 && nd.firstChild.nodeType===3 ? nd.firstChild : null ); if(!tgt) return; var parts=tgt.nodeValue.split(/(\s+)/); var frag=document.createDocumentFragment(); parts.forEach(function(p){ if(!p) return; if(/^\s+$/.test(p)){ frag.appendChild(document.createTextNode(p)); return; } var sp=document.createElement('span'); sp.className='wd'; sp.style.setProperty('--i',n++); sp.textContent=p; frag.appendChild(sp); }); tgt.parentNode.replaceChild(frag,tgt); }); });
 function svid(){$sl.each(function(k){var v=this.querySelector('video.slide-video');if(!v)return;if(k===si){if(!v.getAttribute('src')&&v.getAttribute('data-src')){v.setAttribute('src',v.getAttribute('data-src'));}var pr=v.play();if(pr&&pr.catch){pr.catch(function(){});}}else{v.pause();}});}
 function sgo(n){if(!$sl.length)return;si=(n+$sl.length)%$sl.length;$sl.removeClass('leaving').filter('.active').not($sl.eq(si)).addClass('leaving');$sl.removeClass('active').eq(si).addClass('active');$dt.removeClass('active').eq(si).addClass('active');svid();sprog();}
 $dt.on('click',function(){sgo($(this).index());});
@@ -2862,7 +2917,9 @@ function sahel_home_html() {
             $ovl_style = '--ovl-rgb:' . sahel_rgb_str( $sd['ovl_color'] ) . ';--ovl-o:' . ( (int) $sd['ovl_opacity'] / 100 );
             $slst = ( isset( $sd['style'] ) && '' !== $sd['style'] ) ? $sd['style'] : get_theme_mod( 'sahel_slider_style', '1' );
             $ovl_style .= isset( $sd['n'] ) ? sahel_slide_type_vars( $sd['n'] ) : '';
-            $ob .= '<section class="slide' . ( 0 === $i ? ' active' : '' ) . ' slst-' . sanitize_html_class( $slst ) . '" style="' . esc_attr( $ovl_style ) . '"><div class="sb-wrap">';
+            $sx = isset( $sd['n'] ) ? sahel_slide_extras( $sd['n'], $sd ) : array( 'cls' => '', 'style' => '', 'top' => '', 'ui' => '', 'under' => '', 'over' => '' );
+            $ovl_style .= $sx['style'];
+            $ob .= '<section class="slide' . ( 0 === $i ? ' active' : '' ) . ' slst-' . sanitize_html_class( $slst ) . $sx['cls'] . '" style="' . esc_attr( $ovl_style ) . '"><div class="sb-wrap">';
             if ( $sd['bgtype'] === 'video' && ! empty( $sd['video'] ) ) {
                 $ob .= '<video class="slide-bg slide-video" muted loop playsinline' . ( 0 === $i ? ' autoplay preload="auto" src="' . esc_url( $sd['video'] ) . '"' : ' preload="none" data-src="' . esc_url( $sd['video'] ) . '"' ) . ( $sd['img'] ? ' poster="' . esc_url( $sd['img'] ) . '"' : '' ) . '></video>';
             } elseif ( $sd['bgtype'] === 'color' ) {
@@ -2872,7 +2929,9 @@ function sahel_home_html() {
             } else {
                 $ob .= '<img class="slide-bg" src="' . esc_url( $sd['img'] ) . '" alt=""' . ( 0 === $i ? ' fetchpriority="high" decoding="async"' : ' loading="lazy" decoding="async"' ) . '>';
             }
+            $ob .= $sx['top'];
             $ob .= '</div><div class="slide-ovl"></div>';
+            $ob .= $sx['ui'] . $sx['under'] . $sx['over'];
             $ob .= '<div class="wrap"><div class="slide-txt ' . esc_attr( $align ) . '">';
             if ( $sd['pill'] ) { $ob .= '<span class="pill"><i></i>' . esc_html( $sd['pill'] ) . '</span>'; }
             if ( $sd['t1'] || $sd['t2'] ) {
@@ -4264,3 +4323,136 @@ body.design-classic .bgi:not(.cap-below .bgi){box-shadow:var(--shadow)}
 SHCSS56
     . '</style>';
 }, 175 );
+
+/* v5.7: اسلایدر پیشرفته — کلاس‌ها، مقایسه قبل/بعد و لایه‌های تصویری هر اسلاید */
+function sahel_slide_extras( $n, $sd ) {
+    $k = 'sahel_slide' . $n;
+    $out = array( 'cls' => '', 'style' => '', 'top' => '', 'ui' => '', 'under' => '', 'over' => '' );
+    $mfx = get_theme_mod( $k . '_mfx', '' );
+    $txfx = get_theme_mod( $k . '_txfx', '' );
+    $kb = get_theme_mod( $k . '_kb', '' );
+    if ( in_array( $mfx, array( 'parallax', 'tilt', 'spotlight', 'reveal', 'zoom' ), true ) ) { $out['cls'] .= ' mfx-' . $mfx; }
+    if ( in_array( $txfx, array( 'fade', 'zoom', 'blur', 'side', 'flip', 'words' ), true ) ) { $out['cls'] .= ' txfx-' . $txfx; }
+    if ( in_array( $kb, array( 'in', 'out', 'pan', 'none' ), true ) ) { $out['cls'] .= ' kb-' . $kb; }
+    $img2 = get_theme_mod( $k . '_image2', '' );
+    $is_cmp = ( isset( $sd['bgtype'] ) && 'compare' === $sd['bgtype'] && $img2 );
+    if ( $img2 && ( $is_cmp || 'reveal' === $mfx ) ) {
+        $out['top'] = '<div class="cmp-top"><img class="slide-bg" src="' . esc_url( $img2 ) . '" alt="" loading="lazy" decoding="async"></div>';
+    }
+    if ( $is_cmp ) {
+        $pos = max( 0, min( 100, (int) get_theme_mod( $k . '_cmp_pos', 50 ) ) );
+        $out['cls'] .= ' is-compare';
+        $out['style'] .= ';--cmp:' . $pos . '%';
+        $l1 = get_theme_mod( $k . '_cmp_l1', '' );
+        $l2 = get_theme_mod( $k . '_cmp_l2', '' );
+        $out['ui'] = '<div class="cmp-ui"><input type="range" class="cmp-range" min="0" max="100" value="' . $pos . '" aria-label="مقایسه دو تصویر"><span class="cmp-handle"></span>'
+            . ( $l1 ? '<span class="cmp-lbl l1">' . esc_html( $l1 ) . '</span>' : '' ) . ( $l2 ? '<span class="cmp-lbl l2">' . esc_html( $l2 ) . '</span>' : '' ) . '</div>';
+    }
+    $anims = array( 'fade', 'up', 'down', 'left', 'right', 'zoom', 'rotate', 'bounce', 'none' );
+    $loops = array( 'float', 'pulse', 'spin', 'swing' );
+    for ( $L = 1; $L <= 4; $L++ ) {
+        $lk = $k . '_l' . $L;
+        $src = get_theme_mod( $lk . '_img', '' );
+        if ( ! $src ) { continue; }
+        $anim = get_theme_mod( $lk . '_anim', 'up' );
+        $loop = get_theme_mod( $lk . '_loop', '' );
+        $wm = (int) get_theme_mod( $lk . '_wm', 0 );
+        $vars = '--lx:' . max( 0, min( 100, (int) get_theme_mod( $lk . '_x', 50 ) ) ) . '%;--ly:' . max( 0, min( 100, (int) get_theme_mod( $lk . '_y', 50 ) ) ) . '%;--lw:' . max( 20, (int) get_theme_mod( $lk . '_w', 220 ) ) . 'px'
+            . ( $wm > 0 ? ';--lwm:' . $wm . 'px' : '' ) . ';--ldl:' . (int) get_theme_mod( $lk . '_delay', 300 ) . 'ms;--ld:' . max( 0, min( 10, (int) get_theme_mod( $lk . '_depth', 4 ) ) );
+        $cls = 'sl-layer la-' . ( in_array( $anim, $anims, true ) ? $anim : 'up' ) . ( in_array( $loop, $loops, true ) ? ' lp-' . $loop : '' ) . ( get_theme_mod( $lk . '_over', 0 ) ? ' lz-over' : '' ) . ( get_theme_mod( $lk . '_hidem', 0 ) ? ' hide-m' : '' );
+        $link = get_theme_mod( $lk . '_link', '' );
+        $img = '<img src="' . esc_url( $src ) . '" alt="" loading="lazy" decoding="async">';
+        $html = $link ? '<a class="' . $cls . '" href="' . esc_url( $link ) . '" style="' . esc_attr( $vars ) . '">' . $img . '</a>' : '<span class="' . $cls . '" style="' . esc_attr( $vars ) . '">' . $img . '</span>';
+        if ( get_theme_mod( $lk . '_over', 0 ) ) { $out['over'] .= $html; } else { $out['under'] .= $html; }
+    }
+    return $out;
+}
+add_action( 'wp_head', function() {
+    echo '<style id="sahel-v57">' . <<<'SHCSS57'
+/* ===== v5.7: اسلایدر پیشرفته — مقایسه قبل/بعد، افکت‌های ماوس، لایه‌های تصویری، انیمیشن متن ===== */
+/* مقایسه قبل/بعد با دستگیره */
+.cmp-top{position:absolute;inset:0;clip-path:inset(0 0 0 var(--cmp,50%));z-index:1}
+.cmp-top .slide-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.cmp-ui{position:absolute;inset:0;z-index:1}
+.cmp-range{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:ew-resize;direction:ltr;-webkit-appearance:none;appearance:none;touch-action:pan-y}
+.cmp-range::-webkit-slider-thumb{-webkit-appearance:none;width:60px;height:100vh}
+.cmp-range::-moz-range-thumb{width:60px;height:100vh;border:0}
+.cmp-handle{position:absolute;top:0;bottom:0;left:var(--cmp,50%);width:3px;margin-left:-1.5px;background:#fff;box-shadow:0 0 12px rgba(0,0,0,.35);pointer-events:none}
+.cmp-handle::after{content:"⟷";position:absolute;top:50%;left:50%;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;background:#fff;color:var(--ink);display:grid;place-items:center;font-size:20px;font-weight:900;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+.cmp-lbl{position:absolute;top:18px;padding:5px 14px;border-radius:99px;background:rgba(0,0,0,.55);color:#fff;font-size:.78rem;font-weight:800;pointer-events:none}
+.cmp-lbl.l1{left:18px}.cmp-lbl.l2{right:18px}
+.slide.is-compare .wrap{pointer-events:none}
+.slide.is-compare .wrap a,.slide.is-compare .wrap button{pointer-events:auto}
+.slide.is-compare.active .sb-wrap{animation:none}
+/* لایه‌های تصویری با موقعیت و اندازه دلخواه */
+.sl-layer{position:absolute;left:var(--lx,50%);top:var(--ly,50%);width:var(--lw,200px);max-width:none;height:auto;z-index:1;pointer-events:none;translate:-50% -50%;transition:translate .25s ease-out}
+a.sl-layer{pointer-events:auto;display:block}
+.sl-layer img{display:block;width:100%;height:auto}
+.sl-layer.lz-over{z-index:3}
+.slide.active .sl-layer{animation-name:var(--la,laFade),var(--lp,none);animation-duration:.9s,var(--lpd,4s);animation-timing-function:cubic-bezier(.2,.7,.2,1),ease-in-out;animation-delay:var(--ldl,0ms),calc(var(--ldl,0ms) + .9s);animation-iteration-count:1,infinite;animation-fill-mode:both,none}
+.slide:not(.active) .sl-layer{opacity:0}
+.la-none{--la:none}.la-fade{--la:laFade}.la-up{--la:laUp}.la-down{--la:laDown}.la-left{--la:laLeft}.la-right{--la:laRight}.la-zoom{--la:laZoom}.la-rotate{--la:laRotate}.la-bounce{--la:laBounce}
+.lp-float{--lp:lpFloat;--lpd:4s}.lp-pulse{--lp:lpPulse;--lpd:2.6s}.lp-spin{--lp:lpSpin;--lpd:14s}.lp-swing{--lp:lpSwing;--lpd:3.4s}
+.lp-spin{--lp:lpSpin}
+@keyframes laFade{from{opacity:0}to{opacity:1}}
+@keyframes laUp{from{opacity:0;transform:translateY(60px)}to{opacity:1;transform:none}}
+@keyframes laDown{from{opacity:0;transform:translateY(-60px)}to{opacity:1;transform:none}}
+@keyframes laLeft{from{opacity:0;transform:translateX(-80px)}to{opacity:1;transform:none}}
+@keyframes laRight{from{opacity:0;transform:translateX(80px)}to{opacity:1;transform:none}}
+@keyframes laZoom{from{opacity:0;transform:scale(.5)}to{opacity:1;transform:none}}
+@keyframes laRotate{from{opacity:0;transform:rotate(-25deg) scale(.7)}to{opacity:1;transform:none}}
+@keyframes laBounce{0%{opacity:0;transform:scale(.3)}55%{opacity:1;transform:scale(1.12)}75%{transform:scale(.94)}100%{opacity:1;transform:none}}
+@keyframes lpFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px)}}
+@keyframes lpPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+@keyframes lpSpin{to{transform:rotate(360deg)}}
+@keyframes lpSwing{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}
+@media(max-width:920px){.sl-layer{width:var(--lwm,calc(var(--lw,200px) * .6))}.sl-layer.hide-m{display:none}}
+/* افکت‌های حرکت ماوس */
+.slide.mfx-parallax .sl-layer{translate:calc(-50% + var(--mx,0) * var(--ld,4) * -16px) calc(-50% + var(--my,0) * var(--ld,4) * -12px)}
+.slide.mfx-tilt .wrap{transform:perspective(1000px) rotateY(calc(var(--mx,0) * 12deg)) rotateX(calc(var(--my,0) * -9deg));transition:transform .2s ease-out}
+.slide.mfx-tilt .sl-layer{translate:calc(-50% + var(--mx,0) * var(--ld,4) * 10px) calc(-50% + var(--my,0) * var(--ld,4) * 8px)}
+.slide.mfx-spotlight.m-in .slide-ovl{background:radial-gradient(circle 240px at var(--px,50%) var(--py,50%),transparent 0,transparent 35%,rgba(5,4,3,.78) 100%)!important;opacity:1!important;display:block!important}
+.slide.mfx-reveal .cmp-top{clip-path:circle(0 at var(--px,50%) var(--py,50%));transition:clip-path .35s ease-out}
+.slide.mfx-reveal.m-in .cmp-top{clip-path:circle(170px at var(--px,50%) var(--py,50%));transition:none}
+.slide.mfx-zoom .sb-wrap{transform-origin:var(--px,50%) var(--py,50%);transition:scale .6s ease-out}
+.slide.mfx-zoom.m-in .sb-wrap{scale:1.18}
+/* انیمیشن ورود متن */
+.slide.txfx-fade.active .slide-txt>*{animation-name:sxFade!important}
+.slide.txfx-zoom.active .slide-txt>*{animation-name:sxZoom!important}
+.slide.txfx-blur.active .slide-txt>*{animation-name:sxBlur!important}
+.slide.txfx-side.active .slide-txt>*{animation-name:sxSide!important}
+.slide.txfx-flip.active .slide-txt>*{animation-name:sxFlip!important}
+.slide.txfx-words.active .slide-txt h1{animation:none!important}
+.slide.txfx-words .slide-txt h1 .wd{display:inline-block;white-space:pre}
+.slide.txfx-words .slide-txt h1 .grad-text .wd{background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent}
+.slide.txfx-words[style*="--st-t2c:"] .slide-txt h1 .grad-text .wd{background:none;-webkit-text-fill-color:var(--st-t2c);color:var(--st-t2c)}
+.slide.txfx-words.active .slide-txt h1 .wd{animation:sxWord .7s cubic-bezier(.2,.7,.2,1) both;animation-delay:calc(var(--i,0) * 90ms + .1s)}
+@keyframes sxFade{from{opacity:0}to{opacity:1}}
+@keyframes sxZoom{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:none}}
+@keyframes sxBlur{from{opacity:0;filter:blur(14px)}to{opacity:1;filter:none}}
+@keyframes sxSide{from{opacity:0;transform:translateX(70px)}to{opacity:1;transform:none}}
+@keyframes sxFlip{from{opacity:0;transform:perspective(600px) rotateX(70deg)}to{opacity:1;transform:none}}
+@keyframes sxWord{from{opacity:0;transform:translateY(40px) rotate(4deg)}to{opacity:1;transform:none}}
+/* کن‌برنز اختصاصی هر اسلاید */
+.slide.kb-none.active .sb-wrap{animation:none}
+.slide.kb-in.active .sb-wrap{animation:kbIn 12s ease forwards}
+.slide.kb-out.active .sb-wrap{animation:kbOut 12s ease forwards}
+.slide.kb-pan.active .sb-wrap{animation:kbPan 14s ease-in-out forwards}
+@keyframes kbIn{from{transform:scale(1)}to{transform:scale(1.18)}}
+@keyframes kbOut{from{transform:scale(1.2)}to{transform:scale(1)}}
+@keyframes kbPan{from{transform:scale(1.15) translateX(-4%)}to{transform:scale(1.15) translateX(4%)}}
+/* افکت‌های جدید جابه‌جایی اسلاید */
+body.sfx-wipe .slide{opacity:1;clip-path:inset(0 0 0 100%);transition:clip-path 1s cubic-bezier(.7,0,.3,1),visibility 1s}
+body.sfx-wipe .slide.active{clip-path:inset(0 0 0 0);z-index:2}
+body.sfx-wipe .slide.leaving{clip-path:inset(0 0 0 0);z-index:1;transition:visibility 1s}
+body.sfx-circle .slide{opacity:1;clip-path:circle(0% at 50% 50%);transition:clip-path 1.1s cubic-bezier(.7,0,.3,1),visibility 1.1s}
+body.sfx-circle .slide.active{clip-path:circle(150% at 50% 50%);z-index:2}
+body.sfx-circle .slide.leaving{clip-path:circle(150% at 50% 50%);z-index:1;transition:visibility 1.1s}
+body.sfx-flip .slider{perspective:1600px}
+body.sfx-flip .slide{transform:rotateY(80deg);transition:transform .9s cubic-bezier(.4,0,.2,1),opacity .9s,visibility .9s;backface-visibility:hidden}
+body.sfx-flip .slide.active{transform:none}
+body.sfx-flip .slide.leaving{transform:rotateY(-80deg)}
+@media(prefers-reduced-motion:reduce){.sl-layer,.slide.active .sl-layer{animation:none!important;opacity:1!important}}
+SHCSS57
+    . '</style>';
+}, 180 );
