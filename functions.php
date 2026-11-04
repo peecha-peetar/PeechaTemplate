@@ -5438,3 +5438,258 @@ $(document).on('click','dialog.pd-sg-modal',function(e){if(e.target===this){this
 SHJS61
     . '</script>';
 }, 201 );
+
+/* =====================================================================
+ * v6.2 — نسخه‌ی اپلیکیشن (PWA): مانیفست، سرویس‌ورکر، صفحه‌ی آفلاین، دکمه‌ی نصب
+ * همه‌ی فایل‌ها از ریشه‌ی سایت سرو می‌شوند (?sahel_pwa=...) تا محدوده‌ی سرویس‌ورکر کل سایت باشد
+ * و نیازی به کپی فایل در ریشه یا تنظیم سرور نیست.
+ * ===================================================================== */
+function sahel_pwa_on() { return (bool) get_theme_mod( 'sahel_pwa_on', 1 ); }
+function sahel_pwa_name() { $n = trim( (string) get_theme_mod( 'sahel_pwa_name', '' ) ); return $n ? $n : sahel_brand(); }
+function sahel_pwa_short() { $n = trim( (string) get_theme_mod( 'sahel_pwa_short', '' ) ); if ( ! $n ) { $n = sahel_brand_short(); } return function_exists( 'mb_substr' ) ? mb_substr( $n, 0, 12 ) : $n; }
+function sahel_pwa_color() { $c = sanitize_hex_color( get_theme_mod( 'sahel_pwa_color', '' ) ); return $c ? $c : ( sanitize_hex_color( get_theme_mod( 'sahel_c1', '#b08968' ) ) ?: '#b08968' ); }
+function sahel_pwa_bg() { $c = sanitize_hex_color( get_theme_mod( 'sahel_pwa_bg', '' ) ); return $c ? $c : '#ffffff'; }
+function sahel_pwa_url( $what ) { return add_query_arg( 'sahel_pwa', $what, home_url( '/' ) ); }
+/* نسخه‌ی کش: با تغییر تنظیمات یا قالب عوض می‌شود تا کش قدیمی خودکار پاک شود */
+function sahel_pwa_ver() {
+    $t = wp_get_theme();
+    return substr( md5( $t->get( 'Version' ) . '|' . filemtime( __FILE__ ) . '|' . (int) get_theme_mod( 'sahel_pwa_rev', 0 ) . '|' . sahel_pwa_name() . sahel_pwa_color() ), 0, 10 );
+}
+/* آیکون‌ها: ۱) آیکون اختصاصی PWA ۲) آیکون سایت (تنظیمات > هویت سایت) ۳) آیکون SVG خودکار با حرف اول برند */
+function sahel_pwa_icons() {
+    $icons = array();
+    $custom = get_theme_mod( 'sahel_pwa_icon', '' );
+    if ( $custom ) {
+        $id = attachment_url_to_postid( $custom );
+        foreach ( array( 192, 512 ) as $s ) {
+            $src = $id ? wp_get_attachment_image_src( $id, array( $s, $s ) ) : false;
+            $icons[] = array( 'src' => $src ? $src[0] : $custom, 'sizes' => $s . 'x' . $s, 'type' => 'image/png', 'purpose' => 'any' );
+        }
+    } elseif ( function_exists( 'has_site_icon' ) && has_site_icon() ) {
+        foreach ( array( 192, 512 ) as $s ) { $icons[] = array( 'src' => get_site_icon_url( $s ), 'sizes' => $s . 'x' . $s, 'type' => 'image/png', 'purpose' => 'any' ); }
+    }
+    $icons[] = array( 'src' => sahel_pwa_url( 'icon' ), 'sizes' => 'any', 'type' => 'image/svg+xml', 'purpose' => 'any' );
+    $icons[] = array( 'src' => sahel_pwa_url( 'icon' ) . '&m=1', 'sizes' => 'any', 'type' => 'image/svg+xml', 'purpose' => 'maskable' );
+    return $icons;
+}
+/* مسیرهایی که هرگز نباید کش شوند (سبد، پرداخت، حساب کاربری، مدیریت، API) */
+function sahel_pwa_bypass_paths() {
+    $paths = array( '/wp-admin', '/wp-login.php', '/wp-json', '/wp-cron.php', '/xmlrpc.php', '/feed' );
+    if ( function_exists( 'wc_get_page_id' ) ) {
+        foreach ( array( 'cart', 'checkout', 'myaccount' ) as $pg ) {
+            $pid = wc_get_page_id( $pg );
+            if ( $pid > 0 ) { $u = wp_parse_url( get_permalink( $pid ) ); if ( ! empty( $u['path'] ) && '/' !== $u['path'] ) { $paths[] = untrailingslashit( $u['path'] ); } }
+        }
+    }
+    return array_values( array_unique( apply_filters( 'sahel_pwa_bypass_paths', $paths ) ) );
+}
+
+add_action( 'init', 'sahel_pwa_serve', 1 );
+function sahel_pwa_serve() {
+    if ( empty( $_GET['sahel_pwa'] ) ) { return; }
+    $what = sanitize_key( wp_unslash( $_GET['sahel_pwa'] ) );
+    if ( ! in_array( $what, array( 'manifest', 'sw', 'offline', 'icon' ), true ) ) { return; }
+    nocache_headers();
+    header( 'X-Content-Type-Options: nosniff' );
+    header( 'X-Robots-Tag: noindex' );
+    if ( 'icon' === $what ) {
+        header( 'Content-Type: image/svg+xml; charset=utf-8' );
+        header( 'Cache-Control: public, max-age=604800' );
+        $mask  = ! empty( $_GET['m'] );
+        $brand = sahel_brand_short();
+        $ch    = function_exists( 'mb_substr' ) ? mb_substr( $brand, 0, 1 ) : substr( $brand, 0, 1 );
+        echo '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="' . ( $mask ? '0' : '112' ) . '" fill="' . esc_attr( sahel_pwa_color() ) . '"/><text x="256" y="256" dy=".35em" text-anchor="middle" font-family="Vazirmatn,Tahoma,sans-serif" font-size="' . ( $mask ? '230' : '280' ) . '" font-weight="900" fill="#fff">' . esc_html( $ch ) . '</text></svg>';
+        exit;
+    }
+    if ( ! sahel_pwa_on() && 'sw' !== $what ) { status_header( 404 ); exit; }
+    if ( 'manifest' === $what ) {
+        header( 'Content-Type: application/manifest+json; charset=utf-8' );
+        $home = wp_parse_url( home_url( '/' ) );
+        $scope = isset( $home['path'] ) ? trailingslashit( $home['path'] ) : '/';
+        $m = array(
+            'id'               => $scope,
+            'name'             => sahel_pwa_name(),
+            'short_name'       => sahel_pwa_short(),
+            'description'      => get_bloginfo( 'description' ),
+            'lang'             => 'fa',
+            'dir'              => 'rtl',
+            'start_url'        => add_query_arg( 'utm_source', 'pwa', home_url( '/' ) ),
+            'scope'            => $scope,
+            'display'          => get_theme_mod( 'sahel_pwa_display', 'standalone' ) === 'minimal-ui' ? 'minimal-ui' : 'standalone',
+            'theme_color'      => sahel_pwa_color(),
+            'background_color' => sahel_pwa_bg(),
+            'icons'            => sahel_pwa_icons(),
+            'categories'       => array( 'shopping' ),
+        );
+        $sc = array();
+        if ( function_exists( 'wc_get_page_permalink' ) ) {
+            $sc[] = array( 'name' => 'فروشگاه', 'url' => wc_get_page_permalink( 'shop' ) );
+            $sc[] = array( 'name' => 'سبد خرید', 'url' => wc_get_page_permalink( 'cart' ) );
+            $sc[] = array( 'name' => 'حساب من', 'url' => wc_get_page_permalink( 'myaccount' ) );
+        }
+        if ( $sc ) { $m['shortcuts'] = $sc; }
+        echo wp_json_encode( apply_filters( 'sahel_pwa_manifest', $m ), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT );
+        exit;
+    }
+    if ( 'offline' === $what ) {
+        header( 'Content-Type: text/html; charset=utf-8' );
+        $c = sahel_pwa_color();
+        $msg = get_theme_mod( 'sahel_pwa_offline', 'اتصال اینترنت برقرار نیست. پس از اتصال دوباره تلاش کنید.' );
+        echo '<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="' . esc_attr( $c ) . '"><title>' . esc_html( sahel_pwa_name() ) . ' — آفلاین</title><style>*{box-sizing:border-box;margin:0}body{min-height:100vh;display:grid;place-items:center;background:' . esc_attr( sahel_pwa_bg() ) . ';color:#222;font-family:Vazirmatn,Tahoma,sans-serif;padding:24px;text-align:center}.b{max-width:380px}.i{width:84px;height:84px;border-radius:24px;background:' . esc_attr( $c ) . ';color:#fff;display:grid;place-items:center;font-size:40px;margin:0 auto 20px}h1{font-size:1.3rem;margin-bottom:10px}p{color:#666;line-height:1.9;margin-bottom:22px}button{border:0;background:' . esc_attr( $c ) . ';color:#fff;font:inherit;font-weight:700;padding:12px 26px;border-radius:999px;cursor:pointer}</style></head><body><div class="b"><div class="i">⚡</div><h1>' . esc_html( sahel_pwa_name() ) . '</h1><p>' . esc_html( $msg ) . '</p><button onclick="location.reload()">تلاش دوباره</button></div></body></html>';
+        exit;
+    }
+    /* sw */
+    header( 'Content-Type: application/javascript; charset=utf-8' );
+    header( 'Service-Worker-Allowed: /' );
+    if ( ! sahel_pwa_on() ) {
+        /* اگر PWA خاموش شود، سرویس‌ورکر قبلی خودش را حذف و کش‌ها را پاک می‌کند */
+        echo "self.addEventListener('install',function(){self.skipWaiting()});self.addEventListener('activate',function(e){e.waitUntil(caches.keys().then(function(k){return Promise.all(k.filter(function(n){return n.indexOf('sahel-')===0}).map(function(n){return caches.delete(n)}))}).then(function(){return self.registration.unregister()}))});";
+        exit;
+    }
+    $cfg = array(
+        'v'       => sahel_pwa_ver(),
+        'offline' => sahel_pwa_url( 'offline' ),
+        'home'    => home_url( '/' ),
+        'bypass'  => sahel_pwa_bypass_paths(),
+        'html'    => (bool) get_theme_mod( 'sahel_pwa_cache_pages', 1 ),
+    );
+    echo 'var SAHEL_PWA=' . wp_json_encode( $cfg, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) . ";\n";
+    echo <<<'SAHELSW'
+var V=SAHEL_PWA.v,STATIC='sahel-static-'+V,PAGES='sahel-pages-'+V,MAX_STATIC=120,MAX_PAGES=30;
+self.addEventListener('install',function(e){
+  e.waitUntil(caches.open(PAGES).then(function(c){return c.addAll([SAHEL_PWA.offline]).catch(function(){})}).then(function(){return self.skipWaiting()}));
+});
+self.addEventListener('activate',function(e){
+  e.waitUntil(caches.keys().then(function(keys){return Promise.all(keys.filter(function(k){return k.indexOf('sahel-')===0&&k!==STATIC&&k!==PAGES}).map(function(k){return caches.delete(k)}))}).then(function(){return self.clients.claim()}));
+});
+function trim(name,max){caches.open(name).then(function(c){c.keys().then(function(k){if(k.length>max){c.delete(k[0]).then(function(){trim(name,max)})}})})}
+function bypass(url,req){
+  if(req.method!=='GET')return true;
+  var p=url.pathname,s=url.search;
+  if(/[?&](add-to-cart|wc-ajax|remove_item|undo_item|removed_item|customize_changeset_uuid|preview|elementor-preview|sahel_pwa|nocache|s)=/.test(s))return true;
+  if(p.indexOf('/wp-admin')>-1||p.indexOf('/wp-login')>-1||p.indexOf('/wp-json')>-1)return true;
+  for(var i=0;i<SAHEL_PWA.bypass.length;i++){var b=SAHEL_PWA.bypass[i];if(p===b||p.indexOf(b+'/')===0)return true}
+  return false;
+}
+self.addEventListener('fetch',function(e){
+  var req=e.request,url;try{url=new URL(req.url)}catch(x){return}
+  if(url.protocol.indexOf('http')!==0)return;
+  var same=url.origin===self.location.origin;
+  var font=/fonts\.(gstatic|googleapis)\.com$/.test(url.hostname);
+  if(!same&&!font)return;
+  if(same&&bypass(url,req)){
+    /* سبد/پرداخت/حساب: هرگز کش نمی‌شوند؛ فقط اگر اینترنت قطع بود صفحه‌ی آفلاین نشان داده شود */
+    if(req.mode==='navigate'&&req.method==='GET'&&!/\/wp-(admin|login)/.test(url.pathname)&&!/[?&]sahel_pwa=/.test(url.search)){e.respondWith(fetch(req).catch(function(){return caches.match(SAHEL_PWA.offline)}))}
+    return;
+  }
+  if(req.mode==='navigate'){
+    /* صفحات: اول شبکه (همیشه تازه)، در نبود اینترنت نسخه‌ی ذخیره‌شده یا صفحه‌ی آفلاین */
+    e.respondWith(fetch(req).then(function(res){
+      if(SAHEL_PWA.html&&res&&res.ok&&res.type==='basic'&&!/no-store|private/.test(res.headers.get('Cache-Control')||'')){var cp=res.clone();caches.open(PAGES).then(function(c){c.put(req,cp);trim(PAGES,MAX_PAGES)})}
+      return res;
+    }).catch(function(){return caches.match(req).then(function(r){return r||caches.match(SAHEL_PWA.offline)})}));
+    return;
+  }
+  var d=req.destination;
+  if(font||/^(style|script|font|image)$/.test(d)||/\.(css|js|woff2?|ttf|png|jpe?g|webp|avif|gif|svg|ico)$/i.test(url.pathname)){
+    /* فایل‌های ثابت: فوری از کش، به‌روزرسانی در پس‌زمینه */
+    e.respondWith(caches.open(STATIC).then(function(c){return c.match(req).then(function(hit){
+      var net=fetch(req).then(function(res){if(res&&(res.ok||res.type==='opaque')){c.put(req,res.clone());trim(STATIC,MAX_STATIC)}return res}).catch(function(){return hit});
+      return hit||net;
+    })}));
+  }
+});
+self.addEventListener('message',function(e){if(e.data==='sahel-skip')self.skipWaiting()});
+SAHELSW;
+    exit;
+}
+
+add_action( 'wp_head', 'sahel_pwa_head', 2 );
+function sahel_pwa_head() {
+    if ( ! sahel_pwa_on() || is_customize_preview() ) { return; }
+    $icons = sahel_pwa_icons();
+    $apple = $icons[0]['src'];
+    echo "\n" . '<link rel="manifest" href="' . esc_url( sahel_pwa_url( 'manifest' ) ) . '">' . "\n";
+    echo '<meta name="theme-color" content="' . esc_attr( sahel_pwa_color() ) . '">' . "\n";
+    echo '<meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default">' . "\n";
+    echo '<meta name="apple-mobile-web-app-title" content="' . esc_attr( sahel_pwa_short() ) . '">' . "\n";
+    if ( false === strpos( $apple, 'sahel_pwa=icon' ) ) { echo '<link rel="apple-touch-icon" href="' . esc_url( $apple ) . '">' . "\n"; }
+}
+
+add_action( 'wp_footer', 'sahel_pwa_footer', 99 );
+function sahel_pwa_footer() {
+    if ( is_customize_preview() ) { return; }
+    if ( ! sahel_pwa_on() ) {
+        /* PWA خاموش است: اگر قبلاً نصب شده، پاکش کن */
+        echo "<script>if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(x){if(x.active&&x.active.scriptURL.indexOf('sahel_pwa=sw')>-1)x.unregister()})})}</script>\n";
+        return;
+    }
+    $btn  = (int) get_theme_mod( 'sahel_pwa_install', 1 );
+    $txt  = get_theme_mod( 'sahel_pwa_install_text', 'اپلیکیشن ما را نصب کنید؛ سریع‌تر و همیشه در دسترس' );
+    $bb   = (int) get_theme_mod( 'sahel_bb_on', 1 );
+    $cfg  = array( 'sw' => sahel_pwa_url( 'sw' ), 'scope' => trailingslashit( (string) wp_parse_url( home_url( '/' ), PHP_URL_PATH ) ), 'btn' => $btn, 'days' => max( 1, (int) get_theme_mod( 'sahel_pwa_snooze', 14 ) ) );
+    if ( $btn ) {
+        $c = esc_attr( sahel_pwa_color() );
+        echo '<style id="sahel-pwa-css">.pwa-ins{position:fixed;z-index:9990;inset-inline:12px;bottom:calc(16px + env(safe-area-inset-bottom));margin-inline:auto;max-width:440px;display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:18px;background:var(--card,#fff);color:var(--ink,#222);box-shadow:0 14px 40px rgba(0,0,0,.18);border:1px solid color-mix(in srgb,var(--ink,#222) 10%,transparent);transform:translateY(160%);opacity:0;transition:transform .45s cubic-bezier(.2,.8,.2,1),opacity .3s}.pwa-ins.on{transform:none;opacity:1}.pwa-ins[hidden],.pwa-ins [hidden]{display:none!important}.pwa-ins .pi-ic{flex:0 0 44px;height:44px;border-radius:12px;background:' . $c . ';color:#fff;display:grid;place-items:center;font-size:22px}.pwa-ins .pi-t{flex:1;font-size:.86rem;line-height:1.7;font-weight:700}.pwa-ins .pi-t small{display:block;font-weight:500;opacity:.7;font-size:.76rem}.pwa-ins .pi-go{border:0;background:' . $c . ';color:#fff;font:inherit;font-weight:800;font-size:.84rem;padding:9px 16px;border-radius:999px;cursor:pointer;white-space:nowrap}.pwa-ins .pi-x{border:0;background:none;color:inherit;opacity:.55;font-size:20px;cursor:pointer;padding:4px 6px;line-height:1}' . ( $bb ? '@media(max-width:900px){.pwa-ins{bottom:calc(84px + env(safe-area-inset-bottom))}}' : '' ) . '@media(display-mode:standalone){.pwa-ins{display:none!important}}</style>' . "\n";
+        echo '<div class="pwa-ins" id="pwaIns" role="dialog" aria-label="نصب اپلیکیشن" hidden><span class="pi-ic">📲</span><span class="pi-t">' . esc_html( $txt ) . '<small class="pi-ios" hidden>در سافاری دکمه‌ی «اشتراک‌گذاری» ⬆ و سپس «Add to Home Screen» را بزنید.</small></span><button type="button" class="pi-go">نصب</button><button type="button" class="pi-x" aria-label="بستن">×</button></div>' . "\n";
+    }
+    echo '<script id="sahel-pwa-js">(function(){var C=' . wp_json_encode( $cfg, JSON_UNESCAPED_SLASHES ) . ";\n";
+    echo <<<'SAHELPWAJS'
+if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register(C.sw,{scope:C.scope}).catch(function(){})})}
+if(!C.btn)return;
+var box=document.getElementById('pwaIns');if(!box)return;
+var K='sahel_pwa_snooze',deferred=null;
+function snoozed(){try{var t=+localStorage.getItem(K)||0;return Date.now()<t}catch(e){return false}}
+function snooze(){try{localStorage.setItem(K,String(Date.now()+C.days*864e5))}catch(e){}}
+function standalone(){return(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true}
+function show(){if(snoozed()||standalone())return;box.hidden=false;requestAnimationFrame(function(){requestAnimationFrame(function(){box.classList.add('on')})})}
+function hide(){box.classList.remove('on');setTimeout(function(){box.hidden=true},450)}
+box.querySelector('.pi-x').addEventListener('click',function(){snooze();hide()});
+window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();deferred=e;setTimeout(show,2500)});
+window.addEventListener('appinstalled',function(){hide();snooze()});
+box.querySelector('.pi-go').addEventListener('click',function(){
+  if(deferred){deferred.prompt();deferred.userChoice.then(function(){deferred=null;hide();snooze()})}
+  else{var s=box.querySelector('.pi-ios');if(s)s.hidden=false;this.hidden=true}
+});
+var ua=navigator.userAgent||'',ios=/iphone|ipad|ipod/i.test(ua)&&/safari/i.test(ua)&&!/crios|fxios|edgios/i.test(ua);
+if(ios&&!standalone()){setTimeout(function(){var g=box.querySelector('.pi-go');g.textContent='چطور؟';show()},3500)}
+document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('[data-pwa-install],a[href="#pwa-install"]');if(!a)return;e.preventDefault();try{localStorage.removeItem(K)}catch(x){}if(deferred){box.querySelector('.pi-go').click()}else{show()}});
+})();</script>
+SAHELPWAJS;
+    echo "\n";
+}
+
+/* شورت‌کد دکمه‌ی نصب: [sahel_pwa_install text="نصب اپلیکیشن"] — یا هر لینکی با آدرس #pwa-install */
+add_shortcode( 'sahel_pwa_install', function ( $a ) {
+    $a = shortcode_atts( array( 'text' => 'نصب اپلیکیشن' ), $a );
+    return sahel_pwa_on() ? '<a href="#pwa-install" class="btn btn-primary" data-pwa-install>' . esc_html( $a['text'] ) . '</a>' : '';
+} );
+
+add_action( 'customize_register', 'sahel_pwa_customize', 45 );
+function sahel_pwa_customize( $w ) {
+    $w->add_section( 'sahel_pwa', array( 'title' => '۱۷. اپلیکیشن (PWA)', 'priority' => 46, 'description' => 'سایت را مثل یک اپلیکیشن روی گوشی نصب‌پذیر می‌کند: آیکون روی صفحه‌ی اصلی گوشی، اجرای تمام‌صفحه، بارگذاری سریع‌تر و صفحه‌ی آفلاین. سبد خرید، پرداخت و حساب کاربری هرگز کش نمی‌شوند. نیاز به HTTPS دارد.' ) );
+    $f = array(
+        'sahel_pwa_on'           => array( 1, 'absint', '✔ فعال‌سازی نسخه‌ی اپلیکیشن (PWA)', 'checkbox' ),
+        'sahel_pwa_name'         => array( '', 'sanitize_text_field', 'نام کامل اپ (خالی = نام برند)', 'text' ),
+        'sahel_pwa_short'        => array( '', 'sanitize_text_field', 'نام کوتاه زیر آیکون (حداکثر ۱۲ حرف)', 'text' ),
+        'sahel_pwa_display'      => array( 'standalone', 'sanitize_key', 'حالت اجرا', 'select', array( 'standalone' => 'تمام‌صفحه مثل اپ (بدون نوار آدرس)', 'minimal-ui' => 'با نوار کوچک مرورگر' ) ),
+        'sahel_pwa_cache_pages'  => array( 1, 'absint', '✔ ذخیره‌ی صفحات بازدیدشده برای نمایش آفلاین', 'checkbox' ),
+        'sahel_pwa_install'      => array( 1, 'absint', '✔ نمایش پیشنهاد نصب اپ به بازدیدکننده', 'checkbox' ),
+        'sahel_pwa_install_text' => array( 'اپلیکیشن ما را نصب کنید؛ سریع‌تر و همیشه در دسترس', 'sanitize_text_field', 'متن پیشنهاد نصب', 'text' ),
+        'sahel_pwa_snooze'       => array( 14, 'absint', 'بعد از بستن، چند روز دوباره نشان داده نشود', 'number' ),
+        'sahel_pwa_offline'      => array( 'اتصال اینترنت برقرار نیست. پس از اتصال دوباره تلاش کنید.', 'sanitize_text_field', 'متن صفحه‌ی آفلاین', 'text' ),
+        'sahel_pwa_rev'          => array( 0, 'absint', 'شماره‌ی نسخه‌ی کش (برای پاک کردن کش گوشی کاربران، یک عدد بالا ببرید)', 'number' ),
+    );
+    foreach ( $f as $id => $d ) {
+        $w->add_setting( $id, array( 'default' => $d[0], 'sanitize_callback' => $d[1] ) );
+        $ctl = array( 'label' => $d[2], 'section' => 'sahel_pwa', 'type' => $d[3] );
+        if ( isset( $d[4] ) ) { $ctl['choices'] = $d[4]; }
+        $w->add_control( $id, $ctl );
+    }
+    $w->add_setting( 'sahel_pwa_color', array( 'default' => '', 'sanitize_callback' => 'sanitize_hex_color' ) );
+    $w->add_control( new WP_Customize_Color_Control( $w, 'sahel_pwa_color', array( 'label' => 'رنگ نوار بالای اپ (خالی = رنگ اصلی)', 'section' => 'sahel_pwa' ) ) );
+    $w->add_setting( 'sahel_pwa_bg', array( 'default' => '', 'sanitize_callback' => 'sanitize_hex_color' ) );
+    $w->add_control( new WP_Customize_Color_Control( $w, 'sahel_pwa_bg', array( 'label' => 'رنگ پس‌زمینه‌ی صفحه‌ی بازشدن اپ', 'section' => 'sahel_pwa' ) ) );
+    $w->add_setting( 'sahel_pwa_icon', array( 'default' => '', 'sanitize_callback' => 'esc_url_raw' ) );
+    $w->add_control( new WP_Customize_Image_Control( $w, 'sahel_pwa_icon', array( 'label' => 'آیکون اپ (PNG مربعی ۵۱۲×۵۱۲)', 'description' => 'اگر خالی باشد از «آیکون سایت» در بخش هویت سایت و در نبود آن از حرف اول برند استفاده می‌شود.', 'section' => 'sahel_pwa' ) ) );
+}
