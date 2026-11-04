@@ -2903,7 +2903,7 @@ function sahel_home_html() {
     $logo = esc_url( sahel_logo_url() );
     $brand = sahel_brand(); $brand_short = sahel_brand_short(); $brand_en = sahel_brand_en();
 
-    if ( get_theme_mod( 'sahel_slider_on', 1 ) ) {
+    if ( 'slider' !== sahel_hero_mode() ) { $ob .= sahel_hero_html(); } elseif ( get_theme_mod( 'sahel_slider_on', 1 ) ) {
         $count = max( 1, min( 10, (int) get_theme_mod( 'sahel_slide_count', 3 ) ) );
         $rendered = array();
         for ( $i = 1; $i <= $count; $i++ ) {
@@ -4838,11 +4838,11 @@ function sahel_body_extra_cls() {
     if ( get_theme_mod( 'sahel_pd_sticky_buy', 1 ) ) { $c .= ' pd-sticky-buy'; }
     return $c;
 }
-function sahel_pd_grid_gallery_on() { return '4' === (string) get_theme_mod( 'sahel_product_style', '1' ); }
+function sahel_pd_grid_gallery_on() { return in_array( (string) get_theme_mod( 'sahel_product_style', '1' ), array( '4', '9', '10' ), true ); }
 function sahel_pd_grid_gallery_html( $p ) {
     $ids = array_filter( array_merge( array( $p->get_image_id() ), (array) $p->get_gallery_image_ids() ) );
     if ( ! $ids ) { ob_start(); woocommerce_show_product_images(); return ob_get_clean(); }
-    $h = '<div class="pd-grid-gal">';
+    $h = '<div class="pd-grid-gal ' . ( function_exists( 'sahel_pd_gallery_variant' ) ? sahel_pd_gallery_variant() : '' ) . '">';
     foreach ( $ids as $k => $id ) {
         $full = wp_get_attachment_image_url( $id, 'full' );
         $h .= '<a href="' . esc_url( $full ) . '">' . wp_get_attachment_image( $id, 0 === $k ? 'woocommerce_single' : 'woocommerce_single', false, array( 'loading' => 0 === $k ? 'eager' : 'lazy' ) ) . '</a>';
@@ -4850,8 +4850,8 @@ function sahel_pd_grid_gallery_html( $p ) {
     return $h . '</div>';
 }
 function sahel_pd_extras_html( $p ) {
-    $h = '';
-    if ( get_theme_mod( 'sahel_pd_specs', 1 ) && is_object( $p ) && method_exists( $p, 'get_attributes' ) ) {
+    $h = function_exists( 'sahel_pd_clothing_html' ) ? sahel_pd_clothing_html( $p ) : '';
+    if ( get_theme_mod( 'sahel_pd_specs', 1 ) && ! ( get_theme_mod( 'sahel_pd_acc_on', 1 ) && get_theme_mod( 'sahel_pd_acc_specs', 1 ) ) && is_object( $p ) && method_exists( $p, 'get_attributes' ) ) {
         $rows = '';
         foreach ( (array) $p->get_attributes() as $attr ) {
             if ( ! is_object( $attr ) || ! $attr->get_visible() ) { continue; }
@@ -5124,3 +5124,317 @@ if($ff.length){
 SHJS60
     . '</script>';
 }, 200 );
+
+/* v6.1: صفحه محصول مناسب پوشاک (راهنمای سایز، پنل‌های بازشونده، گالری عمودی) + هیروهای مدرن و مینیمال */
+function sahel_pd_gallery_variant() {
+    $st = (string) get_theme_mod( 'sahel_product_style', '1' );
+    return '9' === $st ? 'pg-stack' : ( '10' === $st ? 'pg-two' : ( '4' === $st ? 'pg-grid' : '' ) );
+}
+function sahel_size_guide_data( $p ) {
+    $pid = is_object( $p ) ? $p->get_id() : 0;
+    $own = $pid ? get_post_meta( $pid, '_sahel_size_table', true ) : '';
+    $table = $own ? $own : get_theme_mod( 'sahel_sg_table', "سایز|دور سینه|دور کمر|قد\nS|۹۰|۷۴|۶۸\nM|۹۶|۸۰|۷۰\nL|۱۰۲|۸۶|۷۲\nXL|۱۰۸|۹۲|۷۴" );
+    $img = $pid ? get_post_meta( $pid, '_sahel_size_img', true ) : '';
+    if ( ! $img ) { $img = get_theme_mod( 'sahel_sg_img', '' ); }
+    $note = get_theme_mod( 'sahel_sg_note', 'اندازه‌ها به سانتی‌متر است و ممکن است ۱ تا ۲ سانتی‌متر اختلاف داشته باشد.' );
+    return array( 'table' => str_replace( '\n', "\n", (string) $table ), 'img' => $img, 'note' => $note );
+}
+function sahel_size_table_html( $raw ) {
+    $rows = array_filter( array_map( 'trim', preg_split( '/\r\n|\r|\n/', (string) $raw ) ) );
+    if ( count( $rows ) < 2 ) { return ''; }
+    $h = '<table class="pd-sg-table">';
+    foreach ( array_values( $rows ) as $i => $row ) {
+        $cells = array_map( 'trim', preg_split( '/\s*[|,،\t]\s*/u', $row ) );
+        $tag = 0 === $i ? 'th' : 'td';
+        $h .= ( 0 === $i ? '<thead>' : ( 1 === $i ? '<tbody>' : '' ) ) . '<tr>';
+        foreach ( $cells as $c ) { $h .= '<' . $tag . '>' . esc_html( $c ) . '</' . $tag . '>'; }
+        $h .= '</tr>' . ( 0 === $i ? '</thead>' : '' );
+    }
+    return $h . '</tbody></table>';
+}
+function sahel_pd_clothing_html( $p ) {
+    $h = '';
+    $sg_on = get_theme_mod( 'sahel_sg_on', 1 );
+    $sg = $sg_on ? sahel_size_guide_data( $p ) : null;
+    $sg_table = $sg ? sahel_size_table_html( $sg['table'] ) : '';
+    if ( $sg && ( $sg_table || $sg['img'] ) ) {
+        $h .= '<button type="button" class="pd-sg-btn"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l14-14 4 4L7 21H3z"/><path d="M14 6l1.5 1.5M11 9l1.5 1.5M8 12l1.5 1.5"/></svg>' . esc_html( get_theme_mod( 'sahel_sg_btn', 'راهنمای انتخاب سایز' ) ) . '</button>';
+        $h .= '<dialog class="pd-sg-modal" id="pdSizeGuide" aria-label="راهنمای سایز"><div class="pd-sg-head"><b>' . esc_html( get_theme_mod( 'sahel_sg_btn', 'راهنمای انتخاب سایز' ) ) . '</b><button type="button" class="pd-sg-close" aria-label="بستن">×</button></div><div class="pd-sg-body">'
+            . ( $sg['img'] ? '<img src="' . esc_url( $sg['img'] ) . '" alt="" loading="lazy">' : '' ) . $sg_table . ( $sg['note'] ? '<p class="pd-sg-note">' . esc_html( $sg['note'] ) . '</p>' : '' ) . '</div></dialog>';
+    }
+    if ( ! get_theme_mod( 'sahel_pd_acc_on', 1 ) ) { return $h; }
+    $panels = array();
+    if ( get_theme_mod( 'sahel_pd_acc_desc', 1 ) ) {
+        $desc = is_object( $p ) ? $p->get_description() : '';
+        if ( $desc ) { $panels[] = array( 'توضیحات محصول', wp_kses_post( wpautop( do_shortcode( $desc ) ) ), true ); }
+    }
+    if ( get_theme_mod( 'sahel_pd_acc_specs', 1 ) && is_object( $p ) && method_exists( $p, 'get_attributes' ) ) {
+        $rows = '';
+        foreach ( (array) $p->get_attributes() as $attr ) {
+            if ( ! is_object( $attr ) || ! $attr->get_visible() ) { continue; }
+            $vals = $attr->is_taxonomy() ? wc_get_product_terms( $p->get_id(), $attr->get_name(), array( 'fields' => 'names' ) ) : $attr->get_options();
+            if ( $vals ) { $rows .= '<li><b>' . esc_html( wc_attribute_label( $attr->get_name(), $p ) ) . '</b><span>' . esc_html( implode( '، ', (array) $vals ) ) . '</span></li>'; }
+        }
+        if ( $rows ) { $panels[] = array( get_theme_mod( 'sahel_pd_specs_title', 'مشخصات محصول' ), '<ul>' . sahel_fa_safe( $rows ) . '</ul>', false ); }
+    }
+    if ( $sg_table && get_theme_mod( 'sahel_pd_acc_size', 1 ) ) { $panels[] = array( 'جدول سایز', $sg_table, false ); }
+    $pid = is_object( $p ) ? $p->get_id() : 0;
+    $care = $pid ? get_post_meta( $pid, '_sahel_care', true ) : '';
+    if ( ! $care ) { $care = get_theme_mod( 'sahel_pd_care', 'با آب سرد و دور ملایم شسته شود. از سفیدکننده استفاده نکنید. اتو با حرارت کم از پشت پارچه.' ); }
+    if ( $care && get_theme_mod( 'sahel_pd_acc_care', 1 ) ) { $panels[] = array( 'نگهداری و شستشو', wp_kses_post( wpautop( $care ) ), false ); }
+    $ship = get_theme_mod( 'sahel_pd_ship', 'ارسال به سراسر کشور در ۲ تا ۴ روز کاری. تا ۷ روز امکان تعویض یا بازگشت کالا در صورت سالم بودن برچسب‌ها وجود دارد.' );
+    if ( $ship && get_theme_mod( 'sahel_pd_acc_ship', 1 ) ) { $panels[] = array( 'ارسال، تعویض و بازگشت', wp_kses_post( wpautop( $ship ) ), false ); }
+    if ( $panels ) {
+        $h .= '<div class="pd-acc">';
+        foreach ( $panels as $i => $pn ) { $h .= '<details' . ( $pn[2] && get_theme_mod( 'sahel_pd_acc_open', 0 ) ? ' open' : '' ) . '><summary>' . esc_html( $pn[0] ) . '</summary><div class="pd-acc-c">' . $pn[1] . '</div></details>'; }
+        $h .= '</div>';
+    }
+    return $h;
+}
+/* متاباکس جدول سایز و نگهداری برای هر محصول (اختیاری؛ در غیر این صورت تنظیم کلی) */
+add_action( 'add_meta_boxes', function() {
+    add_meta_box( 'sahel_size_guide', 'راهنمای سایز و نگهداری (قالب پیچا)', function( $post ) {
+        wp_nonce_field( 'sahel_sg_save', 'sahel_sg_nonce' );
+        echo '<p><label><b>جدول سایز این محصول</b> — هر ردیف در یک خط، ستون‌ها با | جدا شوند (خالی = جدول کلی سفارشی‌سازی)</label><textarea name="sahel_size_table" rows="6" style="width:100%;direction:rtl" placeholder="سایز|دور سینه|قد&#10;S|90|68">' . esc_textarea( get_post_meta( $post->ID, '_sahel_size_table', true ) ) . '</textarea></p>';
+        echo '<p><label><b>آدرس تصویر راهنمای سایز</b> (اختیاری)</label><input type="url" name="sahel_size_img" style="width:100%" value="' . esc_attr( get_post_meta( $post->ID, '_sahel_size_img', true ) ) . '"></p>';
+        echo '<p><label><b>نگهداری و شستشو</b> (خالی = متن کلی)</label><textarea name="sahel_care" rows="3" style="width:100%">' . esc_textarea( get_post_meta( $post->ID, '_sahel_care', true ) ) . '</textarea></p>';
+    }, 'product', 'normal', 'default' );
+} );
+add_action( 'save_post_product', function( $post_id ) {
+    if ( ! isset( $_POST['sahel_sg_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['sahel_sg_nonce'] ) ), 'sahel_sg_save' ) ) { return; }
+    if ( ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) || ! current_user_can( 'edit_post', $post_id ) ) { return; }
+    update_post_meta( $post_id, '_sahel_size_table', sanitize_textarea_field( wp_unslash( isset( $_POST['sahel_size_table'] ) ? $_POST['sahel_size_table'] : '' ) ) );
+    update_post_meta( $post_id, '_sahel_size_img', esc_url_raw( wp_unslash( isset( $_POST['sahel_size_img'] ) ? $_POST['sahel_size_img'] : '' ) ) );
+    update_post_meta( $post_id, '_sahel_care', wp_kses_post( wp_unslash( isset( $_POST['sahel_care'] ) ? $_POST['sahel_care'] : '' ) ) );
+} );
+/* هیروها */
+function sahel_hero_mode() {
+    $m = get_theme_mod( 'sahel_hero_mode', 'slider' );
+    return in_array( $m, array( 'type', 'split', 'editorial', 'full', 'marquee', 'cats' ), true ) ? $m : 'slider';
+}
+function sahel_hero_html() {
+    $m = sahel_hero_mode();
+    $g = function( $k, $d = '' ) { return get_theme_mod( 'sahel_hero_' . $k, $d ); };
+    $brand = sahel_brand();
+    $label = $g( 'label', 'کالکشن جدید' );
+    $t1 = $g( 't1', 'سادگی،' ); $t2 = $g( 't2', 'امضای استایل تو' );
+    $desc = $g( 'desc', 'لباس‌هایی با طراحی مینیمال، پارچه مرغوب و دوخت دقیق؛ برای هر روزِ تو.' );
+    $b1 = $g( 'b1', 'خرید کالکشن' ); $u1 = $g( 'u1', '' ); $b2 = $g( 'b2', 'مشاهده دسته‌بندی‌ها' ); $u2 = $g( 'u2', '' );
+    $fb = sahel_slide_data( 1 );
+    $imgs = array( $g( 'img1', $fb['img'] ), $g( 'img2', '' ), $g( 'img3', '' ) );
+    $imgs[1] = $imgs[1] ? $imgs[1] : $imgs[0]; $imgs[2] = $imgs[2] ? $imgs[2] : $imgs[0];
+    $im = function( $src, $eager = false ) { return $src ? '<img src="' . esc_url( $src ) . '" alt=""' . ( $eager ? ' fetchpriority="high"' : ' loading="lazy"' ) . ' decoding="async">' : ''; };
+    $h1 = '<h1>' . esc_html( $t1 ) . ( $t2 ? ' <em>' . esc_html( $t2 ) . '</em>' : '' ) . '</h1>';
+    $lab = $label ? '<span class="h2-label">' . esc_html( $label ) . '</span>' : '';
+    $pp = $desc ? '<p>' . esc_html( $desc ) . '</p>' : '';
+    $cta = '<div class="h2-cta">' . ( $b1 ? '<a class="btn btn-primary" href="' . esc_url( $u1 ? $u1 : sahel_shop_url() ) . '">' . esc_html( $b1 ) . '</a>' : '' ) . ( $b2 ? '<a class="btn btn-ghost" href="' . esc_url( $u2 ? $u2 : sahel_shop_url() ) . '">' . esc_html( $b2 ) . '</a>' : '' ) . '</div>';
+    $o = '<section class="hero2 hs-' . $m . '">';
+    if ( 'type' === $m ) { $o .= '<div class="wrap">' . $lab . $h1 . $pp . $cta . '<div class="h2-line"></div></div>'; }
+    elseif ( 'split' === $m ) {
+        $stats = '<div class="h2-stats">';
+        foreach ( array( array( 'sahel_stat1', '8000', 'sahel_stat1_label', 'مشتری خوشحال', '+' ), array( 'sahel_stat2', '450', 'sahel_stat2_label', 'محصول متنوع', '+' ), array( 'sahel_stat3', '98', 'sahel_stat3_label', 'رضایت خرید', '٪' ) ) as $st ) {
+            $stats .= '<div><b>' . sahel_fa( get_theme_mod( $st[0], $st[1] ) ) . $st[4] . '</b><span>' . esc_html( get_theme_mod( $st[2], $st[3] ) ) . '</span></div>';
+        }
+        $o .= '<div class="wrap"><div>' . $lab . $h1 . $pp . $cta . ( $g( 'stats', 1 ) ? $stats . '</div>' : '' ) . '</div><div class="h2-media">' . $im( $imgs[0], true ) . '</div></div>';
+    } elseif ( 'editorial' === $m ) {
+        $o .= '<div class="wrap"><div class="h2-m m1">' . $im( $imgs[1] ) . '</div><div class="h2-m m2">' . $im( $imgs[0], true ) . '</div><div class="h2-m m3">' . $im( $imgs[2] ) . '</div><div class="h2-text"><div>' . $lab . $h1 . '</div><div>' . $pp . $cta . '</div></div></div>';
+    } elseif ( 'full' === $m ) {
+        $vid = $g( 'video', '' );
+        $bg = $vid ? '<video autoplay muted loop playsinline preload="metadata"' . ( $imgs[0] ? ' poster="' . esc_url( $imgs[0] ) . '"' : '' ) . ' src="' . esc_url( $vid ) . '"></video>' : $im( $imgs[0], true );
+        $o .= '<div class="h2-bg">' . $bg . '</div><div class="wrap"><div>' . $lab . $h1 . $pp . '</div>' . $cta . '</div>';
+    } elseif ( 'marquee' === $m ) {
+        $big = esc_html( $g( 'big', sahel_brand_en() ) );
+        $o .= '<div class="h2-big" aria-hidden="true"><span>' . $big . '</span><span>' . $big . '</span><span>' . $big . '</span><span>' . $big . '</span></div><div class="wrap"><div class="h2-center">' . $im( $imgs[0], true ) . '</div>' . $lab . $h1 . $pp . $cta . '</div>';
+    } else {
+        $cards = '';
+        $fbc = 'https://image.qwenlm.ai/public_source/593f1887-5498-4920-ad1d-3f467426cd05/16752e62d-5c58-45c7-891c-b787a0344a6c.png';
+        foreach ( array_slice( sahel_product_cats(), 0, 4 ) as $c ) { $cards .= '<a class="h2-card" href="' . esc_url( get_term_link( $c ) ) . '">' . $im( sahel_cat_img( $c, $fbc ) ) . '<b>' . esc_html( $c->name ) . '</b></a>'; }
+        $o .= '<div class="wrap"><div class="h2-top"><div>' . $lab . $h1 . '</div><div>' . $pp . $cta . '</div></div>' . ( $cards ? '<div class="h2-cards">' . $cards . '</div>' : '' ) . '</div>';
+    }
+    return $o . '</section>';
+}
+add_action( 'customize_register', function( $w ) {
+    if ( $c = $w->get_control( 'sahel_product_style' ) ) {
+        $c->choices += array( '9' => '👗 پوشاک — تصاویر عمودی پشت‌سرهم + خلاصه چسبان', '10' => '👗 پوشاک — گالری دوستونه عمودی', '11' => '👗 پوشاک — ادیتوریال مینیمال (تصویر ۳:۴ + بندانگشتی عمودی)' );
+    }
+    $add = function( $id, $default, $label, $section, $type, $choices = null, $san = null ) use ( $w ) {
+        if ( ! $w->get_section( $section ) ) { return; }
+        $w->add_setting( $id, array( 'default' => $default, 'sanitize_callback' => $san ? $san : ( 'checkbox' === $type ? 'absint' : ( 'textarea' === $type ? 'sanitize_textarea_field' : ( 'url' === $type ? 'esc_url_raw' : ( 'text' === $type ? 'sanitize_text_field' : 'sanitize_key' ) ) ) ) ) );
+        $a = array( 'label' => $label, 'section' => $section, 'type' => $type );
+        if ( $choices ) { $a['choices'] = $choices; }
+        $w->add_control( $id, $a );
+    };
+    $add( 'sahel_sg_on', 1, '📏 دکمه «راهنمای انتخاب سایز» در صفحه محصول', 'sahel_product', 'checkbox' );
+    $add( 'sahel_sg_btn', 'راهنمای انتخاب سایز', 'متن دکمه راهنمای سایز', 'sahel_product', 'text' );
+    $add( 'sahel_sg_table', "سایز|دور سینه|دور کمر|قد\nS|۹۰|۷۴|۶۸\nM|۹۶|۸۰|۷۰\nL|۱۰۲|۸۶|۷۲\nXL|۱۰۸|۹۲|۷۴", 'جدول سایز کلی (هر ردیف یک خط، ستون‌ها با | جدا؛ برای هر محصول هم در صفحه ویرایش محصول قابل تعیین است)', 'sahel_product', 'textarea' );
+    if ( $w->get_section( 'sahel_product' ) ) {
+        $w->add_setting( 'sahel_sg_img', array( 'default' => '', 'sanitize_callback' => 'esc_url_raw' ) );
+        $w->add_control( new WP_Customize_Image_Control( $w, 'sahel_sg_img', array( 'label' => 'تصویر راهنمای اندازه‌گیری (اختیاری)', 'section' => 'sahel_product' ) ) );
+    }
+    $add( 'sahel_sg_note', 'اندازه‌ها به سانتی‌متر است و ممکن است ۱ تا ۲ سانتی‌متر اختلاف داشته باشد.', 'توضیح زیر جدول سایز', 'sahel_product', 'text' );
+    $add( 'sahel_pd_acc_on', 1, '🗂 پنل‌های بازشونده اطلاعات محصول (زیر دکمه خرید)', 'sahel_product', 'checkbox' );
+    foreach ( array( 'desc' => 'توضیحات محصول', 'specs' => 'مشخصات', 'size' => 'جدول سایز', 'care' => 'نگهداری و شستشو', 'ship' => 'ارسال، تعویض و بازگشت' ) as $k => $l ) { $add( 'sahel_pd_acc_' . $k, 1, '— پنل ' . $l, 'sahel_product', 'checkbox' ); }
+    $add( 'sahel_pd_acc_open', 0, 'پنل توضیحات به‌صورت باز نمایش داده شود', 'sahel_product', 'checkbox' );
+    $add( 'sahel_pd_care', 'با آب سرد و دور ملایم شسته شود. از سفیدکننده استفاده نکنید. اتو با حرارت کم از پشت پارچه.', 'متن کلی نگهداری و شستشو', 'sahel_product', 'textarea', null, 'wp_kses_post' );
+    $add( 'sahel_pd_ship', 'ارسال به سراسر کشور در ۲ تا ۴ روز کاری. تا ۷ روز امکان تعویض یا بازگشت کالا در صورت سالم بودن برچسب‌ها وجود دارد.', 'متن ارسال، تعویض و بازگشت', 'sahel_product', 'textarea', null, 'wp_kses_post' );
+    $w->add_section( 'sahel_hero', array( 'title' => '۴-ب. هیرو (بالای صفحه اصلی)', 'priority' => 30.5, 'description' => 'اگر مدلی غیر از «اسلایدر» انتخاب شود، به‌جای اسلایدر این هیرو نمایش داده می‌شود.' ) );
+    $add( 'sahel_hero_mode', 'slider', '🎨 نوع بالای صفحه اصلی', 'sahel_hero', 'select', array( 'slider' => 'اسلایدر (تنظیمات بخش اسلایدر)', 'type' => 'تایپوگرافی مینیمال (تیتر بزرگ وسط)', 'split' => 'دوبخشی تمیز (متن + تصویر قوسی)', 'editorial' => 'ادیتوریال مد (کلاژ سه‌تصویری)', 'full' => 'تمام‌صفحه با کپشن مینیمال (تصویر یا ویدئو)', 'marquee' => 'نام برند بزرگ متحرک + تصویر', 'cats' => 'تیتر + کارت دسته‌بندی‌ها' ) );
+    $add( 'sahel_hero_label', 'کالکشن جدید', 'برچسب کوچک', 'sahel_hero', 'text' );
+    $add( 'sahel_hero_t1', 'سادگی،', 'تیتر — بخش اول', 'sahel_hero', 'text' );
+    $add( 'sahel_hero_t2', 'امضای استایل تو', 'تیتر — بخش رنگی', 'sahel_hero', 'text' );
+    $add( 'sahel_hero_desc', 'لباس‌هایی با طراحی مینیمال، پارچه مرغوب و دوخت دقیق؛ برای هر روزِ تو.', 'توضیح', 'sahel_hero', 'textarea' );
+    $add( 'sahel_hero_b1', 'خرید کالکشن', 'دکمه اول', 'sahel_hero', 'text' );
+    $add( 'sahel_hero_u1', '', 'لینک دکمه اول', 'sahel_hero', 'url' );
+    $add( 'sahel_hero_b2', 'مشاهده دسته‌بندی‌ها', 'دکمه دوم', 'sahel_hero', 'text' );
+    $add( 'sahel_hero_u2', '', 'لینک دکمه دوم', 'sahel_hero', 'url' );
+    if ( $w->get_section( 'sahel_hero' ) ) {
+        foreach ( array( 1 => 'تصویر اصلی', 2 => 'تصویر دوم (ادیتوریال)', 3 => 'تصویر سوم (ادیتوریال)' ) as $i => $l ) {
+            $w->add_setting( 'sahel_hero_img' . $i, array( 'default' => '', 'sanitize_callback' => 'esc_url_raw' ) );
+            $w->add_control( new WP_Customize_Image_Control( $w, 'sahel_hero_img' . $i, array( 'label' => $l, 'section' => 'sahel_hero' ) ) );
+        }
+        $w->add_setting( 'sahel_hero_video', array( 'default' => '', 'sanitize_callback' => 'esc_url_raw' ) );
+        $w->add_control( new WP_Customize_Upload_Control( $w, 'sahel_hero_video', array( 'label' => 'ویدئو (مدل تمام‌صفحه — اختیاری)', 'section' => 'sahel_hero', 'mime_type' => 'video' ) ) );
+    }
+    $add( 'sahel_hero_big', '', 'متن بزرگ متحرک (مدل نام برند — خالی = نام انگلیسی برند)', 'sahel_hero', 'text' );
+    $add( 'sahel_hero_stats', 1, 'نمایش آمار در مدل دوبخشی', 'sahel_hero', 'checkbox' );
+}, 40 );
+add_action( 'wp_head', function() {
+    echo '<style id="sahel-v61">' . <<<'SHCSS61'
+/* ===== v6.1: رفع فریز شدن تصویر محصول در موبایل (گالری چسبان روی متن می‌ماند) ===== */
+@media(max-width:920px){.pd-wrap .pd-gallery,.pd-wrap .pd-summary{position:static!important;top:auto!important}}
+/* ===== صفحه محصول پوشاک: گالری عمودی، راهنمای سایز، پنل‌های بازشونده ===== */
+.pd-grid-gal.pg-stack{grid-template-columns:1fr}
+.pd-grid-gal.pg-stack a,.pd-grid-gal.pg-stack a:first-child,.pd-grid-gal.pg-two a,.pd-grid-gal.pg-two a:first-child{grid-column:auto;aspect-ratio:3/4}
+.pd-grid-gal.pg-two{grid-template-columns:1fr 1fr}
+@media(min-width:921px){
+body:is(.pdst-9,.pdst-10) .pd-wrap{grid-template-columns:1.25fr .85fr;background:transparent;border:0;box-shadow:none;padding:0;align-items:start;gap:48px}
+body:is(.pdst-9,.pdst-10) .pd-summary{position:sticky;top:96px;padding:6px 0}
+body:is(.pdst-9,.pdst-10,.pdst-11) .pd-pricebox{background:transparent;border:0;padding:0;margin:8px 0 18px}
+body:is(.pdst-9,.pdst-10,.pdst-11) .pd-summary .product_title{font-size:1.9rem;letter-spacing:-.3px}
+body.pdst-11 .pd-wrap{grid-template-columns:1.15fr .85fr;background:transparent;border:0;box-shadow:none;padding:0;gap:56px;align-items:start}
+body.pdst-11 .pd-gallery .flexslider{display:flex;flex-direction:row-reverse;gap:14px}
+body.pdst-11 .pd-gallery .flex-viewport{flex:1;order:2;aspect-ratio:3/4;max-height:780px!important;border-radius:6px}
+body.pdst-11 .pd-gallery .woocommerce-product-gallery__image{aspect-ratio:3/4;border-radius:6px;max-height:780px!important}
+body.pdst-11 .pd-gallery .flex-viewport img,body.pdst-11 .pd-gallery .woocommerce-product-gallery__image img{border-radius:6px;border:0}
+body.pdst-11 .pd-gallery .flex-control-thumbs{flex-direction:column;width:70px;margin-top:0;order:1;flex-shrink:0}
+body.pdst-11 .pd-gallery .flex-control-thumbs li{width:100%}
+body.pdst-11 .pd-gallery .flex-control-thumbs img{aspect-ratio:3/4;border-radius:4px}
+body.pdst-11 .pd-trust span{background:transparent;border:1px solid var(--line);border-radius:6px}
+}
+body.pdst-11 .pd-cats a,body.pdst-9 .pd-cats a,body.pdst-10 .pd-cats a{background:transparent;border:1px solid var(--line);border-radius:6px;color:var(--muted)}
+@media(max-width:920px){.pd-grid-gal.pg-stack,.pd-grid-gal.pg-two{display:flex}.pd-grid-gal.pg-stack a,.pd-grid-gal.pg-two a{flex:0 0 82%;aspect-ratio:3/4}}
+.pd-sg-btn{display:inline-flex;align-items:center;gap:8px;margin:2px 0 14px;padding:8px 14px;border-radius:10px;border:1px dashed var(--line2,var(--c1));background:transparent;color:var(--c1);font-family:inherit;font-weight:800;font-size:.8rem;cursor:pointer}
+.pd-sg-btn:hover{background:color-mix(in srgb,var(--c1) 8%,transparent)}
+.pd-sg-btn svg{width:18px;height:18px;stroke:currentColor}
+dialog.pd-sg-modal{margin:auto;inset:0;border:0;border-radius:24px;padding:0;width:min(720px,94vw);max-height:88vh;background:var(--cardbg);color:var(--ink);box-shadow:0 40px 100px rgba(0,0,0,.35)}
+dialog.pd-sg-modal::backdrop{background:rgba(10,8,6,.55);backdrop-filter:blur(3px)}
+.pd-sg-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:18px 22px;border-bottom:1px solid var(--line)}
+.pd-sg-head b{font-size:1rem;font-weight:900}
+.pd-sg-close{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:transparent;font-size:18px;cursor:pointer;color:var(--ink)}
+.pd-sg-body{padding:20px 22px;overflow:auto;max-height:calc(88vh - 70px)}
+.pd-sg-body img{max-width:100%;height:auto;border-radius:14px;margin-bottom:16px}
+.pd-sg-table{width:100%;border-collapse:separate;border-spacing:0;font-size:.82rem;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.pd-sg-table th,.pd-sg-table td{padding:10px 12px;text-align:center;border-bottom:1px solid var(--line)}
+.pd-sg-table th{background:color-mix(in srgb,var(--c1) 10%,var(--cardbg));font-weight:900}
+.pd-sg-table tr:last-child td{border-bottom:0}
+.pd-sg-table tbody tr:nth-child(even) td{background:color-mix(in srgb,var(--ink) 3%,transparent)}
+.pd-sg-table td:first-child{font-weight:900;color:var(--c1)}
+.pd-sg-note{margin-top:14px;font-size:.8rem;color:var(--muted);line-height:2}
+.pd-acc{margin-top:22px;border-top:1px solid var(--line)}
+.pd-acc details{border-bottom:1px solid var(--line)}
+.pd-acc summary{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:15px 2px;cursor:pointer;list-style:none;font-weight:800;font-size:.9rem;color:var(--ink)}
+.pd-acc summary::-webkit-details-marker{display:none}
+.pd-acc summary::after{content:"+";font-size:1.3rem;line-height:1;color:var(--c1);transition:transform .25s}
+.pd-acc details[open] summary::after{transform:rotate(45deg)}
+.pd-acc .pd-acc-c{padding:0 2px 16px;color:var(--muted);font-size:.84rem;line-height:2.1}
+.pd-acc .pd-acc-c ul{list-style:none;margin:0;padding:0}
+.pd-acc .pd-acc-c li{display:flex;gap:12px;padding:6px 0;border-bottom:1px dashed var(--line)}
+.pd-acc .pd-acc-c li:last-child{border-bottom:0}
+.pd-acc .pd-acc-c li b{min-width:110px;color:var(--muted);font-weight:700}
+.pd-acc .pd-acc-c li span{color:var(--ink);font-weight:700}
+.pd-acc .pd-sg-table{margin-top:4px}
+body.pdst-7 .pd-acc summary,body.pdst-7 .pd-acc .pd-acc-c li span{color:#fff}
+/* ===== v6.1: هیروهای مدرن و مینیمال ===== */
+.hero2{position:relative;overflow:hidden}
+.hero2 .h2-label{display:inline-flex;align-items:center;gap:8px;font-size:.78rem;font-weight:800;letter-spacing:.5px;color:var(--c1)}
+.hero2 .h2-label::before{content:"";width:28px;height:2px;background:currentColor}
+.hero2 h1{font-weight:900;line-height:1.2;letter-spacing:-1px;color:var(--ink)}
+.hero2 h1 em{font-style:normal;color:var(--c1)}
+.hero2 p{color:var(--muted);line-height:2.1;font-size:1rem;max-width:560px}
+.hero2 .h2-cta{display:flex;gap:12px;flex-wrap:wrap}
+.hero2 .h2-cta .btn{border-radius:999px}
+.hero2 img,.hero2 video{display:block;width:100%;height:100%;object-fit:cover}
+/* ۱. تایپوگرافی مینیمال */
+.hero2.hs-type{padding:110px 0 90px;text-align:center}
+.hero2.hs-type h1{font-size:clamp(2.6rem,8vw,6.4rem);margin:20px auto 22px;max-width:1100px}
+.hero2.hs-type p{margin:0 auto 34px}
+.hero2.hs-type .h2-cta{justify-content:center}
+.hero2.hs-type .h2-line{width:1px;height:70px;margin:50px auto 0;background:linear-gradient(var(--line),transparent)}
+/* ۲. دوبخشی تمیز */
+.hero2.hs-split .wrap{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center;min-height:min(78vh,720px);padding-block:40px}
+.hero2.hs-split h1{font-size:clamp(2.2rem,5vw,4.2rem);margin:16px 0 18px}
+.hero2.hs-split p{margin-bottom:30px}
+.hero2.hs-split .h2-media{aspect-ratio:4/5;max-height:680px;border-radius:220px 220px 28px 28px;overflow:hidden;background:var(--cream)}
+.hero2.hs-split .h2-stats{display:flex;gap:34px;margin-top:40px;padding-top:24px;border-top:1px solid var(--line)}
+.hero2.hs-split .h2-stats b{display:block;font-size:1.5rem;font-weight:900;color:var(--ink)}
+.hero2.hs-split .h2-stats span{font-size:.76rem;color:var(--muted)}
+/* ۳. ادیتوریال مد (کلاژ سه‌تصویری) */
+.hero2.hs-editorial{padding:40px 0 30px}
+.hero2.hs-editorial .wrap{display:grid;grid-template-columns:1fr 1.15fr 1fr;gap:16px;align-items:end}
+.hero2.hs-editorial .h2-m{border-radius:18px;overflow:hidden;background:var(--cream);aspect-ratio:3/4}
+.hero2.hs-editorial .h2-m.m2{aspect-ratio:3/4.4}
+.hero2.hs-editorial .h2-text{grid-column:1/-1;display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap;padding-top:22px;border-top:1px solid var(--line);margin-top:10px}
+.hero2.hs-editorial h1{font-size:clamp(2rem,5.4vw,4.6rem);margin:8px 0 0}
+.hero2.hs-editorial p{margin:0 0 6px}
+/* ۴. تمام‌صفحه با کپشن مینیمال */
+.hero2.hs-full{min-height:min(92vh,900px);display:flex;align-items:flex-end;color:#fff}
+.hero2.hs-full .h2-bg{position:absolute;inset:0}
+.hero2.hs-full .h2-bg::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.6),rgba(0,0,0,0) 55%)}
+.hero2.hs-full .wrap{position:relative;z-index:1;padding-block:56px;display:flex;align-items:flex-end;justify-content:space-between;gap:30px;flex-wrap:wrap}
+.hero2.hs-full h1{color:#fff;font-size:clamp(2.2rem,5.6vw,4.8rem);margin:12px 0 0;max-width:760px}
+.hero2.hs-full .h2-label{color:#fff}
+.hero2.hs-full p{color:rgba(255,255,255,.85);margin-top:12px}
+.hero2.hs-full .btn-ghost{color:#fff;border-color:rgba(255,255,255,.6);background:transparent}
+/* ۵. نام برند بزرگ متحرک */
+.hero2.hs-marquee{padding:50px 0 60px;text-align:center}
+.hero2.hs-marquee .h2-big{direction:ltr;white-space:nowrap;display:flex;width:max-content;animation:h2mq 30s linear infinite;font-size:clamp(4rem,14vw,12rem);font-weight:900;line-height:1;color:transparent;-webkit-text-stroke:1.5px color-mix(in srgb,var(--ink) 35%,transparent);opacity:.9}
+.hero2.hs-marquee .h2-big span{padding-inline:40px}
+@keyframes h2mq{to{transform:translateX(-50%)}}
+.hero2.hs-marquee .h2-center{position:relative;width:min(440px,78vw);aspect-ratio:3/4;margin:-9vw auto 0;border-radius:24px;overflow:hidden;background:var(--cream);box-shadow:var(--shadow-lg)}
+.hero2.hs-marquee h1{font-size:clamp(1.6rem,3.6vw,2.6rem);margin:30px 0 10px}
+.hero2.hs-marquee p{margin:0 auto 24px}
+.hero2.hs-marquee .h2-cta{justify-content:center}
+/* ۶. تیتر + دسته‌بندی‌های تصویری */
+.hero2.hs-cats{padding:70px 0 50px}
+.hero2.hs-cats .h2-top{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-bottom:34px}
+.hero2.hs-cats h1{font-size:clamp(2.2rem,5.6vw,4.6rem);margin:12px 0 0;max-width:820px}
+.hero2.hs-cats .h2-cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.hero2.hs-cats .h2-card{position:relative;display:block;aspect-ratio:3/4;border-radius:18px;overflow:hidden;background:var(--cream)}
+.hero2.hs-cats .h2-card img{transition:transform .6s}
+.hero2.hs-cats .h2-card:hover img{transform:scale(1.05)}
+.hero2.hs-cats .h2-card b{position:absolute;inset-inline:12px;bottom:12px;padding:8px 14px;border-radius:12px;background:color-mix(in srgb,var(--cardbg) 88%,transparent);color:var(--ink);font-weight:800;font-size:.85rem;text-align:center}
+@media(max-width:920px){
+.hero2.hs-type{padding:70px 0 50px}
+.hero2.hs-split .wrap{grid-template-columns:1fr;gap:28px;min-height:0}
+.hero2.hs-split .h2-media{order:-1;aspect-ratio:4/4.4;border-radius:160px 160px 22px 22px}
+.hero2.hs-editorial .wrap{grid-template-columns:1fr 1fr}
+.hero2.hs-editorial .h2-m.m3{display:none}
+.hero2.hs-full{min-height:78vh}
+.hero2.hs-cats .h2-cards{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:600px){.hero2.hs-split .h2-stats{gap:20px}.hero2.hs-editorial .h2-m.m1{display:none}.hero2.hs-editorial .wrap{grid-template-columns:1fr}}
+SHCSS61
+    . '</style>';
+}, 196 );
+add_action( 'wp_footer', function() {
+    if ( ! ( function_exists( 'is_product' ) && is_product() ) ) { return; }
+    echo '<script id="sahel-v61-js">' . <<<'SHJS61'
+jQuery(function($){
+var $vt=$('.pd-summary table.variations').first();if($vt.length){$('.pd-sg-btn').first().insertAfter($vt);}
+$(document).on('click','.pd-sg-btn',function(){var d=document.getElementById('pdSizeGuide');if(d&&d.showModal){d.showModal();}else if(d){d.setAttribute('open','');}});
+$(document).on('click','.pd-sg-close',function(){var d=this.closest('dialog');if(d){d.close?d.close():d.removeAttribute('open');}});
+$(document).on('click','dialog.pd-sg-modal',function(e){if(e.target===this){this.close();}});
+});
+SHJS61
+    . '</script>';
+}, 201 );
