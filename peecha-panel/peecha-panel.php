@@ -3,7 +3,7 @@
  * Plugin Name:       پنل پیچا — مدیریت ساده‌ی فروشگاه
  * Plugin URI:        https://peecha.ir
  * Description:       پنل فارسی، ساده و سریع برای مدیریت فروشگاه ووکامرس: داشبورد فروش، سفارش‌ها با تاریخ شمسی و کد رهگیری، ویرایش سریع قیمت و موجودی، افزودن محصول و لیست مشتریان. داخل پیشخوان وردپرس و با همان ورود امن وردپرس.
- * Version:           1.0.0
+ * Version:           1.1.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Requires Plugins:  woocommerce
@@ -15,7 +15,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'PP_VER', '1.0.0' );
+define( 'PP_VER', '1.1.0' );
 define( 'PP_FILE', __FILE__ );
 define( 'PP_URL', plugin_dir_url( __FILE__ ) );
 define( 'PP_SLUG', 'peecha-panel' );
@@ -811,7 +811,7 @@ final class Peecha_Panel {
 			if ( $variable ) { echo '<button type="button" class="pp-btn sm ghost pp-vtoggle" data-for="' . (int) $id . '">حالت‌ها ▾</button>'; }
 		}
 		if ( ! $parent ) {
-			if ( $p->is_type( 'simple' ) ) { echo '<a class="pp-btn sm ghost" href="' . esc_url( self::url( 'edit', array( 'id' => $id ) ) ) . '">ویرایش</a>'; }
+			if ( $p->is_type( 'simple' ) || $p->is_type( 'variable' ) ) { echo '<a class="pp-btn sm ghost" href="' . esc_url( self::url( 'edit', array( 'id' => $id ) ) ) . '">ویرایش</a>'; }
 			elseif ( current_user_can( 'edit_product', $id ) ) { echo '<a class="pp-btn sm ghost" href="' . esc_url( get_edit_post_link( $id, 'raw' ) ) . '">ویرایش</a>'; }
 			if ( 'publish' === $status ) { echo '<a class="pp-btn sm ghost" href="' . esc_url( get_permalink( $id ) ) . '" target="_blank" rel="noopener" aria-label="مشاهده">↗</a>'; }
 		}
@@ -857,42 +857,165 @@ final class Peecha_Panel {
 		) );
 	}
 
-	/* ---------- افزودن / ویرایش محصول ساده ---------- */
+	/* ---------- افزودن / ویرایش محصول (ساده و متغیر) ---------- */
+	private static function attr_taxonomies() {
+		$out = array();
+		if ( ! function_exists( 'wc_get_attribute_taxonomies' ) ) { return $out; }
+		foreach ( (array) wc_get_attribute_taxonomies() as $t ) {
+			$tax = wc_attribute_taxonomy_name( $t->attribute_name );
+			if ( ! taxonomy_exists( $tax ) ) { continue; }
+			$terms = get_terms( array( 'taxonomy' => $tax, 'hide_empty' => false, 'number' => 150, 'orderby' => 'name' ) );
+			$out[ $tax ] = array( 'label' => $t->attribute_label, 'terms' => is_wp_error( $terms ) ? array() : $terms );
+		}
+		return $out;
+	}
+	/* ویژگی‌های محصول به شکل ساده: [key, label, tax, options(value=>label), visible, variation] */
+	private static function product_attrs( $p ) {
+		$list = array();
+		if ( ! $p ) { return $list; }
+		foreach ( $p->get_attributes() as $key => $a ) {
+			if ( ! is_a( $a, 'WC_Product_Attribute' ) ) { continue; }
+			$opts = array();
+			if ( $a->is_taxonomy() ) {
+				foreach ( $a->get_terms() ? $a->get_terms() : array() as $t ) { $opts[ $t->slug ] = $t->name; }
+			} else {
+				foreach ( $a->get_options() as $o ) { $opts[ $o ] = $o; }
+			}
+			$list[] = array(
+				'key'   => $key,
+				'label' => $a->is_taxonomy() ? wc_attribute_label( $a->get_name() ) : $a->get_name(),
+				'tax'   => $a->is_taxonomy() ? $a->get_name() : '',
+				'ids'   => $a->is_taxonomy() ? array_map( 'intval', $a->get_options() ) : array(),
+				'opts'  => $opts,
+				'vis'   => $a->get_visible(),
+				'var'   => $a->get_variation(),
+			);
+		}
+		return $list;
+	}
+	private static function attr_row( $i, $a, $taxes ) {
+		$tax = $a ? $a['tax'] : '';
+		echo '<div class="pp-attr" data-i="' . esc_attr( $i ) . '"><div class="pp-attr-h">';
+		echo '<select name="attr[' . esc_attr( $i ) . '][tax]" class="pp-attr-tax"><option value="">✎ ویژگی دلخواه (متنی)</option>';
+		foreach ( $taxes as $tk => $t ) { echo '<option value="' . esc_attr( $tk ) . '"' . selected( $tax, $tk, false ) . '>' . esc_html( $t['label'] ) . '</option>'; }
+		echo '</select><input type="text" class="pp-attr-name" name="attr[' . esc_attr( $i ) . '][name]" placeholder="نام ویژگی (مثلاً سایز)" value="' . esc_attr( $a && ! $tax ? $a['label'] : '' ) . '"' . ( $tax ? ' hidden' : '' ) . '>';
+		echo '<button type="button" class="pp-btn sm ghost pp-attr-x" aria-label="حذف ویژگی">حذف</button></div>';
+		foreach ( $taxes as $tk => $t ) {
+			echo '<div class="pp-attr-terms" data-tax="' . esc_attr( $tk ) . '"' . ( $tax === $tk ? '' : ' hidden' ) . '>';
+			foreach ( $t['terms'] as $term ) {
+				$on = $a && $tax === $tk && in_array( (int) $term->term_id, $a['ids'], true );
+				echo '<label class="pp-term"><input type="checkbox" name="attr[' . esc_attr( $i ) . '][terms][]" value="' . (int) $term->term_id . '"' . checked( $on, true, false ) . '><span>' . esc_html( $term->name ) . '</span></label>';
+			}
+			echo '</div>';
+		}
+		$vals = $a && ! $tax ? implode( ' | ', array_values( $a['opts'] ) ) : '';
+		echo '<input type="text" class="pp-attr-vals" name="attr[' . esc_attr( $i ) . '][values]" value="' . esc_attr( $vals ) . '" placeholder="' . esc_attr( $tax ? 'مقدار جدید (اختیاری) — مثلاً: طوسی | سرمه‌ای' : 'مقدارها را با | جدا کنید — مثلاً: S | M | L | XL' ) . '">';
+		echo '<div class="pp-attr-f"><label class="pp-chk"><input type="checkbox" name="attr[' . esc_attr( $i ) . '][var]" value="1"' . checked( $a ? $a['var'] : true, true, false ) . '> برای ساخت تنوع‌ها (سایز/رنگ قابل انتخاب)</label><label class="pp-chk"><input type="checkbox" name="attr[' . esc_attr( $i ) . '][vis]" value="1"' . checked( $a ? $a['vis'] : true, true, false ) . '> نمایش در مشخصات محصول</label></div></div>';
+	}
+	private static function var_row( $k, $v, $vattrs ) {
+		$vals = $v ? $v->get_attributes() : array();
+		$img  = $v ? (int) $v->get_image_id() : 0;
+		$n    = 'var[' . esc_attr( $k ) . ']';
+		echo '<tr class="pp-vrow' . ( $v && 'private' === $v->get_status() ? ' off' : '' ) . '"><td class="pp-vimg-c"><input type="hidden" name="' . $n . '[id]" value="' . (int) ( $v ? $v->get_id() : 0 ) . '"><input type="hidden" name="' . $n . '[image]" value="' . (int) $img . '"><button type="button" class="pp-vimg" title="تصویر این تنوع">' . ( $img ? wp_get_attachment_image( $img, array( 48, 48 ) ) : '<span>+🖼</span>' ) . '</button></td>'; // phpcs:ignore
+		echo '<td class="pp-vattrs" data-l="حالت">';
+		foreach ( $vattrs as $a ) {
+			$cur = isset( $vals[ $a['key'] ] ) ? $vals[ $a['key'] ] : '';
+			echo '<select name="' . $n . '[a][' . esc_attr( $a['key'] ) . ']" aria-label="' . esc_attr( $a['label'] ) . '"><option value="">هر ' . esc_html( $a['label'] ) . '</option>'; // phpcs:ignore
+			foreach ( $a['opts'] as $val => $lab ) { echo '<option value="' . esc_attr( $val ) . '"' . selected( (string) $cur, (string) $val, false ) . '>' . esc_html( $lab ) . '</option>'; }
+			echo '</select>';
+		}
+		echo '</td>';
+		$ms = $v ? $v->get_manage_stock() : false;
+		echo '<td data-l="قیمت اصلی"><input type="text" inputmode="numeric" dir="ltr" class="pp-in" name="' . $n . '[regular]" value="' . esc_attr( $v ? $v->get_regular_price() : '' ) . '"></td>'; // phpcs:ignore
+		echo '<td data-l="قیمت ویژه"><input type="text" inputmode="numeric" dir="ltr" class="pp-in" name="' . $n . '[sale]" value="' . esc_attr( $v ? $v->get_sale_price() : '' ) . '" placeholder="—"></td>'; // phpcs:ignore
+		echo '<td data-l="موجودی"><input type="number" step="1" dir="ltr" class="pp-in qty" name="' . $n . '[stock]" value="' . esc_attr( $ms ? (int) $v->get_stock_quantity() : '' ) . '" placeholder="∞" title="خالی = بدون شمارش موجودی"><select class="pp-in pp-vss" name="' . $n . '[ss]"' . ( $ms ? ' hidden' : '' ) . '>'; // phpcs:ignore
+		foreach ( array( 'instock' => 'موجود', 'outofstock' => 'ناموجود', 'onbackorder' => 'پیش‌فروش' ) as $sk => $sl ) { echo '<option value="' . esc_attr( $sk ) . '"' . selected( $v ? $v->get_stock_status() : 'instock', $sk, false ) . '>' . esc_html( $sl ) . '</option>'; }
+		echo '</select></td>';
+		echo '<td data-l="کد (SKU)"><input type="text" dir="ltr" class="pp-in" name="' . $n . '[sku]" value="' . esc_attr( $v ? $v->get_sku( 'edit' ) : '' ) . '"></td>'; // phpcs:ignore
+		echo '<td class="pp-act"><label class="pp-chk" title="فعال"><input type="checkbox" name="' . $n . '[on]" value="1"' . checked( $v ? 'private' !== $v->get_status() : true, true, false ) . '> فعال</label><label class="pp-chk pp-del" title="حذف این تنوع"><input type="checkbox" name="' . $n . '[del]" value="1"> حذف</label></td></tr>'; // phpcs:ignore
+	}
 	private static function page_edit() {
 		$id = isset( $_GET['id'] ) ? absint( $_GET['id'] ) : 0; // phpcs:ignore
 		$p  = $id ? wc_get_product( $id ) : null;
 		if ( $id && ( ! $p || ! current_user_can( 'edit_product', $id ) ) ) { echo '<p class="pp-empty">محصول پیدا نشد یا اجازه‌ی ویرایش آن را ندارید.</p>'; return; }
 		if ( ! $id && ! current_user_can( 'edit_products' ) ) { echo '<p class="pp-empty">اجازه‌ی افزودن محصول ندارید.</p>'; return; }
-		if ( $p && ! $p->is_type( 'simple' ) ) {
-			echo '<section class="pp-box"><p>این محصول از نوع «' . esc_html( $p->get_type() ) . '» است. برای ویرایش سایزها/رنگ‌ها از <a href="' . esc_url( get_edit_post_link( $id, 'raw' ) ) . '">ویرایشگر کامل ووکامرس</a> استفاده کنید. قیمت و موجودی هر حالت را می‌توانید در <a href="' . esc_url( self::url( 'products', array( 's' => $p->get_name() ) ) ) . '">لیست محصولات</a> سریع ویرایش کنید.</p></section>';
+		if ( $p && ! $p->is_type( 'simple' ) && ! $p->is_type( 'variable' ) ) {
+			echo '<section class="pp-box"><p>این محصول از نوع «' . esc_html( $p->get_type() ) . '» است و در <a href="' . esc_url( get_edit_post_link( $id, 'raw' ) ) . '">ویرایشگر کامل ووکامرس</a> ویرایش می‌شود.</p></section>';
 			return;
 		}
-		$v = function ( $m, $d = '' ) use ( $p ) { return $p ? $p->$m() : $d; };
+		$type    = $p && $p->is_type( 'variable' ) ? 'variable' : ( isset( $_GET['type'] ) && 'variable' === $_GET['type'] ? 'variable' : 'simple' ); // phpcs:ignore
+		$v       = function ( $m, $d = '' ) use ( $p ) { return $p ? $p->$m( 'edit' ) : $d; };
 		$cats    = $p ? $p->get_category_ids() : array();
 		$img     = $p ? (int) $p->get_image_id() : 0;
 		$gallery = $p ? array_map( 'intval', $p->get_gallery_image_ids() ) : array();
 		$status  = $p ? get_post_status( $id ) : 'publish';
+		$taxes   = self::attr_taxonomies();
+		$attrs   = self::product_attrs( $p );
+		$tags    = $p ? wp_get_post_terms( $id, 'product_tag', array( 'fields' => 'names' ) ) : array();
 
 		echo '<div class="pp-head"><h1>' . ( $p ? 'ویرایش: ' . esc_html( $p->get_name() ) : 'افزودن محصول جدید' ) . '</h1>';
 		if ( $p ) { echo '<div class="pp-head-x"><a class="pp-btn ghost" href="' . esc_url( get_permalink( $id ) ) . '" target="_blank" rel="noopener">مشاهده ↗</a><a class="pp-btn ghost" href="' . esc_url( get_edit_post_link( $id, 'raw' ) ) . '">ویرایشگر کامل</a></div>'; }
 		echo '</div>';
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" class="pp-edit"><input type="hidden" name="action" value="pp_save_product"><input type="hidden" name="id" value="' . (int) $id . '">';
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" class="pp-edit" data-type="' . esc_attr( $type ) . '"><input type="hidden" name="action" value="pp_save_product"><input type="hidden" name="id" value="' . (int) $id . '">';
 		wp_nonce_field( 'pp_save_product_' . $id, '_ppn', false );
+
+		echo '<div class="pp-types" role="radiogroup" aria-label="نوع محصول">';
+		foreach ( array( 'simple' => array( 'محصول ساده', 'یک قیمت و یک موجودی' ), 'variable' => array( 'محصول متغیر', 'چند حالت مثل سایز و رنگ، هر کدام با قیمت و موجودی خودش' ) ) as $tk => $tl ) {
+			echo '<label class="pp-type"><input type="radio" name="ptype" value="' . esc_attr( $tk ) . '"' . checked( $type, $tk, false ) . '><b>' . esc_html( $tl[0] ) . '</b><small>' . esc_html( $tl[1] ) . '</small></label>';
+		}
+		echo '</div>';
+
 		echo '<div class="pp-grid2 edit"><div>';
 		echo '<section class="pp-box pp-form"><label>نام محصول *<input type="text" name="name" required maxlength="200" value="' . esc_attr( $v( 'get_name' ) ) . '"></label>';
 		echo '<label>توضیح کوتاه (کنار عکس محصول)<textarea name="short" rows="3">' . esc_textarea( $v( 'get_short_description' ) ) . '</textarea></label>';
-		echo '<label>توضیحات کامل<textarea name="desc" rows="8">' . esc_textarea( $v( 'get_description' ) ) . '</textarea></label></section>';
-		echo '<section class="pp-box pp-form"><div class="pp-box-h"><h2>قیمت و موجودی</h2></div><div class="pp-row3">';
-		echo '<label>قیمت اصلی (' . esc_html( html_entity_decode( get_woocommerce_currency_symbol(), ENT_QUOTES, 'UTF-8' ) ) . ')<input type="text" inputmode="numeric" name="regular" dir="ltr" value="' . esc_attr( $v( 'get_regular_price' ) ) . '"></label>';
-		echo '<label>قیمت ویژه (اختیاری)<input type="text" inputmode="numeric" name="sale" dir="ltr" value="' . esc_attr( $v( 'get_sale_price' ) ) . '"></label>';
+		echo '<label>توضیحات کامل<textarea name="desc" rows="7">' . esc_textarea( $v( 'get_description' ) ) . '</textarea></label></section>';
+
+		/* قیمت و موجودی */
+		echo '<section class="pp-box pp-form"><div class="pp-box-h"><h2>قیمت و موجودی</h2></div>';
+		echo '<p class="pp-note pp-only-variable">قیمت و موجودی هر حالت در بخش «تنوع‌ها» پایین همین صفحه تعیین می‌شود.</p>';
+		echo '<div class="pp-row3 pp-only-simple">';
+		echo '<label>قیمت اصلی (' . esc_html( html_entity_decode( get_woocommerce_currency_symbol(), ENT_QUOTES, 'UTF-8' ) ) . ')<input type="text" inputmode="numeric" name="regular" dir="ltr" value="' . esc_attr( 'simple' === $type ? $v( 'get_regular_price' ) : '' ) . '"></label>';
+		echo '<label>قیمت ویژه (اختیاری)<input type="text" inputmode="numeric" name="sale" dir="ltr" value="' . esc_attr( 'simple' === $type ? $v( 'get_sale_price' ) : '' ) . '"></label>';
 		echo '<label>کد محصول / SKU<input type="text" name="sku" dir="ltr" value="' . esc_attr( $v( 'get_sku' ) ) . '"></label></div>';
 		$ms = $p ? $p->get_manage_stock() : true;
-		echo '<label class="pp-chk"><input type="checkbox" name="manage" value="1"' . checked( $ms, true, false ) . ' data-toggle=".pp-stock-q,.pp-stock-s"> مدیریت تعداد موجودی</label><div class="pp-row3">';
+		echo '<div class="pp-only-simple"><label class="pp-chk"><input type="checkbox" name="manage" value="1"' . checked( $ms, true, false ) . ' data-toggle=".pp-stock-q,.pp-stock-s"> مدیریت تعداد موجودی</label><div class="pp-row3">';
 		echo '<label class="pp-stock-q"' . ( $ms ? '' : ' hidden' ) . '>تعداد موجود<input type="number" name="stock" step="1" dir="ltr" value="' . esc_attr( $p ? (int) $p->get_stock_quantity() : 1 ) . '"></label>';
 		echo '<label class="pp-stock-s"' . ( $ms ? ' hidden' : '' ) . '>وضعیت موجودی<select name="stock_status">';
 		foreach ( array( 'instock' => 'موجود', 'outofstock' => 'ناموجود', 'onbackorder' => 'پیش‌فروش' ) as $k => $l ) { echo '<option value="' . esc_attr( $k ) . '"' . selected( $p ? $p->get_stock_status() : 'instock', $k, false ) . '>' . esc_html( $l ) . '</option>'; }
-		echo '</select></label><label>وزن (' . esc_html( get_option( 'woocommerce_weight_unit', 'kg' ) ) . ')<input type="text" inputmode="decimal" name="weight" dir="ltr" value="' . esc_attr( $v( 'get_weight' ) ) . '"></label></div></section></div>';
+		echo '</select></label></div></div>';
+		echo '<div class="pp-row3"><label>وزن (' . esc_html( get_option( 'woocommerce_weight_unit', 'kg' ) ) . ')<input type="text" inputmode="decimal" name="weight" dir="ltr" value="' . esc_attr( $v( 'get_weight' ) ) . '"></label>';
+		echo '<label class="pp-only-variable">کد محصول اصلی / SKU<input type="text" name="sku_v" dir="ltr" value="' . esc_attr( $v( 'get_sku' ) ) . '"></label></div></section>';
 
+		/* ویژگی‌ها */
+		echo '<section class="pp-box pp-form"><div class="pp-box-h"><h2>ویژگی‌ها (سایز، رنگ، جنس و…)</h2></div><p class="pp-note">ویژگی‌های سراسری فروشگاه (مثل رنگ) را از فهرست انتخاب کنید یا یک ویژگی دلخواه بسازید.</p><div class="pp-attrs">';
+		$i = 0;
+		foreach ( $attrs as $a ) { self::attr_row( $i++, $a, $taxes ); }
+		if ( ! $attrs ) { self::attr_row( $i++, null, $taxes ); }
+		echo '</div><template id="pp-attr-tpl">';
+		self::attr_row( '__I__', null, $taxes );
+		echo '</template><button type="button" class="pp-btn ghost sm pp-attr-add" data-next="' . (int) $i . '">+ افزودن ویژگی</button></section>';
+
+		/* تنوع‌ها */
+		$vattrs = array_values( array_filter( $attrs, function ( $a ) { return $a['var']; } ) );
+		echo '<section class="pp-box pp-form pp-only-variable"><div class="pp-box-h"><h2>تنوع‌ها (حالت‌های قابل خرید)</h2></div>';
+		echo '<div class="pp-gen"><label class="pp-chk"><input type="checkbox" name="gen_all" value="1"' . checked( ! $p || ! $p->is_type( 'variable' ) || ! $p->get_children(), true, false ) . '> با ذخیره، <b>همه‌ی ترکیب‌های</b> ویژگی‌ها خودکار ساخته شوند (فقط ترکیب‌هایی که هنوز نیستند)</label>';
+		echo '<div class="pp-row3"><label>قیمت اصلی برای همه<input type="text" inputmode="numeric" dir="ltr" name="bulk_regular" class="pp-bulk-in" data-f="regular"></label><label>قیمت ویژه برای همه<input type="text" inputmode="numeric" dir="ltr" name="bulk_sale" class="pp-bulk-in" data-f="sale"></label><label>موجودی برای همه<input type="number" step="1" dir="ltr" name="bulk_stock" class="pp-bulk-in" data-f="stock"></label></div>';
+		echo '<button type="button" class="pp-btn ghost sm pp-bulk-apply">اعمال روی همه‌ی ردیف‌های پایین</button> <small class="pp-inline">این مقادیر روی تنوع‌های تازه‌ساخته‌شده هم اعمال می‌شود.</small></div>';
+		if ( $p && $p->is_type( 'variable' ) && $vattrs ) {
+			$kids = array_slice( $p->get_children(), 0, 150 );
+			echo '<div class="pp-table-wrap"><table class="pp-table pp-vars"><thead><tr><th></th><th>حالت</th><th>قیمت اصلی</th><th>قیمت ویژه</th><th>موجودی</th><th>SKU</th><th></th></tr></thead><tbody>';
+			$k = 0;
+			foreach ( $kids as $vid ) { $vv = wc_get_product( $vid ); if ( $vv ) { self::var_row( $k++, $vv, $vattrs ); } }
+			echo '</tbody></table></div><template id="pp-var-tpl">';
+			self::var_row( '__K__', null, $vattrs );
+			echo '</template><button type="button" class="pp-btn ghost sm pp-var-add" data-next="' . (int) $k . '">+ افزودن یک تنوع</button>';
+			if ( ! $kids ) { echo '<p class="pp-note">هنوز تنوعی ساخته نشده؛ گزینه‌ی «همه‌ی ترکیب‌ها» را روشن کنید و ذخیره بزنید.</p>'; }
+		} else {
+			echo '<p class="pp-note">ویژگی‌ها را وارد کنید (مثلاً سایز: S | M | L) و ذخیره بزنید؛ تنوع‌ها خودکار ساخته می‌شوند و بعد قیمت و موجودی و تصویر هر کدام را همین‌جا تنظیم می‌کنید.</p>';
+		}
+		echo '</section></div>';
+
+		/* ستون کناری */
 		echo '<aside><section class="pp-box pp-form"><div class="pp-box-h"><h2>انتشار</h2></div><label>وضعیت<select name="status">';
 		$sts = array( 'publish' => 'منتشر شده', 'draft' => 'پیش‌نویس' );
 		if ( ! current_user_can( 'publish_products' ) ) { $sts = array( 'pending' => 'ارسال برای بررسی', 'draft' => 'پیش‌نویس' ); }
@@ -903,10 +1026,11 @@ final class Peecha_Panel {
 		echo '<section class="pp-box pp-form"><div class="pp-box-h"><h2>گالری تصاویر</h2></div><div class="pp-media" data-multiple="1"><input type="hidden" name="gallery" value="' . esc_attr( implode( ',', $gallery ) ) . '"><div class="pp-media-list">';
 		foreach ( $gallery as $gid ) { echo '<figure data-id="' . (int) $gid . '">' . wp_get_attachment_image( $gid, 'thumbnail' ) . '<button type="button" class="pp-media-x" aria-label="حذف">×</button></figure>'; }
 		echo '</div><button type="button" class="pp-btn ghost sm pp-media-add">افزودن تصاویر</button></div></section>';
-
 		echo '<section class="pp-box pp-form"><div class="pp-box-h"><h2>دسته‌بندی</h2></div><div class="pp-cats">';
 		self::cat_checks( 0, $cats, 0 );
-		echo '</div></section></aside></div></form>';
+		echo '</div></section>';
+		echo '<section class="pp-box pp-form"><div class="pp-box-h"><h2>برچسب‌ها</h2></div><label>با ویرگول جدا کنید<input type="text" name="tags" value="' . esc_attr( implode( '، ', (array) $tags ) ) . '" placeholder="تابستانه، نخی، پرفروش"></label></section>';
+		echo '</aside></div></form>';
 	}
 	private static function cat_checks( $parent, $sel, $depth ) {
 		if ( $depth > 4 ) { return; }
@@ -917,12 +1041,28 @@ final class Peecha_Panel {
 			self::cat_checks( $t->term_id, $sel, $depth + 1 );
 		}
 	}
+	private static function split_vals( $s ) {
+		return array_values( array_unique( array_filter( array_map( 'trim', preg_split( '/[|،,]+/u', (string) $s ) ), 'strlen' ) ) );
+	}
+	private static function price_pair( $reg, $sale ) {
+		$reg  = null === $reg ? '' : (string) $reg;
+		$sale = null === $sale ? '' : (string) $sale;
+		if ( '' !== $sale && '' !== $reg && (float) $sale >= (float) $reg ) { return array( $reg, '', true ); }
+		return array( $reg, $sale, false );
+	}
 	public static function act_save_product() {
 		$id = isset( $_POST['id'] ) ? absint( $_POST['id'] ) : 0; // phpcs:ignore
 		if ( ! current_user_can( $id ? 'edit_product' : 'edit_products', $id ) ) { wp_die( 'دسترسی ندارید.', 403 ); }
 		check_admin_referer( 'pp_save_product_' . $id, '_ppn' );
-		$p = $id ? wc_get_product( $id ) : new WC_Product_Simple();
-		if ( ! $p || ( $id && ! $p->is_type( 'simple' ) ) ) { self::back( 'err', self::url( 'products' ) ); }
+		$type = isset( $_POST['ptype'] ) && 'variable' === $_POST['ptype'] ? 'variable' : 'simple'; // phpcs:ignore
+		if ( $id ) {
+			$old = wc_get_product( $id );
+			if ( ! $old || ! ( $old->is_type( 'simple' ) || $old->is_type( 'variable' ) ) ) { self::back( 'err', self::url( 'products' ) ); }
+			$cls = WC_Product_Factory::get_product_classname( $id, $type );
+			$p   = $old->get_type() === $type ? $old : new $cls( $id );
+		} else {
+			$p = 'variable' === $type ? new WC_Product_Variable() : new WC_Product_Simple();
+		}
 		$name = isset( $_POST['name'] ) ? sanitize_text_field( wp_unslash( $_POST['name'] ) ) : ''; // phpcs:ignore
 		if ( '' === trim( $name ) ) { self::back( 'name', self::url( 'edit', $id ? array( 'id' => $id ) : array() ) ); }
 		$msg = 'saved';
@@ -930,23 +1070,26 @@ final class Peecha_Panel {
 		$p->set_name( $name );
 		$p->set_short_description( wp_kses_post( wp_unslash( isset( $_POST['short'] ) ? $_POST['short'] : '' ) ) ); // phpcs:ignore
 		$p->set_description( wp_kses_post( wp_unslash( isset( $_POST['desc'] ) ? $_POST['desc'] : '' ) ) ); // phpcs:ignore
-		$reg  = self::num_in( 'regular' );
-		$sale = self::num_in( 'sale' );
-		$p->set_regular_price( null === $reg ? '' : $reg );
-		if ( '' !== (string) $sale && null !== $sale && '' !== (string) $reg && (float) $sale >= (float) $reg ) { $msg = 'sale'; $p->set_sale_price( '' ); }
-		else { $p->set_sale_price( null === $sale ? '' : $sale ); }
 
-		$sku = isset( $_POST['sku'] ) ? wc_clean( wp_unslash( $_POST['sku'] ) ) : ''; // phpcs:ignore
-		if ( $sku !== $p->get_sku() ) {
+		$sku = wc_clean( wp_unslash( isset( $_POST[ 'variable' === $type ? 'sku_v' : 'sku' ] ) ? $_POST[ 'variable' === $type ? 'sku_v' : 'sku' ] : '' ) ); // phpcs:ignore
+		if ( $sku !== $p->get_sku( 'edit' ) ) {
 			if ( '' === $sku || wc_product_has_unique_sku( $id, $sku ) ) { try { $p->set_sku( $sku ); } catch ( Exception $e ) { $msg = 'sku'; } }
 			else { $msg = 'sku'; }
 		}
-		$manage = ! empty( $_POST['manage'] ); // phpcs:ignore
-		$p->set_manage_stock( $manage );
-		if ( $manage ) { $q = self::num_in( 'stock' ); $p->set_stock_quantity( '' === $q || null === $q ? 0 : (int) $q ); }
-		else {
-			$ss = isset( $_POST['stock_status'] ) ? sanitize_key( $_POST['stock_status'] ) : 'instock'; // phpcs:ignore
-			$p->set_stock_status( in_array( $ss, array( 'instock', 'outofstock', 'onbackorder' ), true ) ? $ss : 'instock' );
+		if ( 'simple' === $type ) {
+			list( $r, $s, $bad ) = self::price_pair( self::num_in( 'regular' ), self::num_in( 'sale' ) );
+			if ( $bad ) { $msg = 'sale'; }
+			$p->set_regular_price( $r );
+			$p->set_sale_price( $s );
+			$manage = ! empty( $_POST['manage'] ); // phpcs:ignore
+			$p->set_manage_stock( $manage );
+			if ( $manage ) { $q = self::num_in( 'stock' ); $p->set_stock_quantity( '' === $q || null === $q ? 0 : (int) $q ); }
+			else {
+				$ss = isset( $_POST['stock_status'] ) ? sanitize_key( $_POST['stock_status'] ) : 'instock'; // phpcs:ignore
+				$p->set_stock_status( in_array( $ss, array( 'instock', 'outofstock', 'onbackorder' ), true ) ? $ss : 'instock' );
+			}
+		} else {
+			$p->set_manage_stock( false );
 		}
 		$w = self::num_in( 'weight' );
 		if ( null !== $w ) { $p->set_weight( $w ); }
@@ -960,13 +1103,128 @@ final class Peecha_Panel {
 		$p->set_image_id( $img && wp_attachment_is_image( $img ) ? $img : '' );
 		$gal = isset( $_POST['gallery'] ) ? array_filter( array_map( 'absint', explode( ',', sanitize_text_field( wp_unslash( $_POST['gallery'] ) ) ) ) ) : array(); // phpcs:ignore
 		$p->set_gallery_image_ids( array_values( array_filter( array_slice( $gal, 0, 30 ), 'wp_attachment_is_image' ) ) );
-
-		$cats = isset( $_POST['cats'] ) ? array_filter( array_map( 'absint', (array) $_POST['cats'] ) ) : array(); // phpcs:ignore
+		$cats  = isset( $_POST['cats'] ) ? array_filter( array_map( 'absint', (array) $_POST['cats'] ) ) : array(); // phpcs:ignore
 		$valid = array();
 		foreach ( $cats as $c ) { if ( term_exists( $c, 'product_cat' ) ) { $valid[] = $c; } }
 		$p->set_category_ids( $valid );
 
+		/* ویژگی‌ها */
+		$attrs   = array();
+		$can_new = current_user_can( 'manage_product_terms' ) || current_user_can( 'edit_products' );
+		$pos     = 0;
+		foreach ( isset( $_POST['attr'] ) ? (array) wp_unslash( $_POST['attr'] ) : array() as $key => $row ) { // phpcs:ignore
+			if ( '__I__' === (string) $key || ! is_array( $row ) ) { continue; }
+			$tax  = isset( $row['tax'] ) ? sanitize_title( $row['tax'] ) : '';
+			$vals = self::split_vals( isset( $row['values'] ) ? sanitize_text_field( $row['values'] ) : '' );
+			$a    = new WC_Product_Attribute();
+			if ( $tax && taxonomy_exists( $tax ) && 0 === strpos( $tax, 'pa_' ) ) {
+				$ids = array_filter( array_map( 'absint', isset( $row['terms'] ) ? (array) $row['terms'] : array() ) );
+				if ( $can_new ) {
+					foreach ( $vals as $nv ) {
+						$ex = term_exists( $nv, $tax );
+						if ( ! $ex ) { $ex = wp_insert_term( $nv, $tax ); }
+						if ( ! is_wp_error( $ex ) && ! empty( $ex['term_id'] ) ) { $ids[] = (int) $ex['term_id']; }
+					}
+				}
+				$ids = array_values( array_unique( array_filter( $ids, function ( $t ) use ( $tax ) { return (bool) term_exists( (int) $t, $tax ); } ) ) );
+				if ( ! $ids ) { continue; }
+				$a->set_id( wc_attribute_taxonomy_id_by_name( $tax ) );
+				$a->set_name( $tax );
+				$a->set_options( $ids );
+			} else {
+				$nm = isset( $row['name'] ) ? sanitize_text_field( $row['name'] ) : '';
+				if ( '' === trim( $nm ) || ! $vals ) { continue; }
+				$a->set_id( 0 );
+				$a->set_name( $nm );
+				$a->set_options( $vals );
+			}
+			$a->set_position( $pos++ );
+			$a->set_visible( ! empty( $row['vis'] ) );
+			$a->set_variation( 'variable' === $type && ! empty( $row['var'] ) );
+			$attrs[] = $a;
+		}
+		$p->set_attributes( $attrs );
 		$new_id = $p->save();
+
+		/* تنوع‌ها */
+		if ( 'variable' === $type ) {
+			$p      = wc_get_product( $new_id );
+			$vattrs = array_values( array_filter( self::product_attrs( $p ), function ( $a ) { return $a['var']; } ) );
+			$allowed = array();
+			foreach ( $vattrs as $a ) { $allowed[ $a['key'] ] = array_map( 'strval', array_keys( $a['opts'] ) ); }
+			$existing = array();
+			$kids     = array_map( 'intval', $p->get_children() );
+			foreach ( isset( $_POST['var'] ) ? (array) wp_unslash( $_POST['var'] ) : array() as $key => $row ) { // phpcs:ignore
+				if ( '__K__' === (string) $key || ! is_array( $row ) ) { continue; }
+				$vid = isset( $row['id'] ) ? absint( $row['id'] ) : 0;
+				if ( $vid && ! in_array( $vid, $kids, true ) ) { continue; }
+				$vv = $vid ? wc_get_product( $vid ) : new WC_Product_Variation();
+				if ( ! $vv ) { continue; }
+				if ( ! empty( $row['del'] ) ) { if ( $vid ) { $vv->delete( true ); } continue; }
+				$va = array();
+				foreach ( $allowed as $ak => $opts ) {
+					$val = isset( $row['a'][ $ak ] ) ? (string) $row['a'][ $ak ] : '';
+					$va[ $ak ] = in_array( $val, $opts, true ) ? $val : '';
+				}
+				$vv->set_parent_id( $new_id );
+				$vv->set_attributes( $va );
+				list( $r, $s, $bad ) = self::price_pair( self::num_in( 'regular', $row ), self::num_in( 'sale', $row ) );
+				if ( $bad ) { $msg = 'sale'; }
+				$vv->set_regular_price( $r );
+				$vv->set_sale_price( $s );
+				$q = self::num_in( 'stock', $row );
+				if ( '' !== (string) $q && null !== $q ) { $vv->set_manage_stock( true ); $vv->set_stock_quantity( (int) $q ); }
+				else {
+					$vv->set_manage_stock( false );
+					$ss = isset( $row['ss'] ) ? sanitize_key( $row['ss'] ) : 'instock';
+					$vv->set_stock_status( in_array( $ss, array( 'instock', 'outofstock', 'onbackorder' ), true ) ? $ss : 'instock' );
+				}
+				$vsku = isset( $row['sku'] ) ? wc_clean( $row['sku'] ) : '';
+				if ( $vsku !== $vv->get_sku( 'edit' ) ) {
+					if ( '' === $vsku || wc_product_has_unique_sku( $vid, $vsku ) ) { try { $vv->set_sku( $vsku ); } catch ( Exception $e ) { $msg = 'sku'; } }
+					else { $msg = 'sku'; }
+				}
+				$vimg = isset( $row['image'] ) ? absint( $row['image'] ) : 0;
+				$vv->set_image_id( $vimg && wp_attachment_is_image( $vimg ) ? $vimg : '' );
+				$vv->set_status( empty( $row['on'] ) ? 'private' : 'publish' );
+				$vv->save();
+				$existing[] = wp_json_encode( $va );
+			}
+			foreach ( $kids as $kid ) { /* حالت‌هایی که در فرم نبودند (مثلاً بیش از ۱۵۰) */
+				$kv = wc_get_product( $kid );
+				if ( $kv && $kv->get_parent_id() === $new_id ) { $existing[] = wp_json_encode( array_intersect_key( array_merge( array_fill_keys( array_keys( $allowed ), '' ), $kv->get_attributes() ), $allowed ) ); }
+			}
+			if ( ! empty( $_POST['gen_all'] ) && $allowed ) { // phpcs:ignore
+				$combos = array( array() );
+				foreach ( $allowed as $ak => $opts ) {
+					$next = array();
+					foreach ( $combos as $c ) { foreach ( $opts as $o ) { $next[] = $c + array( $ak => $o ); if ( count( $next ) > 200 ) { break 2; } } }
+					$combos = $next;
+				}
+				$br = self::num_in( 'bulk_regular' ); $bs = self::num_in( 'bulk_sale' ); $bq = self::num_in( 'bulk_stock' );
+				list( $br, $bs ) = self::price_pair( $br, $bs );
+				$made = 0;
+				foreach ( $combos as $c ) {
+					if ( count( $c ) !== count( $allowed ) || in_array( wp_json_encode( $c ), $existing, true ) ) { continue; }
+					if ( ++$made > 100 ) { break; }
+					$nv = new WC_Product_Variation();
+					$nv->set_parent_id( $new_id );
+					$nv->set_attributes( $c );
+					$nv->set_regular_price( $br );
+					$nv->set_sale_price( $bs );
+					if ( '' !== (string) $bq && null !== $bq ) { $nv->set_manage_stock( true ); $nv->set_stock_quantity( (int) $bq ); }
+					$nv->set_status( 'publish' );
+					$nv->save();
+				}
+			}
+			WC_Product_Variable::sync( $new_id );
+			if ( function_exists( 'wc_delete_product_transients' ) ) { wc_delete_product_transients( $new_id ); }
+		}
+
+		/* برچسب‌ها */
+		if ( isset( $_POST['tags'] ) ) { // phpcs:ignore
+			wp_set_post_terms( $new_id, self::split_vals( sanitize_text_field( wp_unslash( $_POST['tags'] ) ) ), 'product_tag', false ); // phpcs:ignore
+		}
 		self::flush_stats();
 		self::back( $msg, self::url( 'edit', array( 'id' => $new_id ) ) );
 	}

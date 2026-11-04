@@ -139,3 +139,91 @@
 		history.replaceState(null, '', location.href.replace(/([?&])pp_msg=[^&]*&?/, '$1').replace(/[?&]$/, ''));
 	}
 })();
+
+/* ===== ویرایشگر پیشرفته‌ی محصول (ساده / متغیر) ===== */
+(function () {
+	'use strict';
+	var form = document.querySelector('.pp-edit');
+	if (!form) { return; }
+	var $ = function (s, c) { return (c || document).querySelector(s); };
+	var $$ = function (s, c) { return Array.prototype.slice.call((c || document).querySelectorAll(s)); };
+
+	/* نوع محصول */
+	$$('input[name="ptype"]', form).forEach(function (r) {
+		r.addEventListener('change', function () { if (r.checked) { form.setAttribute('data-type', r.value); } });
+	});
+
+	/* ویژگی‌ها */
+	var attrs = $('.pp-attrs', form), tpl = $('#pp-attr-tpl'), addA = $('.pp-attr-add', form);
+	function wireAttr(row) {
+		var sel = $('.pp-attr-tax', row), nm = $('.pp-attr-name', row), vals = $('.pp-attr-vals', row);
+		function sync() {
+			var t = sel.value;
+			$$('.pp-attr-terms', row).forEach(function (d) { d.hidden = d.getAttribute('data-tax') !== t; });
+			nm.hidden = !!t;
+			vals.placeholder = t ? 'مقدار جدید (اختیاری) — مثلاً: طوسی | سرمه‌ای' : 'مقدارها را با | جدا کنید — مثلاً: S | M | L | XL';
+		}
+		sel.addEventListener('change', sync);
+		$('.pp-attr-x', row).addEventListener('click', function () { if (window.confirm('این ویژگی حذف شود؟')) { row.parentNode.removeChild(row); } });
+	}
+	if (attrs) { $$('.pp-attr', attrs).forEach(wireAttr); }
+	if (addA && tpl && attrs) {
+		addA.addEventListener('click', function () {
+			var n = +addA.getAttribute('data-next'); addA.setAttribute('data-next', n + 1);
+			var box = document.createElement('div'); box.innerHTML = tpl.innerHTML.replace(/__I__/g, n);
+			var row = box.firstElementChild; attrs.appendChild(row); wireAttr(row);
+			var f = $('.pp-attr-name', row); if (f) { f.focus(); }
+		});
+	}
+
+	/* تنوع‌ها */
+	var vt = $('#pp-var-tpl'), addV = $('.pp-var-add', form), tbody = $('.pp-vars tbody', form);
+	function wireVar(row) {
+		var st = $('input[name$="[stock]"]', row), ss = $('.pp-vss', row);
+		if (st && ss) { st.addEventListener('input', function () { ss.hidden = st.value.trim() !== ''; }); }
+		var del = $('input[name$="[del]"]', row);
+		if (del) { del.addEventListener('change', function () { row.classList.toggle('del', del.checked); }); }
+		var on = $('input[name$="[on]"]', row);
+		if (on) { on.addEventListener('change', function () { row.classList.toggle('off', !on.checked); }); }
+	}
+	if (tbody) { $$('.pp-vrow', tbody).forEach(wireVar); }
+	if (addV && vt && tbody) {
+		addV.addEventListener('click', function () {
+			var c = +addV.getAttribute('data-next'); addV.setAttribute('data-next', c + 1);
+			var t = document.createElement('tbody'); t.innerHTML = vt.innerHTML.replace(/__K__/g, 'n' + c);
+			var row = t.firstElementChild; tbody.appendChild(row); wireVar(row);
+		});
+	}
+	var bulk = $('.pp-bulk-apply', form);
+	if (bulk) {
+		bulk.addEventListener('click', function () {
+			var n = 0;
+			$$('.pp-bulk-in', form).forEach(function (b) {
+				var v = b.value.trim(); if (!v) { return; }
+				$$('.pp-vrow input[name$="[' + b.getAttribute('data-f') + ']"]', form).forEach(function (i) { i.value = v; i.dispatchEvent(new Event('input')); n++; });
+			});
+			bulk.textContent = n ? 'اعمال شد ✔ (' + n + ')' : 'ابتدا یک مقدار بنویسید';
+			setTimeout(function () { bulk.textContent = 'اعمال روی همه‌ی ردیف‌های پایین'; }, 2200);
+		});
+	}
+	/* تصویر هر تنوع */
+	form.addEventListener('click', function (e) {
+		var b = e.target.closest('.pp-vimg'); if (!b) { return; }
+		e.preventDefault();
+		if (!window.wp || !wp.media) { return; }
+		var input = b.closest('tr').querySelector('input[name$="[image]"]');
+		var fr = wp.media({ title: 'تصویر این تنوع', multiple: false, library: { type: 'image' }, button: { text: 'انتخاب' } });
+		fr.on('select', function () {
+			var j = fr.state().get('selection').first().toJSON();
+			var u = j.sizes && j.sizes.thumbnail ? j.sizes.thumbnail.url : j.url;
+			input.value = j.id; b.innerHTML = ''; var im = document.createElement('img'); im.src = u; im.alt = ''; b.appendChild(im);
+		});
+		fr.open();
+	});
+	/* اعداد فارسی در همه‌ی فیلدهای عددی */
+	form.addEventListener('submit', function () {
+		$$('input[inputmode],input[type=number]', form).forEach(function (i) {
+			i.value = String(i.value).replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); }).replace(/[٠-٩]/g, function (d) { return d.charCodeAt(0) - 1632; }).replace(/[,٬]/g, '').trim();
+		});
+	}, true);
+})();
