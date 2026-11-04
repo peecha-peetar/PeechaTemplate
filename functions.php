@@ -2903,7 +2903,7 @@ function sahel_home_html() {
     $logo = esc_url( sahel_logo_url() );
     $brand = sahel_brand(); $brand_short = sahel_brand_short(); $brand_en = sahel_brand_en();
 
-    if ( 'slider' !== sahel_hero_mode() ) { $ob .= sahel_hero_html(); } elseif ( get_theme_mod( 'sahel_slider_on', 1 ) ) {
+    if ( get_theme_mod( 'sahel_slider_on', 1 ) ) {
         $count = max( 1, min( 10, (int) get_theme_mod( 'sahel_slide_count', 3 ) ) );
         $rendered = array();
         for ( $i = 1; $i <= $count; $i++ ) {
@@ -2928,6 +2928,7 @@ function sahel_home_html() {
             $ovl_style .= isset( $sd['n'] ) ? sahel_slide_type_vars( $sd['n'] ) : '';
             $sx = isset( $sd['n'] ) ? sahel_slide_extras( $sd['n'], $sd ) : array( 'cls' => '', 'style' => '', 'top' => '', 'ui' => '', 'under' => '', 'over' => '' );
             $ovl_style .= $sx['style'];
+            if ( function_exists( 'sahel_is_new_slide_model' ) && sahel_is_new_slide_model( $slst ) ) { $ob .= sahel_slide_model_html( $sd, $slst, $i, $ovl_style, $sx ); continue; }
             $ob .= '<section class="slide' . ( 0 === $i ? ' active' : '' ) . ' slst-' . sanitize_html_class( $slst ) . $sx['cls'] . '" style="' . esc_attr( $ovl_style ) . '"><div class="sb-wrap">';
             if ( $sd['bgtype'] === 'video' && ! empty( $sd['video'] ) ) {
                 $ob .= '<video class="slide-bg slide-video" muted loop playsinline' . ( 0 === $i ? ' autoplay preload="auto" src="' . esc_url( $sd['video'] ) . '"' : ' preload="none" data-src="' . esc_url( $sd['video'] ) . '"' ) . ( $sd['img'] ? ' poster="' . esc_url( $sd['img'] ) . '"' : '' ) . '></video>';
@@ -4346,7 +4347,7 @@ function sahel_slide_extras( $n, $sd ) {
     $txfx = get_theme_mod( $k . '_txfx', '' );
     $kb = get_theme_mod( $k . '_kb', '' );
     if ( in_array( $mfx, array( 'parallax', 'tilt', 'spotlight', 'reveal', 'zoom' ), true ) ) { $out['cls'] .= ' mfx-' . $mfx; }
-    if ( in_array( $txfx, array( 'fade', 'zoom', 'blur', 'side', 'flip', 'words' ), true ) ) { $out['cls'] .= ' txfx-' . $txfx; }
+    if ( in_array( $txfx, array( 'fade', 'zoom', 'blur', 'side', 'flip', 'words', 'mask', 'letters', 'type', 'glow' ), true ) ) { $out['cls'] .= ' txfx-' . $txfx; }
     if ( in_array( $kb, array( 'in', 'out', 'pan', 'none' ), true ) ) { $out['cls'] .= ' kb-' . $kb; }
     if ( in_array( get_theme_mod( $k . '_sc_mode', '' ), array( 'own', 'none' ), true ) ) { $out['cls'] .= ' sc-hide-shared'; }
     $img2 = get_theme_mod( $k . '_image2', '' );
@@ -5693,3 +5694,466 @@ function sahel_pwa_customize( $w ) {
     $w->add_setting( 'sahel_pwa_icon', array( 'default' => '', 'sanitize_callback' => 'esc_url_raw' ) );
     $w->add_control( new WP_Customize_Image_Control( $w, 'sahel_pwa_icon', array( 'label' => 'آیکون اپ (PNG مربعی ۵۱۲×۵۱۲)', 'description' => 'اگر خالی باشد از «آیکون سایت» در بخش هویت سایت و در نبود آن از حرف اول برند استفاده می‌شود.', 'section' => 'sahel_pwa' ) ) );
 }
+
+/* =====================================================================
+ * v6.3 — مدل‌های جدید اسلاید (هر اسلاید مدل خودش را دارد)
+ * مدل‌های «هیرو» به فهرست مدل اسلایدها منتقل شدند + مدل‌ها و افکت‌های تازه
+ * ===================================================================== */
+function sahel_slide_models_new() {
+    return array(
+        'h-type'      => '✍ تایپوگرافی بزرگ (تیتر غول‌پیکر وسط + خط متحرک)',
+        'h-split'     => '🌗 دوبخشی قوسی (متن + تصویر در قاب قوسی + آمار)',
+        'h-editorial' => '📰 ادیتوریال مد (کلاژ سه تصویر)',
+        'h-full'      => '🎞 تمام‌قاب با کپشن پایین (تصویر یا ویدئو)',
+        'h-marquee'   => '🔤 نام برند بزرگ متحرک پشت تصویر',
+        'h-cats'      => '🗂 تیتر + کارت دسته‌بندی‌ها',
+        'png'         => '👟 محصول PNG با بندانگشتی (کلیک = عوض شدن تصویر)',
+        'ring'        => '⭕ تصویر دایره‌ای با متن چرخان دورش',
+        'stack'       => '🃏 کارت‌های سه‌بعدی روی هم (با ماوس باز می‌شوند)',
+        'mosaic'      => '🧩 موزاییک (تصویر تکه‌تکه با افکت چیده‌شدن)',
+        'outline'     => '🅾 متن توخالی غول‌پیکر پشت محصول',
+        'blob'        => '🫧 قاب حبابی متحرک (تصویر در شکل مایع)',
+    );
+}
+function sahel_is_new_slide_model( $m ) { return array_key_exists( (string) $m, sahel_slide_models_new() ); }
+
+/* مدل‌های جدید به فهرست «مدل این اسلاید» و «قالب کلی اسلایدر» اضافه می‌شوند */
+add_action( 'customize_register', 'sahel_v63_customize', 41 );
+function sahel_v63_customize( $w ) {
+    $new = sahel_slide_models_new();
+    if ( $c = $w->get_control( 'sahel_slider_style' ) ) { $c->choices += $new; }
+    if ( $c = $w->get_control( 'sahel_slider_fx' ) ) {
+        $c->choices += array(
+            'curtain' => '🎭 پرده دوطرفه (باز شدن از وسط)',
+            'diag'    => '◢ برش مورب',
+            'blinds'  => '🪟 کرکره‌ای (نوارهای عمودی)',
+            'cube'    => '🧊 مکعب سه‌بعدی',
+            'slideup' => '⬆ کشویی عمودی',
+            'zoomout' => '🔍 زوم به بیرون + ورود نرم',
+            'glitch'  => '⚡ گلیچ (لرزش رنگی سریع)',
+            'stack'   => '🗂 کارتی (اسلاید قبلی کوچک و محو می‌شود)',
+        );
+    }
+    $max = min( 10, max( 1, (int) get_theme_mod( 'sahel_slide_count', 3 ) ) + 1 );
+    for ( $i = 1; $i <= $max; $i++ ) {
+        $sl = 'sahel_slide' . $i;
+        if ( ! $w->get_section( $sl ) ) { continue; }
+        if ( $c = $w->get_control( $sl . '_style' ) ) {
+            $c->choices += $new;
+            $c->description = 'مدل‌های جدید از همین فیلدهای اسلاید استفاده می‌کنند. تصویر دوم/سوم/چهارم برای کلاژ، کارت‌ها، PNG و بندانگشتی‌هاست. برای مدل PNG و متن توخالی، پس‌زمینه را «رنگ ساده» یا «گرادیانت» بگذارید.';
+        }
+        if ( $c = $w->get_control( $sl . '_txfx' ) ) {
+            $c->choices += array( 'mask' => 'آشکار شدن از پشت ماسک', 'letters' => 'حرف‌به‌حرف (تیتر)', 'type' => 'تایپ‌شدن (ماشین تحریر)', 'glow' => 'درخشش نئونی' );
+        }
+        foreach ( array( 3 => 'تصویر سوم (کلاژ / کارت‌ها / PNG)', 4 => 'تصویر چهارم (کارت‌ها / PNG)' ) as $n => $l ) {
+            $w->add_setting( $sl . '_image' . $n, array( 'default' => '', 'sanitize_callback' => 'esc_url_raw' ) );
+            $w->add_control( new WP_Customize_Image_Control( $w, $sl . '_image' . $n, array( 'label' => '🖼 ' . $l, 'section' => $sl ) ) );
+        }
+        $w->add_setting( $sl . '_big', array( 'default' => '', 'sanitize_callback' => 'sanitize_text_field' ) );
+        $w->add_control( $sl . '_big', array( 'label' => '🔤 متن بزرگ تزئینی (مدل‌های نام برند، دایره‌ای، توخالی — خالی = نام انگلیسی برند)', 'section' => $sl, 'type' => 'text' ) );
+        $w->add_setting( $sl . '_png_pos', array( 'default' => 'bottom', 'sanitize_callback' => 'sanitize_key' ) );
+        $w->add_control( $sl . '_png_pos', array( 'label' => '👟 مدل PNG — محل بندانگشتی‌ها', 'section' => $sl, 'type' => 'select', 'choices' => array( 'bottom' => 'پایین تصویر', 'top' => 'بالای تصویر', 'right' => 'سمت راست تصویر', 'left' => 'سمت چپ تصویر', 'none' => 'بدون بندانگشتی (عوض شدن خودکار)' ) ) );
+        $w->add_setting( $sl . '_png_size', array( 'default' => 82, 'sanitize_callback' => 'absint' ) );
+        $w->add_control( $sl . '_png_size', array( 'label' => '👟 مدل PNG — اندازه تصویر (درصد ارتفاع اسلاید)', 'section' => $sl, 'type' => 'number', 'input_attrs' => array( 'min' => 30, 'max' => 110 ) ) );
+        $w->add_setting( $sl . '_png_auto', array( 'default' => 0, 'sanitize_callback' => 'absint' ) );
+        $w->add_control( $sl . '_png_auto', array( 'label' => '👟 مدل PNG — تصاویر خودکار هم عوض شوند', 'section' => $sl, 'type' => 'checkbox' ) );
+        $w->add_setting( $sl . '_stats', array( 'default' => 1, 'sanitize_callback' => 'absint' ) );
+        $w->add_control( $sl . '_stats', array( 'label' => '📊 نمایش آمار (مدل دوبخشی قوسی)', 'section' => $sl, 'type' => 'checkbox' ) );
+    }
+    /* بخش جداگانه‌ی «هیرو» دیگر لازم نیست؛ همه‌ی مدل‌هایش داخل مدل هر اسلاید است */
+    if ( $w->get_section( 'sahel_hero' ) ) { $w->remove_section( 'sahel_hero' ); }
+}
+
+/* انتقال خودکار تنظیمات قبلی هیرو به اسلاید ۱ (فقط یک‌بار) */
+add_action( 'init', 'sahel_v63_migrate_hero', 5 );
+function sahel_v63_migrate_hero() {
+    if ( get_theme_mod( 'sahel_v63_hero_migrated' ) ) { return; }
+    $mode = get_theme_mod( 'sahel_hero_mode', 'slider' );
+    if ( in_array( $mode, array( 'type', 'split', 'editorial', 'full', 'marquee', 'cats' ), true ) ) {
+        set_theme_mod( 'sahel_slide1_style', 'h-' . $mode );
+        $map = array( 'label' => 'pill', 't1' => 't1', 't2' => 't2', 'desc' => 'desc', 'b1' => 'btn', 'u1' => 'url', 'b2' => 'btn2', 'u2' => 'url2', 'img1' => 'image', 'img2' => 'image2', 'img3' => 'image3', 'video' => 'video', 'big' => 'big', 'stats' => 'stats' );
+        $mods = get_theme_mods();
+        foreach ( $map as $from => $to ) {
+            if ( is_array( $mods ) && array_key_exists( 'sahel_hero_' . $from, $mods ) && '' !== $mods[ 'sahel_hero_' . $from ] ) { set_theme_mod( 'sahel_slide1_' . $to, $mods[ 'sahel_hero_' . $from ] ); }
+        }
+        if ( 'full' === $mode && ! empty( $mods['sahel_hero_video'] ) ) { set_theme_mod( 'sahel_slide1_bgtype', 'video' ); }
+    }
+    set_theme_mod( 'sahel_hero_mode', 'slider' );
+    set_theme_mod( 'sahel_v63_hero_migrated', 1 );
+}
+
+/* ساخت HTML یک اسلاید با مدل جدید */
+function sahel_slide_model_html( $sd, $m, $idx, $style, $sx ) {
+    $n  = isset( $sd['n'] ) ? (int) $sd['n'] : 1;
+    $k  = 'sahel_slide' . $n;
+    $g  = function ( $s, $d = '' ) use ( $k ) { return get_theme_mod( $k . $s, $d ); };
+    $eager = 0 === $idx;
+    $im = function ( $src, $cls = '', $first = false ) use ( $eager ) {
+        if ( ! $src ) { return ''; }
+        return '<img' . ( $cls ? ' class="' . esc_attr( $cls ) . '"' : '' ) . ' src="' . esc_url( $src ) . '" alt=""' . ( $eager && $first ? ' fetchpriority="high"' : ' loading="lazy"' ) . ' decoding="async">';
+    };
+    $i1 = $sd['img'];
+    $i2 = $g( '_image2', '' ); $i3 = $g( '_image3', '' ); $i4 = $g( '_image4', '' );
+    $big = trim( (string) $g( '_big', '' ) ); if ( '' === $big ) { $big = sahel_brand_en(); }
+    $url  = $sd['url'] ? $sd['url'] : sahel_shop_url();
+    $al   = in_array( $sd['align'], array( 'right', 'center', 'left' ), true ) ? $sd['align'] : 'right';
+
+    /* بلوک متن مشترک (با تایپوگرافی و انیمیشن‌های اختصاصی هر اسلاید) */
+    $txt = function ( $align = null, $with_cta = true, $extra = '' ) use ( $sd, $url, $al ) {
+        $a = 'al-' . ( $align ? $align : $al );
+        $o = '<div class="slide-txt sm-txt ' . esc_attr( $a ) . '">';
+        if ( $sd['pill'] ) { $o .= '<span class="pill"><i></i>' . esc_html( $sd['pill'] ) . '</span>'; }
+        if ( $sd['t1'] || $sd['t2'] ) { $o .= '<h1>' . esc_html( $sd['t1'] ) . ( $sd['t1'] && $sd['t2'] ? '<br>' : '' ) . ( $sd['t2'] ? '<span class="grad-text">' . esc_html( $sd['t2'] ) . '</span>' : '' ) . '</h1>'; }
+        if ( $sd['desc'] ) { $o .= '<p>' . esc_html( $sd['desc'] ) . '</p>'; }
+        if ( $with_cta ) { $o .= sahel_slide_cta( $sd, $url ); }
+        return $o . $extra . '</div>';
+    };
+
+    /* پس‌زمینه: رنگ/گرادیانت انتخابی اسلاید؛ در غیر این صورت رنگ کرم قالب */
+    $bgst = '';
+    if ( 'color' === $sd['bgtype'] ) { $bgst = ';--sm-bg:' . $sd['bgcolor1']; }
+    elseif ( 'gradient' === $sd['bgtype'] ) { $bgst = ';--sm-bg:linear-gradient(135deg,' . $sd['bgcolor1'] . ',' . $sd['bgcolor2'] . ')'; }
+    $media_bg = '';
+    if ( 'video' === $sd['bgtype'] && ! empty( $sd['video'] ) ) {
+        $media_bg = '<video class="slide-bg slide-video" muted loop playsinline' . ( $eager ? ' autoplay preload="auto" src="' . esc_url( $sd['video'] ) . '"' : ' preload="none" data-src="' . esc_url( $sd['video'] ) . '"' ) . ( $i1 ? ' poster="' . esc_url( $i1 ) . '"' : '' ) . '></video>';
+    } else {
+        $media_bg = $im( $i1, 'slide-bg', true );
+    }
+    $flip = 'left' === $al ? ' sm-flip' : '';
+    $h = '';
+    switch ( $m ) {
+        case 'h-type':
+            $h = '<div class="sm-deco" aria-hidden="true"><i></i><i></i><i></i></div><div class="wrap sm-type">' . $txt( 'center', true, '<div class="sm-line"></div>' ) . '</div>';
+            break;
+        case 'h-split':
+            $stats = '';
+            if ( (int) $g( '_stats', 1 ) ) {
+                $stats = '<div class="sm-stats">';
+                foreach ( array( array( 'sahel_stat1', '8000', 'sahel_stat1_label', 'مشتری خوشحال', '+' ), array( 'sahel_stat2', '450', 'sahel_stat2_label', 'محصول متنوع', '+' ), array( 'sahel_stat3', '98', 'sahel_stat3_label', 'رضایت خرید', '٪' ) ) as $st ) {
+                    $stats .= '<div><b>' . esc_html( sahel_fa( get_theme_mod( $st[0], $st[1] ) ) . $st[4] ) . '</b><span>' . esc_html( get_theme_mod( $st[2], $st[3] ) ) . '</span></div>';
+                }
+                $stats .= '</div>';
+            }
+            $h = '<div class="wrap sm-split' . $flip . '">' . $txt( 'right', true, $stats ) . '<div class="sm-arch">' . $media_bg . '<span class="sm-arch-ring" aria-hidden="true"></span></div></div>';
+            break;
+        case 'h-editorial':
+            $h = '<div class="wrap sm-edit' . $flip . '"><div class="sm-m m1">' . $im( $i2 ? $i2 : $i1 ) . '</div><div class="sm-m m2">' . $im( $i1, '', true ) . '</div><div class="sm-m m3">' . $im( $i3 ? $i3 : $i1 ) . '</div>' . $txt( 'right' ) . '</div>';
+            break;
+        case 'h-full':
+            $h = '<div class="sb-wrap">' . $media_bg . '</div><div class="sm-shade"></div><div class="wrap sm-full">' . $txt( 'right', false ) . sahel_slide_cta( $sd, $url ) . '</div>';
+            break;
+        case 'h-marquee':
+            $row = str_repeat( '<span>' . esc_html( $big ) . ' ✦ </span>', 4 );
+            $h = '<div class="sm-big" aria-hidden="true"><div>' . $row . $row . '</div></div><div class="wrap sm-mq' . $flip . '">' . $txt( 'right' ) . '<div class="sm-center">' . $im( $i1, '', true ) . '</div></div>';
+            break;
+        case 'h-cats':
+            $cards = '';
+            $fbc = 'https://image.qwenlm.ai/public_source/593f1887-5498-4920-ad1d-3f467426cd05/16752e62d-5c58-45c7-891c-b787a0344a6c.png';
+            if ( function_exists( 'sahel_product_cats' ) ) {
+                foreach ( array_slice( (array) sahel_product_cats(), 0, 4 ) as $ci => $c ) {
+                    if ( ! is_object( $c ) ) { continue; }
+                    $link = get_term_link( $c );
+                    $cards .= '<a class="sm-card" style="--i:' . (int) $ci . '" href="' . esc_url( is_wp_error( $link ) ? '#' : $link ) . '">' . $im( sahel_cat_img( $c, $fbc ) ) . '<b>' . esc_html( $c->name ) . '</b></a>';
+                }
+            }
+            $h = '<div class="wrap sm-cats">' . $txt( 'right' ) . ( $cards ? '<div class="sm-cards">' . $cards . '</div>' : '' ) . '</div>';
+            break;
+        case 'png':
+            $list = array_values( array_filter( array( $i1, $i2, $i3, $i4 ) ) );
+            $pos  = $g( '_png_pos', 'bottom' );
+            $pos  = in_array( $pos, array( 'bottom', 'top', 'right', 'left', 'none' ), true ) ? $pos : 'bottom';
+            $size = max( 30, min( 110, (int) $g( '_png_size', 82 ) ) );
+            $stage = '<div class="sm-png-stage">';
+            foreach ( $list as $pi => $src ) { $stage .= '<img class="sm-png' . ( 0 === $pi ? ' on' : '' ) . '" src="' . esc_url( $src ) . '" alt=""' . ( 0 === $pi && $eager ? ' fetchpriority="high"' : ' loading="lazy"' ) . ' decoding="async">'; }
+            $stage .= '<span class="sm-png-shadow" aria-hidden="true"></span><span class="sm-png-disc" aria-hidden="true"></span></div>';
+            $thumbs = '';
+            if ( count( $list ) > 1 && 'none' !== $pos ) {
+                $thumbs = '<div class="sm-thumbs" role="tablist" aria-label="تصاویر محصول">';
+                foreach ( $list as $pi => $src ) { $thumbs .= '<button type="button" class="sm-thumb' . ( 0 === $pi ? ' on' : '' ) . '" data-i="' . (int) $pi . '" aria-label="تصویر ' . esc_attr( sahel_fa( $pi + 1 ) ) . '"><img src="' . esc_url( $src ) . '" alt="" loading="lazy" decoding="async"></button>'; }
+                $thumbs .= '</div>';
+            }
+            $auto = ( (int) $g( '_png_auto', 0 ) || 'none' === $pos ) && count( $list ) > 1 ? ' data-auto="1"' : '';
+            $h = '<div class="wrap sm-pngw' . $flip . '">' . $txt( 'right' ) . '<div class="sm-png-box tp-' . esc_attr( $pos ) . '" style="--png-h:' . $size . '%"' . $auto . '>' . $stage . $thumbs . '</div></div>';
+            break;
+        case 'ring':
+            $rid = 'smr' . $n;
+            $ring = '<svg class="sm-ring-txt" viewBox="0 0 200 200" aria-hidden="true"><defs><path id="' . $rid . '" d="M100,100 m-86,0 a86,86 0 1,1 172,0 a86,86 0 1,1 -172,0"/></defs><text><textPath href="#' . $rid . '">' . esc_html( str_repeat( $big . ' • ', 3 ) ) . '</textPath></text></svg>';
+            $h = '<div class="wrap sm-ringw' . $flip . '">' . $txt( 'right' ) . '<div class="sm-ring">' . $ring . '<div class="sm-ring-img">' . $media_bg . '</div><span class="sm-ring-dot d1"></span><span class="sm-ring-dot d2"></span></div></div>';
+            break;
+        case 'stack':
+            $cards = array_values( array_filter( array( $i1, $i2 ? $i2 : $i1, $i3 ? $i3 : $i1 ) ) );
+            $st = '<div class="sm-stack">';
+            foreach ( array_reverse( $cards, true ) as $ci => $src ) { $st .= '<figure class="sm-sc c' . ( (int) $ci + 1 ) . '">' . $im( $src, '', 0 === $ci ) . '</figure>'; }
+            $st .= '</div>';
+            $h = '<div class="wrap sm-stackw' . $flip . '">' . $txt( 'right' ) . $st . '</div>';
+            break;
+        case 'mosaic':
+            $tiles = '<div class="sm-mosaic" aria-hidden="true">';
+            $cols = 4; $rows = 3; $t = 0;
+            for ( $r = 0; $r < $rows; $r++ ) { for ( $c = 0; $c < $cols; $c++ ) {
+                $tiles .= '<i style="--i:' . ( $r + $c ) . ';--tx:' . ( -25 * $c ) . '%;--ty:' . round( -100 / 3 * $r, 3 ) . '%"></i>'; $t++;
+            } }
+            $tiles .= '</div>';
+            $h = '<div class="sb-wrap sm-mos-bg" style="--mos:url(' . esc_url( $i1 ) . ')">' . $tiles . '</div><div class="slide-ovl"></div><div class="wrap sm-mosw">' . $txt( null ) . '</div>';
+            break;
+        case 'outline':
+            $h = '<div class="sm-outline" aria-hidden="true"><span>' . esc_html( $big ) . '</span></div><div class="wrap sm-outw' . $flip . '">' . $txt( 'right' ) . '<div class="sm-out-img">' . $im( $i1, '', true ) . '</div></div>';
+            break;
+        case 'blob':
+            $h = '<div class="wrap sm-blobw' . $flip . '">' . $txt( 'right' ) . '<div class="sm-blob"><div class="sm-blob-in">' . $media_bg . '</div><span class="sm-blob-b b1"></span><span class="sm-blob-b b2"></span></div></div>';
+            break;
+    }
+    $cls = 'slide' . ( 0 === $idx ? ' active' : '' ) . ' slst-' . sanitize_html_class( $m ) . ' smx' . ( $sx['cls'] ? $sx['cls'] : '' ) . ( $bgst ? ' sm-has-bg' : '' );
+    return '<section class="' . esc_attr( trim( $cls ) ) . '" style="' . esc_attr( ltrim( $style . $bgst, ';' ) ) . '">' . $h . '</section>';
+}
+function sahel_slide_cta( $sd, $url ) {
+    if ( ! $sd['btn'] && empty( $sd['btn2'] ) ) { return ''; }
+    $o = '<div class="hero-cta">';
+    if ( $sd['btn'] ) { $o .= '<a class="btn btn-primary" href="' . esc_url( $url ) . '">' . esc_html( $sd['btn'] ) . '</a>'; }
+    if ( ! empty( $sd['btn2'] ) ) { $o .= '<a class="btn btn-ghost" href="' . esc_url( ! empty( $sd['url2'] ) ? $sd['url2'] : sahel_shop_url() ) . '">' . esc_html( $sd['btn2'] ) . '</a>'; }
+    return $o . '</div>';
+}
+add_action( 'wp_head', function() {
+    echo '<style id="sahel-v63">' . <<<'SHCSS63'
+/* فلش‌های اسلایدر روی متن نیفتند */
+@media(min-width:921px){.slider .slide .wrap{padding-inline:max(24px,96px)}}
+/* ===== پایه‌ی مدل‌های جدید ===== */
+.slide.smx{background:var(--sm-bg,linear-gradient(135deg,var(--cream),var(--bg)))}
+.slide.smx>.wrap{position:absolute;inset:0;margin-inline:auto;height:auto;padding-top:56px;padding-bottom:56px;box-sizing:border-box}
+.slide.smx .sm-txt{position:relative;z-index:3}
+.slide.smx img{display:block}
+.sm-split,.sm-mq,.sm-pngw,.sm-ringw,.sm-stackw,.sm-outw,.sm-blobw,.sm-cats{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center;grid-template-rows:minmax(0,100%);height:100%}
+.sm-edit{height:100%}
+.sm-flip>.sm-txt{order:2}
+@keyframes smRise{from{opacity:0;transform:translateY(46px)}to{opacity:1;transform:none}}
+@keyframes smPop{from{opacity:0;transform:scale(.82)}to{opacity:1;transform:none}}
+@keyframes smSpin{to{transform:rotate(360deg)}}
+@keyframes smFloat{50%{transform:translateY(-14px)}}
+/* تایپوگرافی بزرگ */
+.slst-h-type .sm-type{display:flex;align-items:center;justify-content:center}
+.slst-h-type .sm-txt{max-width:1000px;margin-inline:auto;text-align:center}
+.slst-h-type .sm-txt h1{font-size:clamp(2.6rem,7.4vw,6.3rem);line-height:1.18;letter-spacing:-1.5px}
+.slst-h-type .sm-txt p{max-width:620px;margin-inline:auto}
+.slst-h-type .hero-cta{justify-content:center}.slst-h-type .pill{margin-inline:auto}
+.sm-line{height:2px;width:0;margin:32px auto 0;background:var(--grad);border-radius:2px}
+.slide.active .sm-line{animation:smLine 1.4s .7s cubic-bezier(.2,.7,.2,1) forwards}
+@keyframes smLine{to{width:min(420px,60%)}}
+.sm-deco i{position:absolute;border-radius:50%;filter:blur(50px);opacity:.45;animation:smFloat 9s ease-in-out infinite}
+.sm-deco i:nth-child(1){width:300px;height:300px;background:var(--c1);top:-80px;right:8%}
+.sm-deco i:nth-child(2){width:220px;height:220px;background:var(--caramel);bottom:-60px;left:12%;animation-delay:-3s}
+.sm-deco i:nth-child(3){width:140px;height:140px;background:var(--c1);top:40%;left:42%;opacity:.2;animation-delay:-6s}
+/* دوبخشی قوسی */
+.sm-arch{position:relative;height:100%;max-height:540px;aspect-ratio:4/5;justify-self:center;border-radius:999px 999px 30px 30px}
+.sm-arch>.slide-bg,.sm-arch>video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;box-shadow:var(--shadow-lg);transform:none!important}
+.sm-arch-ring{position:absolute;inset:-14px;border:1.5px solid color-mix(in srgb,var(--c1) 35%,transparent);border-radius:999px 999px 40px 40px;pointer-events:none}
+.slide.active .sm-arch>.slide-bg,.slide.active .sm-arch>video{animation:smArch 1.3s cubic-bezier(.7,0,.2,1) both}
+@keyframes smArch{from{clip-path:inset(100% 0 0 0)}to{clip-path:inset(0)}}
+.sm-stats{display:flex;gap:30px;margin-top:28px;padding-top:20px;border-top:1px solid var(--line)}
+.sm-stats b{display:block;font-size:1.6rem;font-weight:900;color:var(--ink)}
+.sm-stats span{font-size:.8rem;color:var(--muted)}
+/* ادیتوریال */
+.sm-edit{display:grid;grid-template-columns:1.25fr 1.1fr .8fr;grid-template-rows:minmax(0,1fr) minmax(0,1fr);gap:16px}
+.sm-edit .sm-txt{grid-column:1;grid-row:1/3;align-self:center}
+.sm-edit .m2{grid-column:2;grid-row:1/3}.sm-edit .m1{grid-column:3;grid-row:1}.sm-edit .m3{grid-column:3;grid-row:2}
+.sm-edit.sm-flip .sm-txt{grid-column:3}.sm-edit.sm-flip .m1,.sm-edit.sm-flip .m3{grid-column:1}
+.sm-edit.sm-flip{grid-template-columns:.8fr 1.1fr 1.25fr}
+.sm-m{border-radius:var(--rad,22px);overflow:hidden;min-height:0;background:var(--cream)}
+.sm-m img{width:100%;height:100%;object-fit:cover;transition:transform 1.2s cubic-bezier(.2,.7,.2,1)}
+.sm-m:hover img{transform:scale(1.07)}
+.slide.active .sm-m{animation:smRise 1s cubic-bezier(.2,.7,.2,1) both}
+.slide.active .sm-m.m2{animation-delay:.1s}.slide.active .sm-m.m1{animation-delay:.25s}.slide.active .sm-m.m3{animation-delay:.4s}
+/* تمام‌قاب با کپشن پایین */
+.slst-h-full .sm-shade{position:absolute;inset:0;z-index:1;background:linear-gradient(0deg,rgba(0,0,0,.66),rgba(0,0,0,.08) 58%,rgba(0,0,0,.12))}
+.sm-full{display:flex;align-items:flex-end;justify-content:space-between;gap:30px}
+.sm-full .sm-txt h1{color:var(--st-tc,#fff);-webkit-text-fill-color:var(--st-tc,#fff)}
+.sm-full .sm-txt .grad-text{background:linear-gradient(90deg,#fff,color-mix(in srgb,var(--caramel) 45%,#fff));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.sm-full .sm-txt p{color:var(--st-dc,rgba(255,255,255,.86))}
+.sm-full .pill{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.35);color:#fff}
+.sm-full .hero-cta{flex-shrink:0;margin-bottom:8px}
+.sm-full .btn-ghost{color:#fff;border-color:rgba(255,255,255,.6);background:rgba(255,255,255,.08)}
+/* نام برند متحرک */
+.sm-big{position:absolute;inset:0;display:flex;align-items:center;overflow:hidden;pointer-events:none;z-index:0}
+.sm-big>div{display:flex;white-space:nowrap;direction:ltr;animation:smMq 36s linear infinite}
+.sm-big span{font-size:clamp(5rem,16vw,15rem);font-weight:900;line-height:1;color:color-mix(in srgb,var(--c1) 11%,transparent);padding-inline:.12em;letter-spacing:-.02em}
+@keyframes smMq{to{transform:translateX(-50%)}}
+.sm-center{height:100%;min-height:0;display:flex;align-items:center;justify-content:center;position:relative;z-index:2}
+.sm-center img{max-height:100%;max-width:100%;object-fit:contain;border-radius:28px;filter:drop-shadow(0 30px 40px rgba(0,0,0,.18))}
+.slide.active .sm-center{animation:smPop 1.1s .15s cubic-bezier(.2,.8,.2,1) both}
+/* دسته‌بندی‌ها */
+.sm-cats{grid-template-columns:.9fr 1.3fr}
+.sm-cards{display:grid;grid-template-columns:repeat(2,1fr);grid-auto-rows:minmax(0,1fr);gap:14px;height:100%;max-height:520px}
+.sm-card{position:relative;border-radius:var(--rad,22px);overflow:hidden;display:block;min-height:0;background:var(--cream)}
+.sm-card img{width:100%;height:100%;object-fit:cover;transition:transform 1s cubic-bezier(.2,.7,.2,1)}
+.sm-card:hover img{transform:scale(1.08)}
+.sm-card b{position:absolute;bottom:12px;right:12px;background:color-mix(in srgb,var(--bg) 90%,transparent);backdrop-filter:blur(6px);padding:6px 14px;border-radius:99px;font-weight:800;font-size:.85rem;color:var(--ink)}
+.slide.active .sm-card{animation:smRise .9s calc(.15s + var(--i,0)*.1s) cubic-bezier(.2,.7,.2,1) both}
+/* محصول PNG */
+.sm-pngw{grid-template-columns:1fr 1.15fr}
+.sm-png-box{position:relative;height:100%;min-height:0;display:flex;gap:18px;align-items:center;justify-content:center}
+.sm-png-box.tp-bottom{flex-direction:column}.sm-png-box.tp-top{flex-direction:column-reverse}
+.sm-png-box.tp-right{flex-direction:row-reverse}.sm-png-box.tp-left{flex-direction:row}
+.sm-png-stage{position:relative;width:100%;height:var(--png-h,82%);min-height:0;display:grid;place-items:center;flex:0 1 auto}
+.tp-bottom .sm-png-stage,.tp-top .sm-png-stage{height:calc(var(--png-h,82%) - 70px)}
+.slide.active .sm-png-stage{animation:smFloat 6s ease-in-out infinite}
+.sm-png{position:absolute;max-height:100%;max-width:100%;object-fit:contain;opacity:0;z-index:2;transform:scale(.78) rotate(-14deg) translateY(30px);transition:opacity .55s,transform .9s cubic-bezier(.2,.8,.2,1);filter:drop-shadow(0 28px 28px rgba(0,0,0,.22))}
+.sm-png.on{opacity:1;transform:none}
+.sm-png-disc{position:absolute;width:min(80%,460px);aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--c1) 26%,transparent),transparent 68%);z-index:0}
+.sm-png-disc::after{content:"";position:absolute;inset:6%;border-radius:50%;border:1.5px dashed color-mix(in srgb,var(--c1) 40%,transparent);animation:smSpin 40s linear infinite}
+.sm-png-shadow{position:absolute;bottom:2%;width:44%;height:18px;border-radius:50%;background:radial-gradient(rgba(0,0,0,.26),transparent 70%);z-index:1}
+.sm-thumbs{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;position:relative;z-index:3}
+.tp-right .sm-thumbs,.tp-left .sm-thumbs{flex-direction:column}
+.sm-thumb{width:66px;height:66px;border-radius:16px;padding:6px;cursor:pointer;background:color-mix(in srgb,var(--bg) 78%,transparent);backdrop-filter:blur(8px);border:2px solid transparent;box-shadow:var(--shadow);transition:transform .3s,border-color .3s}
+.sm-thumb img{width:100%;height:100%;object-fit:contain}
+.sm-thumb:hover{transform:translateY(-3px) scale(1.05)}
+.sm-thumb.on{border-color:var(--c1);transform:translateY(-3px)}
+.sm-thumb:focus-visible{outline:2px solid var(--c1);outline-offset:2px}
+/* دایره‌ای با متن چرخان */
+.sm-ring{position:relative;height:100%;max-height:540px;aspect-ratio:1;justify-self:center}
+.sm-ring-txt{position:absolute;inset:0;width:100%;height:100%;overflow:visible;animation:smSpin 24s linear infinite}
+.sm-ring-txt text{direction:ltr;unicode-bidi:bidi-override;font-size:12.5px;font-weight:800;letter-spacing:3px;fill:var(--ink);text-transform:uppercase}
+.sm-ring-img{position:absolute;inset:14%;border-radius:50%;overflow:hidden;box-shadow:var(--shadow-lg)}
+.sm-ring-img .slide-bg,.sm-ring-img video{width:100%;height:100%;object-fit:cover}
+.slide.active .sm-ring-img{animation:smPop 1.2s cubic-bezier(.2,.8,.2,1) both}
+.sm-ring-dot{position:absolute;border-radius:50%;background:var(--grad);animation:smFloat 5s ease-in-out infinite}
+.sm-ring-dot.d1{width:20px;height:20px;top:9%;right:9%}
+.sm-ring-dot.d2{width:34px;height:34px;bottom:8%;left:5%;opacity:.55;animation-delay:-2s}
+/* کارت‌های سه‌بعدی */
+.sm-stack{position:relative;height:100%;max-height:520px;aspect-ratio:1;justify-self:center;perspective:1200px}
+.sm-sc{position:absolute;inset:7% 23%;margin:0;border-radius:24px;overflow:hidden;background:var(--cream);box-shadow:0 26px 50px rgba(0,0,0,.2);transition:transform .8s cubic-bezier(.2,.8,.2,1)}
+.sm-sc img{width:100%;height:100%;object-fit:cover}
+.sm-sc.c1{z-index:3;transform:rotateY(calc(var(--px,0)*12deg)) rotateX(calc(var(--py,0)*-10deg))}
+.sm-sc.c2{z-index:2;transform:rotate(-8deg) translateX(-16%) scale(.94)}
+.sm-sc.c3{z-index:1;transform:rotate(8deg) translateX(16%) scale(.94)}
+.sm-stack:hover .sm-sc.c2{transform:rotate(-13deg) translateX(-42%) scale(.92)}
+.sm-stack:hover .sm-sc.c3{transform:rotate(13deg) translateX(42%) scale(.92)}
+.sm-stack:hover .sm-sc.c1{transform:translateY(-4%) scale(1.03)}
+.slide.active .sm-sc{animation:smDeal 1.1s cubic-bezier(.2,.8,.2,1) both}
+.slide.active .sm-sc.c2{animation-delay:.15s}.slide.active .sm-sc.c3{animation-delay:.3s}
+@keyframes smDeal{from{opacity:0;transform:translateY(60px) rotate(0) scale(.8)}}
+/* موزاییک */
+.sm-mosaic{position:absolute;inset:0;direction:ltr;display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(3,1fr);gap:3px}
+.sm-mosaic i{position:relative;overflow:hidden}
+.sm-mosaic i::before{content:"";position:absolute;width:400%;height:300%;left:0;top:0;background:var(--mos) center/cover no-repeat;transform:translate(var(--tx),var(--ty))}
+.slide.active .sm-mosaic i{animation:smTile .9s calc(var(--i)*.08s) cubic-bezier(.2,.8,.2,1) both}
+@keyframes smTile{from{opacity:0;transform:scale(.4) rotate(12deg)}to{opacity:1;transform:none}}
+.slst-mosaic .slide-ovl{z-index:1}
+/* متن توخالی */
+.sm-outline{position:absolute;inset:0;display:grid;place-items:center;overflow:hidden;pointer-events:none;z-index:0}
+.sm-outline span{font-size:clamp(6rem,21vw,20rem);font-weight:900;line-height:.9;white-space:nowrap;direction:ltr;color:transparent;-webkit-text-stroke:2px color-mix(in srgb,var(--c1) 30%,transparent);letter-spacing:-.03em;transform:translate(calc(var(--px,0)*-36px),calc(var(--py,0)*-22px));transition:transform .4s ease-out}
+.slide.active .sm-outline span{animation:smOut 1.6s cubic-bezier(.2,.7,.2,1) both}
+@keyframes smOut{from{opacity:0;letter-spacing:.25em}}
+.sm-out-img{height:100%;min-height:0;display:flex;align-items:center;justify-content:center;position:relative;z-index:2}
+.sm-out-img img{max-height:100%;max-width:100%;object-fit:contain;filter:drop-shadow(0 32px 40px rgba(0,0,0,.24));transform:translate(calc(var(--px,0)*22px),calc(var(--py,0)*14px));transition:transform .4s ease-out}
+.slide.active .sm-out-img{animation:smPop 1.1s .2s cubic-bezier(.2,.8,.2,1) both}
+/* قاب حبابی */
+.sm-blob{position:relative;height:100%;max-height:540px;aspect-ratio:1;justify-self:center}
+.sm-blob-in{position:absolute;inset:7%;overflow:hidden;z-index:2;box-shadow:var(--shadow-lg);border-radius:42% 58% 63% 37%/41% 44% 56% 59%;animation:smBlob 12s ease-in-out infinite}
+.sm-blob-in .slide-bg,.sm-blob-in video{width:100%;height:100%;object-fit:cover}
+@keyframes smBlob{0%,100%{border-radius:42% 58% 63% 37%/41% 44% 56% 59%}33%{border-radius:63% 37% 38% 62%/55% 61% 39% 45%}66%{border-radius:38% 62% 56% 44%/62% 35% 65% 38%}}
+.sm-blob-b{position:absolute;border-radius:50%;filter:blur(36px);z-index:1}
+.sm-blob-b.b1{inset:0 20% 30% 0;background:var(--c1);opacity:.35;animation:smFloat 8s ease-in-out infinite}
+.sm-blob-b.b2{inset:40% 0 0 35%;background:var(--caramel);opacity:.3;animation:smFloat 10s ease-in-out infinite reverse}
+.slide.active .sm-blob{animation:smPop 1.2s cubic-bezier(.2,.8,.2,1) both}
+/* ===== انیمیشن‌های جدید ورود متن ===== */
+.slide.txfx-mask.active .slide-txt>*{animation-name:sxMask!important}
+@keyframes sxMask{from{clip-path:inset(0 0 100% 0);transform:translateY(36px)}to{clip-path:inset(0 0 -10% 0);transform:none}}
+.slide.txfx-glow.active .slide-txt>*{animation-name:sxGlow!important;animation-duration:1.4s!important}
+@keyframes sxGlow{0%{opacity:0;filter:blur(8px)}55%{opacity:1;filter:none;text-shadow:0 0 26px color-mix(in srgb,var(--c1) 70%,transparent)}100%{text-shadow:none}}
+.slide.txfx-letters.active .slide-txt h1,.slide.txfx-type.active .slide-txt h1{animation:none!important}
+.slide.txfx-letters.active .slide-txt h1 .lt{animation:sxLt .7s calc(var(--i)*.03s) ease both}
+@keyframes sxLt{from{opacity:0;filter:blur(6px)}}
+.slide.txfx-type.active .slide-txt h1 .lt{animation:sxType .01s calc(.3s + var(--i)*.055s) both}
+@keyframes sxType{from{opacity:0}}
+.slide.txfx-type .slide-txt h1::after{content:"";display:inline-block;width:3px;height:.9em;margin-inline-start:6px;vertical-align:-.1em;background:var(--c1);animation:sxCaret .8s steps(1) infinite}
+@keyframes sxCaret{50%{opacity:0}}
+/* ===== افکت‌های جدید جابه‌جایی اسلاید ===== */
+body.sfx-curtain .slide{opacity:1;clip-path:inset(0 50% 0 50%);transition:clip-path 1.1s cubic-bezier(.7,0,.3,1),visibility 1.1s}
+body.sfx-curtain .slide.active{clip-path:inset(0);z-index:2}
+body.sfx-curtain .slide.leaving{clip-path:inset(0);z-index:1;transition:visibility 1.1s}
+body.sfx-diag .slide{opacity:1;clip-path:polygon(100% 0,100% 0,130% 100%,130% 100%);transition:clip-path 1.15s cubic-bezier(.7,0,.3,1),visibility 1.15s}
+body.sfx-diag .slide.active{clip-path:polygon(100% 0,-30% 0,0 100%,130% 100%);z-index:2}
+body.sfx-diag .slide.leaving{clip-path:polygon(100% 0,-30% 0,0 100%,130% 100%);z-index:1;transition:visibility 1.15s}
+@property --sbl{syntax:'<percentage>';inherits:false;initial-value:0%}
+body.sfx-blinds .slide{opacity:1;--sbl:0%;-webkit-mask:linear-gradient(90deg,#000 var(--sbl),transparent 0) 0 0/12.5% 100%;mask:linear-gradient(90deg,#000 var(--sbl),transparent 0) 0 0/12.5% 100%;transition:--sbl 1s cubic-bezier(.7,0,.3,1),visibility 1s}
+body.sfx-blinds .slide.active{--sbl:101%;z-index:2}
+body.sfx-blinds .slide.leaving{--sbl:101%;z-index:1;transition:visibility 1s}
+body.sfx-cube .slider{perspective:1600px}
+body.sfx-cube .slide{opacity:1;backface-visibility:hidden;transform-origin:100% 50%;transform:rotateY(-90deg);transition:transform 1s cubic-bezier(.6,0,.3,1),visibility 1s}
+body.sfx-cube .slide.active{transform:none;z-index:2;transform-origin:100% 50%}
+body.sfx-cube .slide.leaving{transform-origin:0 50%;transform:rotateY(90deg);z-index:1}
+body.sfx-cube .slide:not(.active):not(.leaving),body.sfx-slideup .slide:not(.active):not(.leaving),body.sfx-stack .slide:not(.active):not(.leaving){transition:none}
+body.sfx-slideup .slide{opacity:1;transform:translateY(100%);transition:transform .95s cubic-bezier(.7,0,.3,1),visibility .95s}
+body.sfx-slideup .slide.active{transform:none;z-index:2}
+body.sfx-slideup .slide.leaving{transform:translateY(-100%)}
+body.sfx-zoomout .slide{transform:scale(.86);transition:opacity 1.1s ease,visibility 1.1s,transform 1.3s cubic-bezier(.2,.7,.2,1)}
+body.sfx-zoomout .slide.active{transform:none;z-index:2}
+body.sfx-zoomout .slide.leaving{transform:scale(1.25)}
+body.sfx-glitch .slide{transition:opacity .35s,visibility .35s}
+body.sfx-glitch .slide.active{animation:sxGlitch .7s steps(1) both;z-index:2}
+@keyframes sxGlitch{0%{clip-path:inset(10% 0 70% 0);transform:translateX(-14px);filter:hue-rotate(80deg) saturate(2)}15%{clip-path:inset(60% 0 15% 0);transform:translateX(12px)}30%{clip-path:inset(30% 0 45% 0);transform:translateX(-8px);filter:hue-rotate(-60deg)}45%{clip-path:inset(0 0 80% 0);transform:translateX(6px)}60%{clip-path:inset(75% 0 0 0);transform:translateX(-4px);filter:none}75%{clip-path:inset(0);transform:translateX(2px)}100%{clip-path:none;transform:none;filter:none}}
+body.sfx-stack .slide{opacity:1;transform:translateX(-100%);transition:transform .9s cubic-bezier(.7,0,.3,1),opacity .9s,visibility .9s,border-radius .9s}
+body.sfx-stack .slide.active{transform:none;z-index:2}
+body.sfx-stack .slide.leaving{transform:scale(.82);opacity:.15;border-radius:30px;z-index:1}
+/* ===== موبایل ===== */
+@media(max-width:920px){
+.slider:has(.slide.smx){min-height:max(var(--shm,480px),640px)}
+.slide.smx>.wrap{padding-top:22px;padding-bottom:52px}
+.sm-split,.sm-mq,.sm-pngw,.sm-ringw,.sm-stackw,.sm-outw,.sm-blobw{grid-template-columns:1fr!important;grid-template-rows:minmax(0,1fr) auto;gap:14px}
+.sm-split>:not(.sm-txt),.sm-mq>:not(.sm-txt),.sm-pngw>:not(.sm-txt),.sm-ringw>:not(.sm-txt),.sm-stackw>:not(.sm-txt),.sm-outw>:not(.sm-txt),.sm-blobw>:not(.sm-txt){order:-1;max-height:100%}
+.slide.smx .sm-txt{text-align:center;margin-inline:auto;max-width:100%}
+.slide.smx .sm-txt .hero-cta{justify-content:center}.slide.smx .sm-txt .pill{margin-inline:auto}
+.slide.smx .sm-txt p{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:18px}
+.slide.smx .sm-txt h1{margin:12px 0 10px}
+.slst-h-type .sm-txt h1{font-size:clamp(2.1rem,10vw,3.2rem)}
+.sm-stats{justify-content:center;gap:18px;margin-top:16px;padding-top:12px}.sm-stats b{font-size:1.15rem}
+.sm-arch{max-height:100%;width:auto}
+.sm-edit{grid-template-columns:1fr 1fr!important;grid-template-rows:minmax(0,1fr) auto!important;gap:10px}
+.sm-edit .m2{grid-column:1!important;grid-row:1!important}.sm-edit .m1{grid-column:2!important;grid-row:1!important}.sm-edit .m3{display:none}
+.sm-edit .sm-txt{grid-column:1/3!important;grid-row:2!important}
+.sm-full{flex-direction:column;align-items:stretch;justify-content:flex-end;gap:0}
+.sm-full .sm-txt{text-align:right!important;margin:0!important}
+.sm-full .hero-cta{justify-content:flex-start!important}
+.sm-cats{grid-template-columns:1fr!important;grid-template-rows:auto minmax(0,1fr);gap:14px}
+.sm-cards{gap:10px;max-height:none}
+.sm-png-box{flex-direction:column!important;gap:10px}
+.sm-png-box .sm-png-stage{height:calc(100% - 60px)!important}
+.tp-right .sm-thumbs,.tp-left .sm-thumbs{flex-direction:row}
+.sm-thumb{width:48px;height:48px;border-radius:12px;padding:4px}
+.sm-ring,.sm-stack,.sm-blob{max-height:100%;width:auto}
+.sm-outline span{font-size:34vw}
+.sm-big span{font-size:30vw}
+}
+@media (prefers-reduced-motion:reduce){.slide.smx *,.slide.smx{animation-duration:.01ms!important;animation-iteration-count:1!important}}
+SHCSS63
+    . '</style>';
+}, 197 );
+
+add_action( 'wp_footer', function() {
+    if ( ! is_front_page() ) { return; }
+    echo '<script id="sahel-v63-js">' . <<<'SHJS63'
+(function(){
+var $$=function(s,c){return Array.prototype.slice.call((c||document).querySelectorAll(s));};
+/* تیتر حرف‌به‌حرف / تایپ‌شدن: هر حرف یک span (inline تا اتصال حروف فارسی حفظ شود) */
+$$('.slide.txfx-letters .slide-txt h1, .slide.txfx-type .slide-txt h1').forEach(function(h){
+  var n=0,w=document.createTreeWalker(h,NodeFilter.SHOW_TEXT,null),nodes=[],t;
+  while((t=w.nextNode())){nodes.push(t);}
+  nodes.forEach(function(nd){var f=document.createDocumentFragment();Array.from(nd.nodeValue).forEach(function(ch){var s=document.createElement('span');s.className='lt';s.style.setProperty('--i',n++);s.textContent=ch;f.appendChild(s);});nd.parentNode.replaceChild(f,nd);});
+});
+/* موزاییک: جابه‌جایی هر تکه */
+$$('.sm-mosaic').forEach(function(m){$$('i',m).forEach(function(t,k){var c=k%4,r=Math.floor(k/4);t.style.setProperty('--tx',(-c*25)+'%');t.style.setProperty('--ty',(-r*33.333)+'%');});});
+/* حرکت ماوس برای مدل‌های جدید */
+$$('.slider').forEach(function(sl){
+  var raf=0;
+  sl.addEventListener('mousemove',function(e){if(raf)return;raf=requestAnimationFrame(function(){raf=0;var r=sl.getBoundingClientRect(),x=(e.clientX-r.left)/r.width-.5,y=(e.clientY-r.top)/r.height-.5,a=sl.querySelector('.slide.active.smx');if(a){a.style.setProperty('--px',x.toFixed(3));a.style.setProperty('--py',y.toFixed(3));}});});
+  sl.addEventListener('mouseleave',function(){$$('.slide.smx',sl).forEach(function(s){s.style.setProperty('--px','0');s.style.setProperty('--py','0');});});
+});
+/* محصول PNG: کلیک روی بندانگشتی، یا چرخش خودکار */
+function pngShow(box,i){var im=$$('.sm-png',box),th=$$('.sm-thumb',box);if(!im.length)return;i=(i+im.length)%im.length;im.forEach(function(x,k){x.classList.toggle('on',k===i);});th.forEach(function(x,k){x.classList.toggle('on',k===i);x.setAttribute('aria-selected',k===i?'true':'false');});box.dataset.cur=i;}
+$$('.sm-png-box').forEach(function(box){
+  box.addEventListener('click',function(e){var b=e.target.closest('.sm-thumb');if(!b)return;e.stopPropagation();pngShow(box,+b.dataset.i);box.dataset.hold='1';});
+  if(box.dataset.auto){setInterval(function(){if(document.hidden||box.dataset.hold||box.matches(':hover'))return;var s=box.closest('.slide');if(s&&!s.classList.contains('active'))return;pngShow(box,(+box.dataset.cur||0)+1);},3200);}
+});
+})();
+SHJS63
+    . '</script>';
+}, 30 );
