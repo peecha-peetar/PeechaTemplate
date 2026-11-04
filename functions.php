@@ -5785,7 +5785,7 @@ function sahel_slide_models_new() {
         'mosaic'      => '🧩 موزاییک (تصویر تکه‌تکه با افکت چیده‌شدن)',
         'outline'     => '🅾 متن توخالی غول‌پیکر پشت محصول',
         'blob'        => '🫧 قاب حبابی متحرک (تصویر در شکل مایع)',
-    );
+    ) + ( function_exists( 'sahel_slide_models_more' ) ? sahel_slide_models_more() : array() );
 }
 function sahel_is_new_slide_model( $m ) { return array_key_exists( (string) $m, sahel_slide_models_new() ); }
 
@@ -5974,6 +5974,8 @@ function sahel_slide_model_html( $sd, $m, $idx, $style, $sx ) {
         case 'blob':
             $h = '<div class="wrap sm-blobw' . $flip . '">' . $txt( 'right' ) . '<div class="sm-blob"><div class="sm-blob-in">' . $media_bg . '</div><span class="sm-blob-b b1"></span><span class="sm-blob-b b2"></span></div></div>';
             break;
+        default:
+            $h = function_exists( 'sahel_slide_model_more' ) ? sahel_slide_model_more( $m, compact( 'txt', 'im', 'media_bg', 'i1', 'i2', 'i3', 'i4', 'big', 'flip', 'sd', 'url', 'g', 'n', 'eager', 'al' ) ) : '';
     }
     $cls = 'slide' . ( 0 === $idx ? ' active' : '' ) . ' slst-' . sanitize_html_class( $m ) . ' smx' . ( $sx['cls'] ? $sx['cls'] : '' ) . ( $bgst ? ' sm-has-bg' : '' );
     return '<section class="' . esc_attr( trim( $cls ) ) . '" style="' . esc_attr( ltrim( $style . $bgst, ';' ) ) . '">' . $h . '</section>';
@@ -6799,3 +6801,561 @@ document.addEventListener('click',function(e){var b=e.target.closest('.sl-showca
 SHJS64
     . '</script>';
 }, 31 );
+
+/* =====================================================================
+ * v6.6 — رفع افتادن تصویر/ویترین روی متن اسلاید + مدل‌های مدرن جدید
+ * ===================================================================== */
+add_action( 'wp_head', function() {
+    echo '<style id="sahel-v66-fix">' . <<<'SHCSS66A'
+/* فضای ویترین (محصولات/دسته‌ها روی اسلاید) برای متن رزرو می‌شود؛ مقدارها را اسکریپت از اندازه‌ی واقعی ویترین حساب می‌کند */
+.slide.has-scp{padding:var(--scp-t,0px) var(--scp-r,0px) var(--scp-b,0px) var(--scp-l,0px);box-sizing:border-box}
+.slide.smx.has-scp>.wrap{top:var(--scp-t,0px);bottom:var(--scp-b,0px);left:var(--scp-l,0px);right:var(--scp-r,0px);width:auto}
+/* ویترین کنار اسلاید: تیترهای خیلی بزرگ کمی کوچک‌تر تا در فضای باقی‌مانده جا شوند */
+.slide.has-scp .slide-txt h1{font-size:clamp(1.8rem,3.6vw,3.3rem)}
+.slst-h-type.has-scp .sm-txt h1{font-size:clamp(2rem,4.4vw,4rem)}
+.slide.smx.has-scp:is([style*="--scp-l"],[style*="--scp-r"]) .sm-txt h1{font-size:clamp(1.6rem,2.6vw,2.6rem);margin:10px 0 8px}
+.slide.smx.has-scp:is([style*="--scp-l"],[style*="--scp-r"]) .sm-txt p{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:14px}
+.slide.smx.has-scp:is([style*="--scp-l"],[style*="--scp-r"]) .sm-stats{margin-top:14px;padding-top:12px}
+.slide.smx.has-scp:is([style*="--scp-l"],[style*="--scp-r"]) .sm-stats b{font-size:1.2rem}
+/* مدل ۲ + ویترین کنار: تصویر پس‌زمینه‌ی کامل با روکش می‌شود تا متن جا داشته باشد */
+@media(min-width:921px){
+.slide.slst-2.has-scp:is([style*="--scp-l"],[style*="--scp-r"]) .sb-wrap{width:100%}
+.slide.slst-2.has-scp:is([style*="--scp-l"],[style*="--scp-r"]) .slide-txt{max-width:min(560px,100%)}
+/* ویترین بالا/پایین: کارت‌ها در یک ردیف و جمع‌وجور */
+.sl-showcase:is(.sc-pos-top,.sc-pos-bottom):is(.sc-st-buy,.sc-st-featured,.sc-st-polaroid,.sc-st-float){flex-wrap:nowrap!important;max-width:calc(100% - 140px)}
+.sl-showcase:is(.sc-pos-top,.sc-pos-bottom).sc-st-buy .sc-item,.sl-showcase:is(.sc-pos-top,.sc-pos-bottom).sc-st-featured .sc-item{flex-direction:row;align-items:center;width:250px;padding:8px;gap:10px}
+.sl-showcase:is(.sc-pos-top,.sc-pos-bottom).sc-st-buy .sc-item img,.sl-showcase:is(.sc-pos-top,.sc-pos-bottom).sc-st-featured .sc-item img{width:64px;height:64px;flex-shrink:0}
+.sl-showcase:is(.sc-pos-top,.sc-pos-bottom).sc-st-buy .sc-buy{margin:4px 0 0;padding:4px 10px}
+.sl-showcase:is(.sc-pos-top,.sc-pos-bottom).sc-st-polaroid .sc-item{width:120px}
+.sl-showcase:is(.sc-pos-top,.sc-pos-bottom).sc-st-polaroid .sc-item img{height:84px}
+.sl-showcase:is(.sc-pos-top,.sc-pos-bottom).sc-st-featured .sc-item{animation:none}
+}
+/* مدل ۲ (دوستونه): متن هرگز روی تصویر نمی‌رود */
+@media(min-width:921px){
+.slide.slst-2:not(:has(.al-center)) .slide-txt{max-width:min(640px,calc(44% - 24px))}
+.slide.slst-2:has(.al-left) .sb-wrap{left:auto;right:0}
+.slide.slst-2:has(.al-center) .sb-wrap{width:100%}
+.slide.slst-6:not(:has(.al-center)) .slide-txt,.slide.slst-10:not(:has(.al-center)) .slide-txt{max-width:min(44%,calc(45% - 24px))}
+.slide.slst-10:not(:has(.al-center)) .slide-txt{max-width:40%}
+}
+@media(min-width:921px) and (max-width:1240px){.slide.slst-2 .slide-txt h1{font-size:clamp(1.8rem,3.4vw,2.8rem);margin:12px 0 10px}.slide.slst-2 .slide-txt{padding:22px}}
+/* مدل‌های دوستونه‌ی جدید در لپ‌تاپ‌های کوچک: تیتر کوچک‌تر تا متن از اسلاید بیرون نزند */
+@media(min-width:921px) and (max-width:1240px){
+.slide.smx .sm-txt h1{font-size:clamp(1.7rem,3.3vw,2.6rem);margin:12px 0 10px}
+.slide.smx .sm-txt p{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:18px}
+}
+SHCSS66A
+    . '</style>';
+}, 199 );
+add_action( 'wp_footer', function() {
+    if ( ! is_front_page() ) { return; }
+    echo '<script id="sahel-v66-fit">' . <<<'SHJS66A'
+(function(){
+var $$=function(s,c){return Array.prototype.slice.call((c||document).querySelectorAll(s));};
+function visible(el){if(!el)return false;var cs=getComputedStyle(el);return cs.display!=='none'&&el.getBoundingClientRect().height>0;}
+function fit(){
+  var mobile=window.matchMedia('(max-width:920px)').matches;
+  $$('.slider-area').forEach(function(area){
+    var sl=area.querySelector('.slider');if(!sl)return;
+    sl.style.minHeight='';
+    var slides=$$('.slide',sl),shared=area.querySelector(':scope > .sl-showcase'),extra=0;
+    var sr=sl.getBoundingClientRect();
+    slides.forEach(function(s){
+      ['--scp-t','--scp-r','--scp-b','--scp-l'].forEach(function(v){s.style.removeProperty(v);});
+      s.classList.remove('has-scp');
+      var sc=s.querySelector(':scope > .sl-showcase');
+      if(!visible(sc)){sc=(shared&&!s.classList.contains('sc-hide-shared')&&visible(shared))?shared:null;}
+      if(!sc||sc.classList.contains('sc-st-hotspot'))return;
+      var r=sc.getBoundingClientRect(),g=mobile?10:22,m=(sc.className.match(/sc-pos-(right|left|top|bottom)/)||[])[1]||'left';
+      if(mobile||sc.classList.contains('sc-st-ticker'))m='bottom';
+      var v=0,k='';
+      if(m==='top'){v=r.bottom-sr.top+g;k='--scp-t';}
+      else if(m==='bottom'){v=sr.bottom-r.top+g;k='--scp-b';}
+      else if(m==='left'){v=r.right-sr.left+g;k='--scp-l';}
+      else{v=sr.right-r.left+g;k='--scp-r';}
+      if(v<=0||v>sr.height*0.7&&(k==='--scp-t'||k==='--scp-b'))return;
+      s.style.setProperty(k,Math.round(v)+'px');s.classList.add('has-scp');
+      if(k==='--scp-t'||k==='--scp-b'){extra=Math.max(extra,v);}
+    });
+    /* ویترین بالا/پایین: ارتفاع اسلایدر به همان اندازه بیشتر می‌شود تا متن فشرده نشود */
+    if(extra>0){var base=parseFloat(getComputedStyle(sl).minHeight)||sr.height;sl.style.minHeight=Math.round(base+extra)+'px';}
+  });
+}
+var t=0;function later(){clearTimeout(t);t=setTimeout(fit,120);}
+if(document.readyState!=='loading'){fit();}else{document.addEventListener('DOMContentLoaded',fit);}
+window.addEventListener('load',fit);window.addEventListener('resize',later);
+if(document.fonts&&document.fonts.ready){document.fonts.ready.then(fit);}
+})();
+SHJS66A
+    . '</script>';
+}, 32 );
+
+/* ---------- v6.6: هشت مدل مدرن و مینیمال جدید برای هر اسلاید ---------- */
+function sahel_slide_models_more() {
+    return array(
+        'dark'      => '🖤 تیره‌ی لوکس (پس‌زمینه‌ی مشکی، نور پشت محصول، طلایی)',
+        'bento'     => '🍱 بنتو (کاشی‌های گوشه‌گرد: متن، دو تصویر و آمار)',
+        'textmask'  => '🔠 تیتر غول‌پیکر پر از تصویر',
+        'brutal'    => '🟨 نئو‌بروتال (خطوط ضخیم، سایه‌ی تخت، برچسب چرخان)',
+        'minimal'   => '◻ مینیمال ادیتوریال (فضای خالی زیاد، تصویر باریک، شماره)',
+        'cover'     => '📔 جلد مجله (نام برند بزرگ بالا، تیتر پایین)',
+        'coverflow' => '🎠 کاورفلو (چند تصویر سه‌بعدی که خودکار می‌چرخند)',
+        'sticker'   => '🏷 استیکری (محصول PNG، برچسب دایره‌ای و چیپ‌های شناور)',
+    );
+}
+function sahel_slide_model_more( $m, $c ) {
+    $txt = $c['txt']; $im = $c['im']; $flip = $c['flip']; $big = $c['big']; $sd = $c['sd'];
+    $imgs = array_values( array_filter( array( $c['i1'], $c['i2'], $c['i3'], $c['i4'] ) ) );
+    $i1 = $c['i1']; $i2 = $c['i2'] ? $c['i2'] : $c['i1']; $i3 = $c['i3'] ? $c['i3'] : $c['i1'];
+    switch ( $m ) {
+        case 'dark':
+            return '<div class="sm-dk-glow" aria-hidden="true"></div><div class="wrap sm-dark' . $flip . '">' . $txt( 'right' ) . '<div class="sm-dk-media">' . $im( $i1, '', true ) . '<span class="sm-dk-ring" aria-hidden="true"></span></div></div>';
+        case 'bento':
+            $stat = '<div class="bt bt-c bt-stat"><b>' . esc_html( sahel_fa( get_theme_mod( 'sahel_stat1', '8000' ) ) ) . '+</b><span>' . esc_html( get_theme_mod( 'sahel_stat1_label', 'مشتری خوشحال' ) ) . '</span><i aria-hidden="true">↗</i></div>';
+            $cell3 = $c['i3'] ? '<a class="bt bt-c" href="' . esc_url( $c['url'] ) . '">' . $im( $c['i3'] ) . '</a>' : $stat;
+            return '<div class="wrap sm-bento' . $flip . '"><div class="bt bt-txt">' . $txt( 'right' ) . '</div><a class="bt bt-a" href="' . esc_url( $c['url'] ) . '">' . $im( $i1, '', true ) . '</a><a class="bt bt-b" href="' . esc_url( $c['url'] ) . '">' . $im( $i2 ) . ( $sd['pill'] ? '<span>' . esc_html( $sd['pill'] ) . '</span>' : '' ) . '</a>' . $cell3 . '</div>';
+        case 'textmask':
+            return '<div class="wrap sm-tm"><div class="sm-tm-word" aria-hidden="true" style="--tm:url(' . esc_url( $i1 ) . ')">' . esc_html( $big ) . '</div>' . $txt( 'center' ) . '</div>';
+        case 'brutal':
+            $row = str_repeat( '<span>' . esc_html( $sd['pill'] ? $sd['pill'] : $big ) . ' ✦ </span>', 6 );
+            return '<div class="wrap sm-brutal' . $flip . '">' . $txt( 'right' ) . '<div class="sm-br-card">' . $im( $i1, '', true ) . '<span class="sm-br-sticker" aria-hidden="true">' . esc_html( ( $sd['pill'] && ( function_exists( 'mb_strlen' ) ? mb_strlen( $sd['pill'] ) : strlen( $sd['pill'] ) ) <= 10 ) ? $sd['pill'] : 'جدید ✦' ) . '</span></div></div><div class="sm-br-strip" aria-hidden="true"><div>' . $row . $row . '</div></div>';
+        case 'minimal':
+            return '<div class="wrap sm-min' . $flip . '"><div class="sm-min-l">' . '<span class="sm-min-idx">' . esc_html( sahel_fa( sprintf( '%02d', $c['n'] ) ) ) . ' —</span>' . $txt( 'right' ) . '</div><figure class="sm-min-img">' . $im( $i1, '', true ) . ( $sd['pill'] ? '<figcaption>' . esc_html( $sd['pill'] ) . '</figcaption>' : '' ) . '</figure></div>';
+        case 'cover':
+            return '<div class="sb-wrap">' . $c['media_bg'] . '</div><div class="sm-cv-shade" aria-hidden="true"></div><div class="sm-cv-title" aria-hidden="true">' . esc_html( $big ) . '</div><div class="wrap sm-cover">' . $txt( 'right' ) . '</div>';
+        case 'coverflow':
+            $list = $imgs ? $imgs : array( $i1 );
+            while ( count( $list ) < 3 ) { $list[] = $list[ count( $list ) % max( 1, count( $imgs ) ) ]; }
+            $st = '<div class="sm-cf-stage" data-cf="1" role="group" aria-label="تصاویر">';
+            foreach ( $list as $k => $src ) { $st .= '<figure class="sm-cf-it" data-k="' . (int) $k . '">' . $im( $src, '', 0 === $k ) . '</figure>'; }
+            $st .= '</div>';
+            return '<div class="wrap sm-cfw' . $flip . '">' . $txt( 'right' ) . $st . '</div>';
+        case 'sticker':
+            $rid  = 'smk' . (int) $c['n'];
+            $ring = '<svg class="sm-stk-badge" viewBox="0 0 120 120" aria-hidden="true"><defs><path id="' . $rid . '" d="M60,60 m-44,0 a44,44 0 1,1 88,0 a44,44 0 1,1 -88,0"/></defs><circle cx="60" cy="60" r="58"/><text><textPath href="#' . $rid . '">' . esc_html( str_repeat( $big . ' • ', 3 ) ) . '</textPath></text><text class="c" x="60" y="68" text-anchor="middle">★</text></svg>';
+            $chip1 = '<span class="sm-stk-chip k1">✔ ' . esc_html( sahel_fa( get_theme_mod( 'sahel_stat1', '8000' ) ) . '+ ' . get_theme_mod( 'sahel_stat1_label', 'مشتری خوشحال' ) ) . '</span>';
+            $chip2 = $sd['pill'] ? '<span class="sm-stk-chip k2">' . esc_html( $sd['pill'] ) . '</span>' : '';
+            return '<div class="wrap sm-stk' . $flip . '">' . $txt( 'right' ) . '<div class="sm-stk-stage"><span class="sm-stk-blob" aria-hidden="true"></span>' . $im( $i1, 'sm-stk-img', true ) . $ring . $chip1 . $chip2 . '</div></div>';
+    }
+    return '';
+}
+add_action( 'wp_head', function() {
+    echo '<style id="sahel-v66-models">' . <<<'SHCSS66B'
+.sm-dark,.sm-brutal,.sm-min,.sm-cfw,.sm-stk{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center;grid-template-rows:minmax(0,100%);height:100%}
+/* تیره‌ی لوکس */
+.slide.slst-dark{background:var(--sm-bg,radial-gradient(120% 90% at 30% 50%,#1d1a20 0%,#0c0b0e 70%))!important;color:#f3efe9}
+.slst-dark .sm-txt h1{color:var(--st-tc,#f7f3ee);-webkit-text-fill-color:var(--st-tc,#f7f3ee);font-weight:800;letter-spacing:-.5px}
+.slst-dark .sm-txt .grad-text{background:linear-gradient(90deg,#f0d49c,#b98a4e);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.slst-dark .sm-txt p{color:var(--st-dc,rgba(255,255,255,.66))}
+.slst-dark .pill{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.16);color:#f0d49c}
+.slst-dark .pill i{background:#f0d49c}
+.slst-dark .btn-primary{background:linear-gradient(135deg,#f0d49c,#c39556);color:#17130e!important;box-shadow:0 12px 30px rgba(240,212,156,.25)}
+.slst-dark .btn-ghost{color:#f3efe9;border-color:rgba(255,255,255,.3);background:transparent}
+.sm-dk-glow{position:absolute;width:52%;aspect-ratio:1;left:4%;top:50%;transform:translateY(-50%);border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,#f0d49c 30%,transparent),transparent 65%);filter:blur(10px);pointer-events:none}
+.slide:has(.sm-dark.sm-flip) .sm-dk-glow{left:auto;right:4%}
+.sm-dk-media{position:relative;height:100%;min-height:0;display:flex;align-items:center;justify-content:center}
+.sm-dk-media img{position:relative;z-index:2;max-height:92%;max-width:100%;object-fit:contain;filter:drop-shadow(0 40px 50px rgba(0,0,0,.6))}
+.sm-dk-ring{position:absolute;width:min(78%,440px);aspect-ratio:1;border-radius:50%;border:1px solid rgba(240,212,156,.35);box-shadow:inset 0 0 60px rgba(240,212,156,.08)}
+.sm-dk-ring::after{content:"";position:absolute;top:-4px;left:50%;width:8px;height:8px;margin-left:-4px;border-radius:50%;background:#f0d49c;box-shadow:0 0 14px #f0d49c}
+.slide.active .sm-dk-ring{animation:smSpin 18s linear infinite}
+.slide.active .sm-dk-media img{animation:smPop 1.2s .1s cubic-bezier(.2,.8,.2,1) both}
+/* بنتو */
+.sm-bento{display:grid;grid-template-columns:1.5fr 1fr .8fr;grid-template-rows:minmax(0,1fr) minmax(0,1fr);gap:14px;height:100%}
+.sm-bento .bt{position:relative;border-radius:26px;overflow:hidden;min-height:0;background:var(--cardbg);display:block}
+.sm-bento .bt-txt{grid-row:1/3;padding:clamp(18px,3vw,40px);display:flex;align-items:center;background:color-mix(in srgb,var(--cardbg) 80%,transparent);border:1px solid var(--line)}
+.sm-bento .bt-txt .sm-txt{max-width:none}
+.sm-bento .sm-txt h1{font-size:clamp(1.5rem,2.5vw,2.5rem);margin:12px 0 10px}
+.sm-bento .sm-txt p{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:16px;font-size:.9rem}
+.sm-bento .hero-cta .btn{padding-inline:18px}
+.sm-bento .bt-a{grid-row:1/3}
+.sm-bento .bt img{width:100%;height:100%;object-fit:cover;transition:transform .9s cubic-bezier(.2,.7,.2,1)}
+.sm-bento a.bt:hover img{transform:scale(1.06)}
+.sm-bento .bt-b span{position:absolute;bottom:12px;right:12px;background:color-mix(in srgb,var(--bg) 90%,transparent);backdrop-filter:blur(8px);padding:6px 14px;border-radius:99px;font-size:.78rem;font-weight:800;color:var(--ink)}
+.sm-bento .bt-stat{background:var(--grad);color:#fff;padding:20px;display:flex;flex-direction:column;justify-content:flex-end}
+.sm-bento .bt-stat b{font-size:clamp(1.8rem,3vw,2.8rem);font-weight:900;line-height:1}
+.sm-bento .bt-stat span{font-size:.85rem;opacity:.9;margin-top:6px}
+.sm-bento .bt-stat i{position:absolute;top:16px;left:18px;font-style:normal;font-size:1.4rem}
+.sm-bento.sm-flip{grid-template-columns:.85fr 1fr 1.3fr}
+.sm-bento.sm-flip .bt-txt{grid-column:3}.sm-bento.sm-flip .bt-a{grid-column:2;grid-row:1/3}.sm-bento.sm-flip .bt-b,.sm-bento.sm-flip .bt-c{grid-column:1}
+.slide.active .sm-bento .bt{animation:smRise .9s cubic-bezier(.2,.7,.2,1) both}
+.slide.active .sm-bento .bt-a{animation-delay:.1s}.slide.active .sm-bento .bt-b{animation-delay:.2s}.slide.active .sm-bento .bt-c{animation-delay:.3s}
+/* تیتر پر از تصویر */
+.sm-tm{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:0}
+.sm-tm-word{font-size:clamp(4.5rem,16vw,15rem);font-weight:900;line-height:.95;letter-spacing:-.04em;direction:ltr;white-space:nowrap;color:transparent;background:var(--tm) center/cover;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;max-width:100%;overflow:hidden}
+.slide.active .sm-tm-word{animation:smTm 14s ease-in-out infinite alternate}
+@keyframes smTm{from{background-position:0% 40%}to{background-position:100% 60%}}
+.sm-tm .sm-txt{max-width:720px;margin-inline:auto;text-align:center}
+.sm-tm .sm-txt h1{font-size:clamp(1.3rem,2.4vw,2rem);margin:8px 0 10px}
+.sm-tm .hero-cta{justify-content:center}.sm-tm .pill{margin-inline:auto}
+/* نئو‌بروتال */
+.slide.slst-brutal{background:var(--sm-bg,#f4efe4)!important}
+.slst-brutal .sm-txt h1{font-weight:900;letter-spacing:-1px}
+.slst-brutal .sm-txt .grad-text{background:none;-webkit-text-fill-color:var(--ink);color:var(--ink);box-shadow:inset 0 -.38em 0 #ffd84a;padding:0 .1em}
+.slst-brutal .pill{background:#fff;border:2px solid var(--ink);border-radius:8px;color:var(--ink);box-shadow:3px 3px 0 var(--ink)}
+.slst-brutal .hero-cta .btn{border:2px solid var(--ink)!important;border-radius:10px!important;box-shadow:5px 5px 0 var(--ink);transition:transform .15s,box-shadow .15s}
+.slst-brutal .hero-cta .btn:hover{transform:translate(-2px,-2px);box-shadow:7px 7px 0 var(--ink)}
+.slst-brutal .btn-primary{background:#ffd84a;color:var(--ink)!important}
+.slst-brutal .btn-ghost{background:#fff;color:var(--ink)!important}
+.sm-br-card{position:relative;justify-self:center;height:86%;aspect-ratio:4/5;border:3px solid var(--ink);border-radius:18px;box-shadow:12px 12px 0 var(--ink);background:#fff;transform:rotate(-2deg)}
+.sm-br-card img{width:100%;height:100%;object-fit:cover;border-radius:15px}
+.sm-br-sticker{position:absolute;top:-22px;left:-22px;width:96px;height:96px;border-radius:50%;background:#ffd84a;border:2px solid var(--ink);display:grid;place-items:center;text-align:center;font-weight:900;font-size:.8rem;line-height:1.3;padding:10px;transform:rotate(-12deg)}
+.slide.active .sm-br-sticker{animation:smBrS 4s ease-in-out infinite}
+@keyframes smBrS{50%{transform:rotate(8deg) scale(1.06)}}
+.sm-br-strip{position:absolute;inset-inline:-2%;bottom:18px;background:var(--ink);color:#fff;padding:8px 0;transform:rotate(-1.5deg);overflow:hidden;z-index:4}
+.sm-br-strip>div{display:flex;width:max-content;white-space:nowrap;animation:smMq 26s linear infinite;font-weight:900;font-size:.95rem}
+.sm-br-strip span{padding-inline:12px}
+.slide.slst-brutal .wrap{padding-bottom:70px}
+/* مینیمال ادیتوریال */
+.slide.slst-minimal{background:var(--sm-bg,var(--bg))!important}
+.sm-min{grid-template-columns:1.25fr .75fr;gap:clamp(30px,6vw,110px)}
+.sm-min-l{border-top:1px solid color-mix(in srgb,var(--ink) 18%,transparent);padding-top:26px;align-self:center}
+.sm-min-idx{display:block;font-size:.8rem;letter-spacing:3px;color:var(--muted);margin-bottom:6px}
+.slst-minimal .sm-txt h1{font-weight:300;font-size:clamp(2.2rem,5vw,4.4rem);line-height:1.25;letter-spacing:-1px}
+.slst-minimal .sm-txt h1 .grad-text{font-weight:900;background:none;-webkit-text-fill-color:var(--ink);color:var(--ink)}
+.slst-minimal .pill{background:transparent;border:0;padding:0;letter-spacing:2px;font-size:.78rem}
+.slst-minimal .pill i{display:none}
+.slst-minimal .btn-primary{background:var(--ink);color:var(--bg)!important;border-radius:0!important}
+.slst-minimal .btn-ghost{border-radius:0!important;border:0!important;text-decoration:underline;text-underline-offset:6px;background:transparent}
+.sm-min-img{margin:0;height:88%;justify-self:end;aspect-ratio:3/4;position:relative}
+.sm-min-img img{width:100%;height:100%;object-fit:cover}
+.sm-min-img figcaption{position:absolute;bottom:-26px;right:0;font-size:.72rem;letter-spacing:2px;color:var(--muted)}
+.sm-min.sm-flip .sm-min-img{justify-self:start}
+.sm-min.sm-flip>.sm-min-l{order:2}
+.slide.active .sm-min-img img{animation:smArch 1.3s cubic-bezier(.7,0,.2,1) both}
+/* جلد مجله */
+.slst-cover .sm-cv-shade{position:absolute;inset:0;z-index:1;background:linear-gradient(180deg,rgba(0,0,0,.35),rgba(0,0,0,0) 35%,rgba(0,0,0,0) 55%,rgba(0,0,0,.6))}
+.sm-cv-title{position:absolute;top:2%;left:0;right:0;z-index:2;text-align:center;direction:ltr;color:#fff;font-weight:900;font-size:clamp(3.5rem,12vw,11rem);line-height:.9;letter-spacing:-.05em;white-space:nowrap;overflow:hidden;text-shadow:0 6px 40px rgba(0,0,0,.2)}
+.slide.active .sm-cv-title{animation:smOut 1.5s cubic-bezier(.2,.7,.2,1) both}
+.sm-cover{display:flex;align-items:flex-end}
+.sm-cover .sm-txt{color:#fff;max-width:600px}
+.sm-cover .sm-txt h1{font-size:clamp(1.8rem,3.4vw,3.1rem);margin:12px 0 10px}
+.sm-cover .sm-txt p{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:16px}
+.sm-cover .sm-txt h1{color:var(--st-tc,#fff);-webkit-text-fill-color:var(--st-tc,#fff)}
+.sm-cover .sm-txt .grad-text{background:none;-webkit-text-fill-color:#fff;color:#fff;border-bottom:3px solid #fff}
+.sm-cover .sm-txt p{color:var(--st-dc,rgba(255,255,255,.88))}
+.sm-cover .pill{background:#fff;color:#111;border:0}
+.sm-cover .btn-ghost{color:#fff;border-color:rgba(255,255,255,.7);background:transparent}
+/* کاورفلو */
+.sm-cf-stage{position:relative;height:100%;min-height:0;perspective:1400px;display:grid;place-items:center}
+.sm-cf-it{position:absolute;margin:0;height:78%;aspect-ratio:3/4;border-radius:22px;overflow:hidden;box-shadow:0 30px 60px rgba(0,0,0,.25);transition:transform .8s cubic-bezier(.2,.8,.2,1),opacity .6s,filter .6s;cursor:pointer;opacity:0;transform:scale(.6)}
+.sm-cf-it img{width:100%;height:100%;object-fit:cover}
+.sm-cf-it.p0{opacity:1;transform:none;z-index:3}
+.sm-cf-it.p1{opacity:.9;transform:translateX(-62%) rotateY(32deg) scale(.82);z-index:2;filter:brightness(.82)}
+.sm-cf-it.pm1{opacity:.9;transform:translateX(62%) rotateY(-32deg) scale(.82);z-index:2;filter:brightness(.82)}
+.sm-cf-it.p2{opacity:.5;transform:translateX(-105%) rotateY(42deg) scale(.66);z-index:1;filter:brightness(.7)}
+.sm-cf-it.pm2{opacity:.5;transform:translateX(105%) rotateY(-42deg) scale(.66);z-index:1;filter:brightness(.7)}
+@media(min-width:921px) and (max-width:1320px){.sm-cf-it{height:70%}.sm-cf-it.p1{transform:translateX(-44%) rotateY(30deg) scale(.76)}.sm-cf-it.pm1{transform:translateX(44%) rotateY(-30deg) scale(.76)}.sm-cf-it.p2,.sm-cf-it.pm2{opacity:0}}
+/* استیکری */
+.sm-stk-stage{position:relative;height:100%;min-height:0;display:flex;align-items:center;justify-content:center}
+.sm-stk-blob{position:absolute;width:min(82%,480px);aspect-ratio:1;background:color-mix(in srgb,var(--c1) 22%,var(--cardbg));border-radius:58% 42% 52% 48%/45% 55% 45% 55%;animation:smBlob 14s ease-in-out infinite}
+.sm-stk-img{position:relative;z-index:2;max-height:86%;max-width:92%;object-fit:contain;filter:drop-shadow(0 30px 30px rgba(0,0,0,.22))}
+.slide.active .sm-stk-img{animation:smPop 1.1s cubic-bezier(.2,.8,.2,1) both}
+.sm-stk-badge{position:absolute;z-index:3;width:118px;height:118px;top:6%;left:8%;overflow:visible}
+.sm-stk-badge circle{fill:var(--ink)}
+.sm-stk-badge text{fill:#fff;font-size:10.5px;font-weight:800;letter-spacing:2px;direction:ltr;unicode-bidi:bidi-override}
+.sm-stk-badge text.c{font-size:26px;letter-spacing:0}
+.slide.active .sm-stk-badge{animation:smSpin 16s linear infinite}
+.sm-stk-chip{position:absolute;z-index:4;padding:9px 16px;border-radius:99px;background:var(--cardbg);box-shadow:var(--shadow-lg);font-weight:800;font-size:.8rem;white-space:nowrap;color:var(--ink);animation:smFloat 5s ease-in-out infinite}
+.sm-stk-chip.k1{bottom:12%;right:6%}
+.sm-stk-chip.k2{top:14%;right:10%;background:var(--grad);color:#fff;animation-delay:-2.5s}
+.sm-stk.sm-flip .sm-stk-badge{left:auto;right:8%}
+/* موبایل */
+@media(max-width:920px){
+.sm-dark,.sm-brutal,.sm-min,.sm-cfw,.sm-stk{grid-template-columns:1fr!important;grid-template-rows:minmax(0,1fr) auto;gap:14px}
+.sm-dark>:not(.sm-txt),.sm-brutal>:not(.sm-txt),.sm-min>.sm-min-img,.sm-cfw>:not(.sm-txt),.sm-stk>:not(.sm-txt){order:-1;max-height:100%}
+.sm-min>.sm-min-l{order:2!important;padding-top:12px}
+.sm-min-img{justify-self:center!important;height:100%}
+.sm-min-img figcaption{display:none}
+.sm-dk-glow{width:90%;left:5%;top:30%}
+.sm-br-card{height:92%;box-shadow:7px 7px 0 var(--ink)}
+.sm-br-sticker{width:70px;height:70px;font-size:.65rem;top:-12px;left:-12px}
+.sm-br-strip{bottom:8px;padding:5px 0}.sm-br-strip>div{font-size:.75rem}
+.slide.slst-brutal .wrap{padding-bottom:48px}
+.sm-bento{grid-template-columns:1fr 1fr!important;grid-template-rows:minmax(0,1fr) minmax(0,.8fr) auto!important;gap:8px}
+.sm-bento .bt-a{grid-column:1!important;grid-row:1/3!important}
+.sm-bento .bt-b{grid-column:2!important;grid-row:1!important}
+.sm-bento .bt-c{grid-column:2!important;grid-row:2!important}
+.sm-bento .bt-txt{grid-column:1/3!important;grid-row:3!important;padding:14px;border-radius:18px}
+.sm-bento .bt{border-radius:18px}
+.sm-bento .bt-stat{padding:12px}.sm-bento .bt-stat b{font-size:1.4rem}
+.sm-tm-word{font-size:18vw}
+.sm-cv-title{font-size:21vw;top:4%}
+.sm-cover .sm-txt{text-align:right!important;margin:0!important}
+.sm-cover .hero-cta{justify-content:flex-start!important}
+.sm-cf-it{height:88%}
+.sm-cf-it.p1{transform:translateX(-46%) rotateY(30deg) scale(.78)}.sm-cf-it.pm1{transform:translateX(46%) rotateY(-30deg) scale(.78)}
+.sm-cf-it.p2,.sm-cf-it.pm2{opacity:0}
+.sm-stk-badge{width:78px;height:78px;top:2%;left:4%}
+.sm-stk-chip{font-size:.68rem;padding:6px 10px}
+.slst-minimal .sm-txt h1{font-size:clamp(1.8rem,8vw,2.6rem)}
+}
+SHCSS66B
+    . '</style>';
+}, 200 );
+add_action( 'wp_footer', function() {
+    if ( ! is_front_page() ) { return; }
+    echo '<script id="sahel-v66-models-js">' . <<<'SHJS66B'
+(function(){
+/* کاورفلو: چرخش خودکار و کلیک روی هر تصویر */
+Array.prototype.forEach.call(document.querySelectorAll('.sm-cf-stage'),function(st){
+  var it=Array.prototype.slice.call(st.querySelectorAll('.sm-cf-it')),n=it.length,cur=0,hold=false;
+  function draw(){it.forEach(function(e,k){var d=(k-cur+n)%n;if(d>n/2)d-=n;e.className='sm-cf-it'+(d===0?' p0':d===1?' p1':d===-1?' pm1':d===2?' p2':d===-2?' pm2':'');});}
+  st.addEventListener('click',function(e){var f=e.target.closest('.sm-cf-it');if(!f)return;cur=it.indexOf(f);hold=true;draw();setTimeout(function(){hold=false;},6000);});
+  st.addEventListener('mouseenter',function(){hold=true;});st.addEventListener('mouseleave',function(){hold=false;});
+  draw();
+  setInterval(function(){if(hold||document.hidden)return;var s=st.closest('.slide');if(s&&!s.classList.contains('active'))return;cur=(cur+1)%n;draw();},3200);
+});
+})();
+SHJS66B
+    . '</script>';
+}, 33 );
+
+/* ---------- v6.6: کارت‌های محصول و دسته‌بندی مدرن + چیدمان‌های جدید دسته‌بندی ---------- */
+add_action( 'customize_register', function ( $w ) {
+    if ( $c = $w->get_control( 'sahel_prodcard' ) ) {
+        $c->choices += array(
+            '24' => '✨ مینیمال ادیتوریال + نوار «افزودن سریع» روی تصویر با هاور',
+            '25' => '🖤 تیره‌ی لوکس (کارت مشکی، قیمت طلایی)',
+            '26' => '🍬 کاشی پاستلی (هر کارت یک رنگ ملایم، مناسب PNG)',
+            '27' => '📋 ردیفی فشرده (تصویر کوچک کنار نام و قیمت)',
+            '28' => '📏 انتخاب سایز/رنگ روی تصویر با هاور',
+        );
+    }
+    if ( $c = $w->get_control( 'sahel_catcard' ) ) {
+        $c->choices += array(
+            '22' => '🖼 تمام‌تصویر با فلش دایره‌ای',
+            '23' => '🔤 تایپوگرافی (تصویر با هاور ظاهر می‌شود)',
+            '24' => '🖤 تیره با نور پشت تصویر',
+            '25' => '🔢 شماره‌دار مینیمال',
+        );
+    }
+    if ( $c = $w->get_control( 'sahel_cat_layout' ) ) {
+        $c->choices += array(
+            'typolist' => 'فهرست تایپوگرافی بزرگ (تصویر دنبال ماوس)',
+            'bento2'   => 'بنتو نامتقارن (یکی بزرگ، یکی بلند، بقیه کوچک)',
+        );
+    }
+}, 44 );
+add_action( 'wp_head', function() {
+    echo '<style id="sahel-v66-cards">' . <<<'SHCSS66C'
+/* ۲۴: مینیمال + افزودن سریع */
+html body.prodst-24 .prod-card{background:transparent;border:0;box-shadow:none;container-type:inline-size;position:relative}
+html body.prodst-24 .prod-card:hover{transform:none;box-shadow:none}
+html body.prodst-24 .prod-media{margin:0 0 10px;border-radius:14px;aspect-ratio:3/4}
+html body.prodst-24 .prod-body{padding:0 2px;position:static}
+html body.prodst-24 .prod-cat,html body.prodst-24 .prod-desc{display:none}
+html body.prodst-24 .prod-name{font-size:.86rem;font-weight:700;min-height:0}
+html body.prodst-24 .prod-body a.button{position:absolute!important;top:calc(133.333cqw - 52px)!important;inset-inline:10px!important;width:auto!important;height:42px!important;border-radius:12px!important;border:0!important;background-color:var(--ink)!important;background-position:right 14px center!important;opacity:0;transform:translateY(8px);z-index:4}
+html body.prodst-24 .prod-body a.button::after{content:"افزودن سریع";position:absolute;inset:0;display:grid;place-items:center;text-indent:0;font-size:.8rem;font-weight:800;line-height:1;color:#fff}
+html body.prodst-24 .prod-body a.button.product_type_variable::after{content:"انتخاب سایز و رنگ"}
+html body.prodst-24 .prod-card:is(:hover,:focus-within) .prod-body a.button{opacity:1;transform:none}
+@media(hover:none){html body.prodst-24 .prod-body a.button{opacity:1;transform:none;height:36px!important;top:calc(133.333cqw - 44px)!important}}
+/* ۲۵: تیره‌ی لوکس */
+html body.prodst-25 .prod-card{background:#141317;border-color:#141317;box-shadow:0 18px 40px rgba(0,0,0,.25)}
+html body.prodst-25 .prod-media{background:radial-gradient(circle at 50% 45%,#2b2730,#141317 70%)}
+html body.prodst-25 .prod-name a,html body.prodst-25 .prod-desc,html body.prodst-25 .prod-vsel .pv-row>span{color:#f3efe9}
+html body.prodst-25 .prod-cat,html body.prodst-25 .prod-cat a{color:#b9a17c}
+html body.prodst-25 .prod-price,html body.prodst-25 .prod-price .amount{color:#f0d49c!important}
+html body.prodst-25 .prod-price del .amount{color:rgba(255,255,255,.45)!important}
+html body.prodst-25 .prod-body a.button{background-color:#f0d49c!important;border-color:#f0d49c!important}
+html body.prodst-25 .prod-vsel select,html body.prodst-25 .pv-pill{background:#1f1d23;color:#f3efe9;border-color:#35313a}
+html body.prodst-25 .prod-card:hover{box-shadow:0 26px 60px rgba(0,0,0,.35),0 0 0 1px rgba(240,212,156,.35)}
+/* ۲۶: کاشی پاستلی */
+html body.prodst-26 .prod-card{--tile:#f6e7dc;background:var(--tile);border:0;border-radius:28px;box-shadow:none}
+html body.prodst-26 li.product:nth-child(5n+2) .prod-card{--tile:#e4eef0}
+html body.prodst-26 li.product:nth-child(5n+3) .prod-card{--tile:#eee6f3}
+html body.prodst-26 li.product:nth-child(5n+4) .prod-card{--tile:#e7f0e1}
+html body.prodst-26 li.product:nth-child(5n+5) .prod-card{--tile:#f5eed8}
+html body.prodst-26 .prod-media{background:transparent;margin:10px 10px 0}
+html body.prodst-26 .prod-media img{object-fit:contain;filter:drop-shadow(0 16px 16px rgba(0,0,0,.12))}
+html body.prodst-26 .prod-name{font-size:.9rem;font-weight:900}
+html body.prodst-26 .prod-body a.button{border-radius:50%!important;background-color:#fff!important;border:0!important}
+html body.prodst-26 .prod-card:hover{transform:translateY(-6px) rotate(-1deg);box-shadow:0 20px 40px rgba(0,0,0,.08)}
+/* ۲۷: ردیفی فشرده */
+html body.prodst-27 .prod-card{flex-direction:row;align-items:center;padding:8px;gap:4px;border-radius:18px}
+html body.prodst-27 .prod-media{flex:0 0 96px;width:96px;height:96px;aspect-ratio:1;margin:0;border-radius:14px}
+html body.prodst-27 .prod-body{padding:4px 8px;align-content:center}
+html body.prodst-27 .prod-desc,html body.prodst-27 .prod-vsel,html body.prodst-27 .prod-vars{display:none}
+html body.prodst-27 .prod-media .badge{font-size:.55rem;padding:2px 6px;top:4px}
+html body.prodst-27 ul.products li.product{min-width:min(300px,86vw)}
+html body.prodst-27 .shop-main ul.products,html body.prodst-27 .pd-related ul.products{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(min(300px,100%),1fr))!important}
+html body.prodst-27 .prod-card:hover{transform:translateX(-4px)}
+/* ۲۸: انتخاب ویژگی روی تصویر */
+html body.prodst-28 .prod-card{container-type:inline-size;position:relative}
+html body.prodst-28 .prod-body{position:static}
+html body.prodst-28 .prod-media{aspect-ratio:3/4;margin:0;border-radius:22px 22px 16px 16px}
+html body.prodst-28 .prod-vsel{position:absolute;top:calc(133.333cqw - 10px);inset-inline:10px;transform:translateY(-100%);margin:0;padding:10px;border-radius:16px;background:color-mix(in srgb,var(--cardbg) 92%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:var(--shadow-lg);opacity:0;visibility:hidden;transition:opacity .3s,visibility .3s,transform .3s}
+html body.prodst-28 .prod-card:is(:hover,:focus-within) .prod-vsel{opacity:1;visibility:visible}
+html body.prodst-28 .prod-card:hover{transform:translateY(-4px)}
+@media(hover:none){html body.prodst-28 .prod-vsel{position:static;transform:none;opacity:1;visibility:visible;background:transparent;box-shadow:none;padding:0;backdrop-filter:none}}
+
+/* دسته‌بندی ۲۲: تمام‌تصویر با فلش دایره‌ای */
+html body.catst-22 .cat-card{padding:0;position:relative;overflow:hidden;border:0;flex-basis:200px;width:200px}
+html body.catst-22 .cat-card img{aspect-ratio:4/5;border:0;border-radius:0}
+html body.catst-22 .cat-card .txt{position:absolute;inset:auto 0 0;padding:40px 16px 16px;text-align:start;background:linear-gradient(0deg,rgba(0,0,0,.62),transparent)}
+html body.catst-22 .cat-card .txt h3{color:#fff;font-size:1rem}
+html body.catst-22 .cat-card .txt p{color:rgba(255,255,255,.8);background:none!important;padding:0!important}
+html body.catst-22 .cat-card::after{content:"↖";position:absolute;bottom:16px;left:16px;width:38px;height:38px;border-radius:50%;background:#fff;color:var(--ink);display:grid;place-items:center;font-weight:900;transition:transform .35s,background .3s}
+html body.catst-22 .cat-card:hover::after{transform:rotate(-45deg);background:var(--c1);color:#fff}
+html body.catst-22 .cat-card:hover img{transform:scale(1.07)}
+/* ۲۳: تایپوگرافی */
+html body.catst-23 .cat-card{position:relative;overflow:hidden;padding:0;flex-basis:210px;width:210px;aspect-ratio:1;display:grid;place-items:center;background:var(--cardbg)}
+html body.catst-23 .cat-card img{position:absolute;inset:0;width:100%;height:100%;aspect-ratio:auto;border:0;border-radius:0;opacity:0;transform:scale(1.12);transition:opacity .5s,transform .8s}
+html body.catst-23 .cat-card .txt{position:relative;z-index:2;padding:12px}
+html body.catst-23 .cat-card .txt h3{font-size:1.5rem;font-weight:900;letter-spacing:-.5px;transition:color .3s}
+html body.catst-23 .cat-card:hover img{opacity:1;transform:none}
+html body.catst-23 .cat-card:hover::before{content:"";position:absolute;inset:0;background:rgba(0,0,0,.35);z-index:1}
+html body.catst-23 .cat-card:hover .txt h3,html body.catst-23 .cat-card:hover .txt p{color:#fff}
+/* ۲۴: تیره با نور */
+html body.catst-24 .cat-card{background:radial-gradient(circle at 50% 38%,#2b2730,#121115 72%);border-color:#121115}
+html body.catst-24 .cat-card img{background:transparent;border:0;object-fit:contain;filter:drop-shadow(0 16px 20px rgba(0,0,0,.5))}
+html body.catst-24 .cat-card .txt h3{color:#f3efe9}
+html body.catst-24 .cat-card .txt p{color:#b9a17c;background:transparent!important}
+html body.catst-24 .cat-card:hover{box-shadow:0 0 0 1px rgba(240,212,156,.4),0 20px 40px rgba(0,0,0,.3)}
+/* ۲۵: شماره‌دار مینیمال */
+html body.catst-25 #categories .cat-grid{counter-reset:catn}
+html body.catst-25 .cat-card{counter-increment:catn;background:transparent;border:0;box-shadow:none;padding:0;position:relative}
+html body.catst-25 .cat-card::before{content:counter(catn,persian);position:absolute;top:8px;right:10px;z-index:2;font-size:.75rem;font-weight:900;letter-spacing:1px;color:#fff;background:var(--ink);padding:3px 8px;border-radius:6px}
+html body.catst-25 .cat-card img{border-radius:6px;border:0}
+html body.catst-25 .cat-card .txt{text-align:start;padding:10px 2px 0;border-top:1px solid var(--line);margin-top:10px}
+html body.catst-25 .cat-card .txt h3{font-size:.95rem}
+
+/* چیدمان: فهرست تایپوگرافی بزرگ */
+body.catl-typolist #categories .cat-grid{display:block;overflow:visible;mask-image:none;-webkit-mask-image:none;padding:0;border-top:1px solid var(--line)}
+body.catl-typolist #categories .strip-arrows{display:none}
+body.catl-typolist #categories .cat-card{display:flex;align-items:baseline;justify-content:space-between;gap:20px;width:auto;flex:none;padding:18px 6px;border:0;border-bottom:1px solid var(--line);border-radius:0;background:transparent;box-shadow:none;transform:none!important;position:relative}
+body.catl-typolist #categories .cat-card::before,body.catl-typolist #categories .cat-card::after{display:none}
+body.catl-typolist #categories .cat-card img,body.catl-typolist #categories .cat-card .ovl,body.catl-bento2 #categories .cat-card .ovl{display:none}
+body.catl-typolist #categories .cat-card .txt{display:flex;align-items:baseline;justify-content:space-between;width:100%;padding:0;text-align:start;position:static;background:none;transform:none}
+body.catl-typolist #categories .cat-card .txt h3{font-size:clamp(1.6rem,4vw,3.4rem);font-weight:900;letter-spacing:-1px;color:var(--ink);transition:color .25s,transform .35s;white-space:normal}
+body.catl-typolist #categories .cat-card .txt p{font-size:.85rem;color:var(--muted);background:none!important;opacity:1}
+body.catl-typolist #categories .cat-card:hover .txt h3{color:var(--c1);transform:translateX(-14px)}
+.cat-float{position:fixed;z-index:60;width:220px;aspect-ratio:4/5;border-radius:18px;overflow:hidden;pointer-events:none;opacity:0;transform:translate(-50%,-50%) scale(.85) rotate(-4deg);transition:opacity .25s,transform .35s;box-shadow:0 30px 60px rgba(0,0,0,.25)}
+.cat-float.on{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(-4deg)}
+.cat-float img{width:100%;height:100%;object-fit:cover}
+@media(hover:none){body.catl-typolist #categories .cat-card img{display:block;width:64px;height:64px;flex-shrink:0;order:-1;border-radius:12px}body.catl-typolist #categories .cat-card{align-items:center}}
+/* چیدمان: بنتو نامتقارن */
+body.catl-bento2 #categories .cat-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-rows:180px;grid-auto-flow:dense;overflow:visible;mask-image:none;-webkit-mask-image:none;gap:14px}
+body.catl-bento2 #categories .strip-arrows{display:none}
+body.catl-bento2 #categories .cat-card{width:auto;flex:none;padding:0;position:relative;overflow:hidden;border-radius:22px}
+body.catl-bento2 #categories .cat-card img{position:absolute;inset:0;width:100%;height:100%;aspect-ratio:auto;border:0;border-radius:0}
+body.catl-bento2 #categories .cat-card .txt{position:absolute;inset:auto 0 0;padding:30px 14px 12px;text-align:start;background:linear-gradient(0deg,rgba(0,0,0,.6),transparent)}
+body.catl-bento2 #categories .cat-card .txt h3{color:#fff}
+body.catl-bento2 #categories .cat-card .txt p{color:rgba(255,255,255,.85);background:none!important}
+body.catl-bento2 #categories .cat-card:nth-child(6n+1){grid-column:span 2;grid-row:span 2}
+body.catl-bento2 #categories .cat-card:nth-child(6n+2){grid-row:span 2}
+body.catl-bento2 #categories .cat-card:hover img{transform:scale(1.06)}
+@media(max-width:760px){
+body.catl-bento2 #categories .cat-grid{grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:140px;gap:10px}
+body.catl-typolist #categories .cat-card{padding:12px 4px}
+html body.catst-22 .cat-card{flex-basis:160px;width:160px}
+html body.catst-23 .cat-card{flex-basis:150px;width:150px}
+html body.catst-23 .cat-card .txt h3{font-size:1.1rem}
+html body.prodst-27 .prod-media{flex-basis:80px;width:80px;height:80px}
+}
+SHCSS66C
+    . '</style>';
+}, 201 );
+add_action( 'wp_footer', function() {
+    if ( 'typolist' !== get_theme_mod( 'sahel_cat_layout', 'scroll' ) ) { return; }
+    echo '<script id="sahel-v66-typo">' . <<<'SHJS66C'
+(function(){
+if(!window.matchMedia||!matchMedia('(hover:hover)').matches)return;
+var f=document.createElement('div');f.className='cat-float';f.setAttribute('aria-hidden','true');var im=document.createElement('img');im.alt='';f.appendChild(im);document.body.appendChild(f);
+var raf=0,x=0,y=0;
+function mv(){raf=0;f.style.left=x+'px';f.style.top=y+'px';}
+Array.prototype.forEach.call(document.querySelectorAll('#categories .cat-card'),function(c){
+  var src=c.querySelector('img');
+  c.addEventListener('mouseenter',function(){if(src){im.src=src.currentSrc||src.src;}f.classList.add('on');});
+  c.addEventListener('mouseleave',function(){f.classList.toggle('on',false);});
+  c.addEventListener('mousemove',function(e){x=e.clientX+140;y=e.clientY;if(!raf)raf=requestAnimationFrame(mv);});
+});
+})();
+SHJS66C
+    . '</script>';
+}, 34 );
+
+/* ---------- v6.6: گالری پیش‌نمایش همه‌ی مدل‌ها (فقط برای مدیر) ---------- */
+/* پیش‌نمایش موقت تنظیمات: ?sahel_pv={"sahel_prodcard":"24"} — فقط برای مدیر و بدون ذخیره شدن */
+add_action( 'init', function () {
+    if ( empty( $_GET['sahel_pv'] ) || ! current_user_can( 'edit_theme_options' ) ) { return; } // phpcs:ignore
+    $raw = json_decode( wp_unslash( $_GET['sahel_pv'] ), true ); // phpcs:ignore
+    if ( ! is_array( $raw ) ) { return; }
+    $raw['sahel_pwa_install'] = 0;
+    foreach ( array_slice( $raw, 0, 40, true ) as $k => $v ) {
+        $k = sanitize_key( $k );
+        if ( 0 !== strpos( $k, 'sahel_' ) || ! is_scalar( $v ) ) { continue; }
+        $v = sanitize_text_field( (string) $v );
+        add_filter( 'theme_mod_' . $k, function () use ( $v ) { return $v; }, 999 );
+    }
+    add_filter( 'show_admin_bar', '__return_false' );
+    nocache_headers();
+    header( 'X-Robots-Tag: noindex' );
+}, 0 );
+function sahel_gallery_sets() {
+    $pc = array( '1' => 'کلاسیک', '2' => 'مینیمال', '3' => 'خط رنگی', '4' => 'شیشه‌ای تیره', '5' => 'شیشه‌ای روشن', '6' => 'نئون', '7' => 'مجله‌ای', '8' => 'شیشه‌ای مدرن', '9' => 'نئون درخشان', '10' => 'درخشش عبوری', '11' => 'سه‌بعدی Tilt', '12' => 'سبد شناور گوشه‌ای', '13' => 'مسطح مدرن', '14' => 'برچسب گوشه‌بریده', '15' => 'مینیمال با دکمه دایره‌ای', '16' => 'PNG تخت + کارت با هاور', '17' => 'اطلاعات کشویی', '18' => 'افقی', '19' => 'قاب قوسی', '20' => 'پولاروید', '21' => 'نئو‌بروتال', '22' => 'برچسب قیمت آویز', '23' => 'تمام‌تصویر شیشه‌ای', '24' => 'مینیمال + افزودن سریع', '25' => 'تیره‌ی لوکس', '26' => 'کاشی پاستلی', '27' => 'ردیفی فشرده', '28' => 'انتخاب سایز روی تصویر' );
+    $cc = array( '1' => 'کلاسیک', '2' => 'متن روی تصویر', '3' => 'افقی', '4' => 'دایره‌ای', '5' => 'شیشه‌ای', '6' => 'مینیمال', '7' => 'گلس‌مورفیسم', '8' => 'حلقه‌ای گرادیانی', '9' => 'سه‌بعدی Tilt', '10' => 'بنری عریض', '11' => 'مسطح رنگی', '12' => 'خط‌دور مینیمال', '13' => 'نشان شمارش', '14' => 'قاب قوسی', '15' => 'حلقه‌ی چرخان', '16' => 'تصویر بیرون‌زده (PNG)', '17' => 'کپسولی', '18' => 'پرده‌ای', '19' => 'شش‌ضلعی', '20' => 'پولاروید کج', '21' => 'فهرستی با فلش', '22' => 'تمام‌تصویر با فلش دایره‌ای', '23' => 'تایپوگرافی', '24' => 'تیره با نور', '25' => 'شماره‌دار' );
+    $cl = array( 'scroll' => 'ردیف اسکرولی', 'grid' => 'شبکه‌ای', 'bento' => 'بنتو', 'bento2' => 'بنتو نامتقارن', 'tworow' => 'دو ردیف', 'marquee' => 'نوار متحرک', 'center' => 'وسط‌چین', 'typolist' => 'فهرست تایپوگرافی' );
+    $sc = array( 'cards' => 'کارتی', 'chips' => 'کپسولی', 'circles' => 'دایره‌ای', 'panel' => 'پنل شیشه‌ای' ) + array_map( function ( $l ) { return trim( preg_replace( '/^\S+\s/u', '', $l ) ); }, sahel_sc_styles_new() );
+    $sl = sahel_slider_style_choices() + sahel_slide_models_new();
+    $clean = function ( $a ) { return array_map( function ( $l ) { return trim( preg_replace( '/^[^\p{L}\p{N}]+/u', '', $l ) ); }, $a ); };
+    return array(
+        'slides'   => array( 'مدل‌های اسلاید', $clean( $sl ), 'sahel_slide1_style', array( 'sahel_slide_count' => 1 ), 'home', '', 'sahel_slide1_style' ),
+        'products' => array( 'کارت محصول', $pc, 'sahel_prodcard', array(), 'shop', '', 'sahel_prodcard' ),
+        'cats'     => array( 'کارت دسته‌بندی', $cc, 'sahel_catcard', array( 'sahel_slider_on' => 0 ), 'home', '#categories', 'sahel_catcard' ),
+        'catlay'   => array( 'چیدمان دسته‌بندی‌ها', $cl, 'sahel_cat_layout', array( 'sahel_slider_on' => 0 ), 'home', '#categories', 'sahel_cat_layout' ),
+        'showcase' => array( 'ویترین روی اسلاید', $sc, 'sahel_sc_style', array( 'sahel_slide_count' => 1, 'sahel_sc_on' => 1, 'sahel_sc_type' => 'products', 'sahel_sc_psrc' => 'new', 'sahel_sc_count' => 4 ), 'home', '', 'sahel_sc_style' ),
+    );
+}
+add_action( 'template_redirect', function () {
+    if ( empty( $_GET['sahel_gallery'] ) ) { return; } // phpcs:ignore
+    if ( ! current_user_can( 'edit_theme_options' ) ) { auth_redirect(); exit; }
+    nocache_headers();
+    $sets = sahel_gallery_sets();
+    $g    = isset( $_GET['g'] ) && isset( $sets[ $_GET['g'] ] ) ? sanitize_key( $_GET['g'] ) : 'slides'; // phpcs:ignore
+    $vw   = isset( $_GET['vw'] ) && 'm' === $_GET['vw'] ? 'm' : 'd'; // phpcs:ignore
+    $dm   = isset( $_GET['dm'] ) && in_array( $_GET['dm'], array( 'flat', 'classic' ), true ) ? sanitize_key( $_GET['dm'] ) : get_theme_mod( 'sahel_design_mode', 'flat' ); // phpcs:ignore
+    $set  = $sets[ $g ];
+    $base = 'shop' === $set[4] && function_exists( 'wc_get_page_permalink' ) ? wc_get_page_permalink( 'shop' ) : home_url( '/' );
+    $cur  = (string) get_theme_mod( $set[2], 'slides' === $g ? '' : '1' );
+    $u    = function ( $args ) { return esc_url( add_query_arg( array_merge( array( 'sahel_gallery' => 1 ), $args ), home_url( '/' ) ) ); };
+    $fw = 'm' === $vw ? 390 : 1366; $fh = 'm' === $vw ? 800 : 760; $sc = 'm' === $vw ? 0.62 : 0.3;
+    header( 'Content-Type: text/html; charset=utf-8' );
+    echo '<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>گالری مدل‌ها — ' . esc_html( sahel_brand() ) . '</title><style>
+*{box-sizing:border-box}body{margin:0;font-family:Vazirmatn,Tahoma,sans-serif;background:#f4f3f7;color:#1d1b26}
+header{position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid #e7e5ee;padding:12px 20px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+header h1{font-size:1rem;margin:0 0 0 12px}
+nav{display:flex;gap:6px;flex-wrap:wrap}nav a,.tg a{padding:7px 14px;border-radius:99px;background:#f1eff6;color:#1d1b26;text-decoration:none;font-weight:700;font-size:.82rem}
+nav a.on,.tg a.on{background:#1d1b26;color:#fff}.tg{display:flex;gap:6px;margin-inline-start:auto;flex-wrap:wrap}
+p.note{margin:14px 20px 0;color:#6f6b7c;font-size:.85rem;line-height:1.9}
+main{display:grid;grid-template-columns:repeat(auto-fill,minmax(' . (int) ( $fw * $sc + 24 ) . 'px,1fr));gap:18px;padding:20px}
+.it{background:#fff;border:1px solid #e7e5ee;border-radius:16px;overflow:hidden}
+.it.cur{outline:3px solid #6d4aff}
+.fr{width:' . (int) ( $fw * $sc ) . 'px;height:' . (int) ( $fh * $sc ) . 'px;overflow:hidden;margin:12px auto 0;border-radius:10px;background:#eee;position:relative}
+.fr iframe{width:' . $fw . 'px;height:' . $fh . 'px;border:0;transform:scale(' . $sc . ');transform-origin:top right;position:absolute;top:0;right:0;pointer-events:none}
+.mt{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 14px 12px}
+.mt b{font-size:.86rem}.mt small{color:#6f6b7c;font-size:.72rem;display:block}
+.mt a{font-size:.75rem;font-weight:800;color:#6d4aff;text-decoration:none;white-space:nowrap}
+</style></head><body><header><h1>🖼 گالری مدل‌ها</h1><nav>';
+    foreach ( $sets as $k => $s ) { echo '<a class="' . ( $k === $g ? 'on' : '' ) . '" href="' . $u( array( 'g' => $k, 'vw' => $vw, 'dm' => $dm ) ) . '">' . esc_html( $s[0] ) . ' (' . esc_html( sahel_fa( count( $s[1] ) ) ) . ')</a>'; }
+    echo '</nav><div class="tg"><a class="' . ( 'd' === $vw ? 'on' : '' ) . '" href="' . $u( array( 'g' => $g, 'vw' => 'd', 'dm' => $dm ) ) . '">🖥 دسکتاپ</a><a class="' . ( 'm' === $vw ? 'on' : '' ) . '" href="' . $u( array( 'g' => $g, 'vw' => 'm', 'dm' => $dm ) ) . '">📱 موبایل</a><a class="' . ( 'flat' === $dm ? 'on' : '' ) . '" href="' . $u( array( 'g' => $g, 'vw' => $vw, 'dm' => 'flat' ) ) . '">سبک فلت</a><a class="' . ( 'classic' === $dm ? 'on' : '' ) . '" href="' . $u( array( 'g' => $g, 'vw' => $vw, 'dm' => 'classic' ) ) . '">سبک با افکت</a><a href="' . esc_url( admin_url( 'customize.php' ) ) . '">سفارشی‌سازی ←</a></div></header>';
+    echo '<p class="note">پیش‌نمایش‌ها با محتوای واقعی سایت شما ساخته می‌شوند و چیزی ذخیره نمی‌شود. برای مدل‌های اسلاید، محتوای «اسلاید ۱» استفاده می‌شود. برای دیدن هر مدل در اندازه‌ی واقعی (و امتحان هاور و کلیک) روی «باز کردن» بزنید؛ برای انتخاب، «انتخاب در سفارشی‌ساز» را بزنید.' . ( 'flat' === $dm ? ' <b>توجه:</b> در «سبک فلت» سایه‌ها و حرکت‌های هاور خاموش‌اند؛ برای دیدن کامل افکت‌ها «سبک با افکت» را بزنید.' : '' ) . '</p><main>';
+    foreach ( $set[1] as $key => $label ) {
+        $mods = $set[3] + array( $set[2] => (string) $key, 'sahel_design_mode' => $dm );
+        $src  = add_query_arg( 'sahel_pv', rawurlencode( wp_json_encode( $mods ) ), $base ) . $set[5];
+        $cz   = add_query_arg( array( 'autofocus[control]' => $set[6], 'url' => rawurlencode( $base ) ), admin_url( 'customize.php' ) );
+        echo '<div class="it' . ( (string) $key === $cur ? ' cur' : '' ) . '"><div class="fr"><iframe loading="lazy" src="' . esc_url( $src ) . '" title="' . esc_attr( $label ) . '" tabindex="-1"></iframe></div><div class="mt"><div><b>' . esc_html( $label ) . '</b><small>کد: ' . esc_html( $key ) . ( (string) $key === $cur ? ' — انتخاب فعلی' : '' ) . '</small></div><div><a href="' . esc_url( $src ) . '" target="_blank" rel="noopener">باز کردن ↗</a><br><a href="' . esc_url( $cz ) . '">انتخاب در سفارشی‌ساز</a></div></div></div>';
+    }
+    echo '</main></body></html>';
+    exit;
+}, 1 );
+/* لینک گالری در نوار مدیریت و سفارشی‌ساز */
+add_action( 'admin_bar_menu', function ( $bar ) {
+    if ( current_user_can( 'edit_theme_options' ) ) { $bar->add_node( array( 'id' => 'sahel-gallery', 'title' => '🖼 گالری مدل‌های قالب', 'href' => add_query_arg( 'sahel_gallery', 1, home_url( '/' ) ) ) ); }
+}, 90 );
+add_action( 'customize_register', function ( $w ) {
+    $link = '<a href="' . esc_url( add_query_arg( 'sahel_gallery', 1, home_url( '/' ) ) ) . '" target="_blank" rel="noopener" style="display:inline-block;margin:6px 0;padding:6px 12px;border-radius:6px;background:#6d4aff;color:#fff;text-decoration:none">🖼 دیدن همه‌ی مدل‌ها در گالری</a>';
+    foreach ( array( 'sahel_slider', 'sahel_styles' ) as $sid ) {
+        if ( $s = $w->get_section( $sid ) ) { $s->description = $link . ( $s->description ? '<br>' . $s->description : '' ); }
+    }
+}, 47 );
