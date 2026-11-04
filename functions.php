@@ -62,14 +62,22 @@ function sahel_product_cats( $n = 0 ) {
     $a = array( 'hide_empty' => false, 'parent' => 0 ); if ( $n ) $a['number'] = $n;
     $t = get_terms( 'product_cat', $a ); return is_wp_error( $t ) ? array() : (array) $t;
 }
-function sahel_product_cats_tree( $parent = 0 ) {
+function sahel_product_cats_tree( $parent = 0, $depth = 0 ) {
     if ( ! taxonomy_exists( 'product_cat' ) ) return array();
-    $terms = get_terms( 'product_cat', array( 'hide_empty' => false, 'parent' => $parent ) );
-    if ( is_wp_error( $terms ) || empty( $terms ) ) return array();
+    /* سرعت: همه‌ی دسته‌ها با یک کوئری خوانده و در حافظه درخت می‌شوند (قبلاً برای هر دسته یک کوئری جدا اجرا می‌شد) */
+    if ( ! isset( $GLOBALS['sahel_cats_by_parent'] ) ) {
+        $by  = array();
+        $all = get_terms( 'product_cat', array( 'hide_empty' => false ) );
+        if ( ! is_wp_error( $all ) ) { foreach ( (array) $all as $t ) { $by[ (int) $t->parent ][] = $t; } }
+        $GLOBALS['sahel_cats_by_parent'] = $by;
+    }
+    $by = $GLOBALS['sahel_cats_by_parent'];
+    if ( empty( $by[ (int) $parent ] ) || $depth > 12 ) return array();
     $tree = array();
-    foreach ( $terms as $t ) { $tree[] = array( 'term' => $t, 'children' => sahel_product_cats_tree( $t->term_id ) ); }
+    foreach ( $by[ (int) $parent ] as $t ) { $tree[] = array( 'term' => $t, 'children' => sahel_product_cats_tree( $t->term_id, $depth + 1 ) ); }
     return $tree;
 }
+foreach ( array( 'created_product_cat', 'edited_product_cat', 'delete_product_cat' ) as $sahel_h ) { add_action( $sahel_h, function() { unset( $GLOBALS['sahel_cats_by_parent'] ); } ); }
 function sahel_product_cats_flat() {
     $flat = array();
     $walk = function( $nodes ) use ( &$flat, &$walk ) {
