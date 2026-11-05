@@ -2603,7 +2603,7 @@ function sahel_shell( $content ) {
         $pd_style_cls = ' pdst-' . get_theme_mod( 'sahel_product_style', '1' ) . ( $pd_style_m ? ' pdst-m-' . $pd_style_m : '' );
     }
     $bbar_off = sahel_bottombar_active() ? '' : ' bbar-off';
-    $body_cls = 'btnst-' . get_theme_mod( 'sahel_btn_style', 'pill' ) . ' catst-' . get_theme_mod( 'sahel_catcard', '1' ) . ' prodst-' . get_theme_mod( 'sahel_prodcard', '1' ) . ' postst-' . get_theme_mod( 'sahel_postcard', '1' ) . ' ddst-' . get_theme_mod( 'sahel_dd_style', '1' ) . ' sldst-' . get_theme_mod( 'sahel_slider_style', '1' ) . ' hstyle-' . get_theme_mod( 'sahel_header_style', 'classic' ) . $hide_desc . $pd_full . $pd_style_cls . $bbar_off . ' sfx-' . sanitize_html_class( get_theme_mod( 'sahel_slider_fx', 'fade' ) ) . ( is_front_page() ? ' is-home' : '' ) . ' design-' . sanitize_html_class( get_theme_mod( 'sahel_design_mode', 'flat' ) ) . ' wscr-' . sanitize_html_class( get_theme_mod( 'sahel_wide_screen', 'scale' ) ) . ' mcols-' . sanitize_html_class( get_theme_mod( 'sahel_mobile_cols', '2' ) ) . sahel_body_extra_cls();
+    $body_cls = 'btnst-' . get_theme_mod( 'sahel_btn_style', 'pill' ) . ' catst-' . get_theme_mod( 'sahel_catcard', '1' ) . ' prodst-' . ( function_exists( 'sahel_prodcard_ctx' ) ? sahel_prodcard_ctx() : get_theme_mod( 'sahel_prodcard', '1' ) ) . ' postst-' . get_theme_mod( 'sahel_postcard', '1' ) . ' ddst-' . get_theme_mod( 'sahel_dd_style', '1' ) . ' sldst-' . get_theme_mod( 'sahel_slider_style', '1' ) . ' hstyle-' . get_theme_mod( 'sahel_header_style', 'classic' ) . $hide_desc . $pd_full . $pd_style_cls . $bbar_off . ' sfx-' . sanitize_html_class( get_theme_mod( 'sahel_slider_fx', 'fade' ) ) . ( is_front_page() ? ' is-home' : '' ) . ' design-' . sanitize_html_class( get_theme_mod( 'sahel_design_mode', 'flat' ) ) . ' wscr-' . sanitize_html_class( get_theme_mod( 'sahel_wide_screen', 'scale' ) ) . ' mcols-' . sanitize_html_class( get_theme_mod( 'sahel_mobile_cols', '2' ) ) . sahel_body_extra_cls();
     $h_img = get_theme_mod( 'sahel_header_image', '' );
     $h_op = (int) get_theme_mod( 'sahel_header_image_opacity', 30 ) / 100;
     $header_img_style = $h_img ? '--header-img:url(' . esc_url( $h_img ) . ');--header-img-op:' . $h_op . ';' : '';
@@ -3051,7 +3051,7 @@ function sahel_home_html() {
             $h .= $bg['overlay'];
             $h .= '<div class="wrap">';
             $h .= sahel_sec_head_html( $sec['title'], $sec['sub'], sahel_arrows() );
-            $h .= '<div class="strip">' . do_shortcode( '[products limit="8" columns="4" orderby="date" order="DESC"]' ) . '</div></div></section>';
+            $h .= '<div class="strip' . ( function_exists( 'sahel_pcs_html' ) ? sahel_pcs_html( 'new' ) : '"' ) . '>' . do_shortcode( '[products limit="8" columns="4" orderby="date" order="DESC"]' ) . '</div></div></section>';
             $parts[] = array( $sec['order'], $h );
         }
         $sec = sahel_sec( 'sale' );
@@ -3061,7 +3061,7 @@ function sahel_home_html() {
             $h .= $bg['overlay'];
             $h .= '<div class="wrap">';
             $h .= '<div class="sec-head rv"><div><h2>' . esc_html( $sec['title'] ) . '</h2><p>' . esc_html( $sec['sub'] ) . '</p></div><div style="display:flex;gap:10px;align-items:center"><a class="sec-link" style="background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.2);color:#e7cfb8" href="' . esc_url( sahel_shop_url() ) . '">مشاهده همه 🤎</a>' . sahel_arrows() . '</div></div>';
-            $h .= '<div class="strip">' . do_shortcode( '[products limit="8" columns="4" on_sale="true"]' ) . '</div></div></section>';
+            $h .= '<div class="strip' . ( function_exists( 'sahel_pcs_html' ) ? sahel_pcs_html( 'sale' ) : '"' ) . '>' . do_shortcode( '[products limit="8" columns="4" on_sale="true"]' ) . '</div></div></section>';
             $parts[] = array( $sec['order'], $h );
         }
         $sec = sahel_sec( 'best' );
@@ -3071,7 +3071,7 @@ function sahel_home_html() {
             $h .= $bg['overlay'];
             $h .= '<div class="wrap">';
             $h .= sahel_sec_head_html( $sec['title'], $sec['sub'], sahel_arrows() );
-            $h .= '<div class="strip">' . do_shortcode( '[products limit="8" columns="4" best_selling="true"]' ) . '</div></div></section>';
+            $h .= '<div class="strip' . ( function_exists( 'sahel_pcs_html' ) ? sahel_pcs_html( 'best' ) : '"' ) . '>' . do_shortcode( '[products limit="8" columns="4" best_selling="true"]' ) . '</div></div></section>';
             $parts[] = array( $sec['order'], $h );
         }
     }
@@ -3491,7 +3491,7 @@ function sahel_engine( $template ) {
                     $h .= '<div class="pd-tabs">'; ob_start(); woocommerce_output_product_data_tabs(); $h .= ob_get_clean(); $h .= '</div>';
                 }
                 if ( get_theme_mod( 'sahel_product_related', 1 ) ) {
-                    $h .= '<div class="pd-related"><h3 class="pd-related-title">محصولات <span>مرتبط</span> ' . esc_html( $brand_short ) . '</h3>';
+                    $h .= '<div class="pd-related' . ( function_exists( 'sahel_pcs_html' ) ? sahel_pcs_html( 'related' ) : '"' ) . '><h3 class="pd-related-title">محصولات <span>مرتبط</span> ' . esc_html( $brand_short ) . '</h3>';
                     ob_start(); woocommerce_output_related_products(); $h .= ob_get_clean(); $h .= '</div>';
                 }
             }
@@ -3556,7 +3556,7 @@ function sahel_engine( $template ) {
             sahel_shell( $h );
         }
         $html = ob_get_clean();
-        echo $html;
+        echo apply_filters( 'sahel_final_html', $html );
         exit;
     } catch ( \Throwable $e ) {
         ob_end_clean();
@@ -6572,7 +6572,7 @@ body.catl-center #categories .cat-card{width:168px}
 body.catl-tworow #categories .cat-grid{display:grid;grid-auto-flow:column;grid-template-rows:repeat(2,auto);grid-auto-columns:168px}
 body.catl-tworow #categories .cat-card{width:auto}
 body.catl-marquee #categories .wrap{overflow:hidden}
-body.catl-marquee #categories .cat-grid{overflow:visible;width:max-content;mask-image:none;-webkit-mask-image:none;animation:catMq var(--catmq,40s) linear infinite}
+body.catl-marquee #categories .cat-grid{overflow:visible;width:max-content;mask-image:none;-webkit-mask-image:none}
 body.catl-marquee #categories .cat-grid:hover{animation-play-state:paused}
 body.catl-marquee #categories .strip-arrows{display:none}
 @keyframes catMq{to{transform:translateX(50%)}}
@@ -6787,7 +6787,7 @@ document.addEventListener('click',function(e){if(e.target.closest('.prod-vsel')&
 
 /* ---------- نوار متحرک ویترین و دسته‌بندی‌ها: تکرار آیتم‌ها برای حرکت بی‌انتها ---------- */
 $$('.sl-showcase.sc-st-ticker').forEach(function(sc){var items=$$('.sc-item',sc);if(!items.length)return;var tr=document.createElement('div');tr.className='sc-track';items.forEach(function(i){tr.appendChild(i);});items.forEach(function(i){var c=i.cloneNode(true);c.setAttribute('aria-hidden','true');c.tabIndex=-1;tr.appendChild(c);});sc.appendChild(tr);sc.style.setProperty('--sctk',Math.max(18,items.length*6)+'s');});
-if(document.body.classList.contains('catl-marquee')){$$('#categories .cat-grid').forEach(function(g){var items=$$('.cat-card',g);items.forEach(function(i){var c=i.cloneNode(true);c.setAttribute('aria-hidden','true');c.tabIndex=-1;g.appendChild(c);});g.style.setProperty('--catmq',Math.max(20,items.length*5)+'s');});}
+/* نوار متحرک دسته‌بندی‌ها: موتور بی‌انتهای v6.7 */
 /* نقاط تعاملی: با رفتن ماوس روی نقطه یا اولین لمس، کارت محصول باز شود */
 $$('.sc-st-hotspot .sc-item').forEach(function(it){var t=0;it.addEventListener('pointerenter',function(e){if(e.pointerType!=='mouse')return;clearTimeout(t);$$('.sc-st-hotspot .sc-item.open').forEach(function(x){if(x!==it)x.classList.toggle('open',false);});it.classList.add('open');});it.addEventListener('pointerleave',function(e){if(e.pointerType!=='mouse')return;t=setTimeout(function(){it.classList.toggle('open',false);},220);});});
 document.addEventListener('click',function(e){
@@ -7359,3 +7359,192 @@ add_action( 'customize_register', function ( $w ) {
         if ( $s = $w->get_section( $sid ) ) { $s->description = $link . ( $s->description ? '<br>' . $s->description : '' ); }
     }
 }, 47 );
+
+/* =====================================================================
+ * v6.7 — کارت و چیدمان جداگانه برای هر بخش محصولات + نوار متحرک بی‌انتها
+ * ===================================================================== */
+function sahel_pcs_areas() {
+    return array(
+        'new'     => array( 'جدیدترین محصولات (صفحه اصلی)', true ),
+        'sale'    => array( 'محصولات تخفیف‌دار (صفحه اصلی)', true ),
+        'best'    => array( 'پرفروش‌ترین‌ها (صفحه اصلی)', true ),
+        'related' => array( 'محصولات مرتبط (صفحه محصول)', true ),
+        'shop'    => array( 'صفحه فروشگاه و دسته‌بندی‌ها', false ),
+    );
+}
+function sahel_pcs_card( $k ) {
+    $v = (string) get_theme_mod( 'sahel_pcs_' . $k . '_card', '' );
+    return ( '' !== $v && ctype_digit( $v ) && '0' !== $v ) ? $v : '';
+}
+/* کارت محصول صفحه‌ی فعلی: فروشگاه و صفحه محصول می‌توانند کارت خودشان را داشته باشند */
+function sahel_prodcard_ctx() {
+    $g = (string) get_theme_mod( 'sahel_prodcard', '1' );
+    if ( function_exists( 'is_shop' ) && ( is_shop() || ( function_exists( 'is_product_taxonomy' ) && is_product_taxonomy() ) ) ) { $c = sahel_pcs_card( 'shop' ); if ( $c ) { return $c; } }
+    if ( function_exists( 'is_product' ) && is_product() ) { $c = sahel_pcs_card( 'related' ); if ( $c ) { return $c; } }
+    return $g;
+}
+/* کلاس‌ها و ویژگی‌های ظرف محصولات یک بخش (خروجی بعد از class="...) */
+function sahel_pcs_html( $k ) {
+    $cls = ' pcs-area pcs-a-' . sanitize_html_class( $k );
+    $c   = sahel_pcs_card( $k );
+    if ( $c && 'related' !== $k && $c !== sahel_prodcard_ctx() ) {
+        $cls .= ' pcsx pcs-' . $c;
+        $GLOBALS['sahel_pcs_used'][ $c ] = 1;
+    }
+    $lay = get_theme_mod( 'sahel_pcs_' . $k . '_layout', 'scroll' );
+    if ( ! in_array( $lay, array( 'scroll', 'grid', 'marquee' ), true ) ) { $lay = 'scroll'; }
+    $cls .= ' plx-' . $lay;
+    $att = '';
+    if ( 'marquee' === $lay ) {
+        $dir = 'lr' === get_theme_mod( 'sahel_pcs_' . $k . '_dir', 'rl' ) ? 'lr' : 'rl';
+        $att .= ' data-mq-dir="' . $dir . '" data-mq-speed="' . max( 10, min( 300, (int) get_theme_mod( 'sahel_pcs_' . $k . '_speed', 40 ) ) ) . '"';
+    }
+    if ( 'grid' === $lay ) { $att .= ' style="--plx-cols:' . max( 2, min( 6, (int) get_theme_mod( 'sahel_pcs_' . $k . '_cols', 4 ) ) ) . '"'; }
+    return $cls . '"' . $att;
+}
+
+/* ---------- کارت هر بخش: قواعد CSS همان کارت فقط داخل همان بخش اعمال می‌شود ---------- */
+function sahel_split_selectors( $sel ) {
+    $out = array(); $buf = ''; $d = 0; $len = strlen( $sel );
+    for ( $i = 0; $i < $len; $i++ ) {
+        $ch = $sel[ $i ];
+        if ( '(' === $ch || '[' === $ch ) { $d++; } elseif ( ')' === $ch || ']' === $ch ) { $d--; }
+        if ( ',' === $ch && 0 === $d ) { $out[] = $buf; $buf = ''; continue; }
+        $buf .= $ch;
+    }
+    $out[] = $buf;
+    return $out;
+}
+function sahel_sel_not_in_area( $s ) {
+    $s = rtrim( $s );
+    if ( preg_match( '/(::?(?:before|after|placeholder|marker|selection|first-line|first-letter|-webkit-[\w-]+))$/', $s, $m ) ) {
+        return substr( $s, 0, -strlen( $m[1] ) ) . ':not(:where(.pcsx *))' . $m[1];
+    }
+    return $s . ':not(:where(.pcsx *))';
+}
+function sahel_pcs_css( $css, $used, $g ) {
+    if ( false === strpos( $css, 'prodst-' ) ) { return $css; }
+    return preg_replace_callback( '/([^{}]+)\{([^{}]*)\}/', function ( $m ) use ( $used, $g ) {
+        if ( false === strpos( $m[1], 'prodst-' ) ) { return $m[0]; }
+        $sel = preg_replace( '#/\*.*?\*/#s', '', $m[1] );
+        if ( preg_match( '/^\s*@/', $sel ) ) { return $m[0]; }
+        $orig = array(); $add = array(); $touched = false;
+        foreach ( sahel_split_selectors( $sel ) as $s ) {
+            if ( ! preg_match( '/body((?:\.[\w-]+)*?)\.prodst-(\d+)\b((?:\.[\w-]+)*)/', $s, $mm ) ) { $orig[] = $s; continue; }
+            $n = $mm[2]; $touched = true;
+            $orig[] = ( $n === $g ) ? sahel_sel_not_in_area( $s ) : $s;
+            if ( in_array( $n, $used, true ) ) {
+                $add[] = preg_replace( '/body((?:\.[\w-]+)*?)\.prodst-' . $n . '\b((?:\.[\w-]+)*)/', 'body$1$2 .pcs-' . $n, $s, 1 );
+            }
+        }
+        if ( ! $touched ) { return $m[0]; }
+        return implode( ',', $orig ) . '{' . $m[2] . '}' . ( $add ? implode( ',', $add ) . '{' . $m[2] . '}' : '' );
+    }, $css );
+}
+add_filter( 'sahel_final_html', function ( $html ) {
+    if ( empty( $GLOBALS['sahel_pcs_used'] ) ) { return $html; }
+    $used = array_map( 'strval', array_keys( $GLOBALS['sahel_pcs_used'] ) );
+    $g    = (string) sahel_prodcard_ctx();
+    return preg_replace_callback( '#(<style\b[^>]*>)(.*?)(</style>)#s', function ( $m ) use ( $used, $g ) {
+        return $m[1] . sahel_pcs_css( $m[2], $used, $g ) . $m[3];
+    }, $html );
+} );
+
+/* ---------- تنظیمات ---------- */
+add_action( 'customize_register', function ( $w ) {
+    $cards = array( '' => '— مثل کارت محصول کلی سایت —' );
+    if ( $c = $w->get_control( 'sahel_prodcard' ) ) { $cards += $c->choices; }
+    $w->add_section( 'sahel_pcs', array( 'title' => '۷-ب. کارت و چیدمان محصولات هر بخش', 'priority' => 34, 'description' => 'برای هر بخش محصولات، طرح کارت و چیدمان جداگانه انتخاب کنید. در حالت «نوار متحرک» محصولات پشت‌سرهم و بی‌انتها حرکت می‌کنند و با بردن ماوس می‌ایستند.' ) );
+    foreach ( sahel_pcs_areas() as $k => $a ) {
+        $p = 'sahel_pcs_' . $k;
+        $w->add_setting( $p . '_card', array( 'default' => '', 'sanitize_callback' => 'sanitize_key' ) );
+        $w->add_control( $p . '_card', array( 'label' => '🃏 ' . $a[0] . ' — طرح کارت', 'section' => 'sahel_pcs', 'type' => 'select', 'choices' => $cards ) );
+        if ( ! $a[1] ) { continue; }
+        $w->add_setting( $p . '_layout', array( 'default' => 'scroll', 'sanitize_callback' => 'sanitize_key' ) );
+        $w->add_control( $p . '_layout', array( 'label' => '— چیدمان', 'section' => 'sahel_pcs', 'type' => 'select', 'choices' => array( 'scroll' => 'ردیف اسکرولی با فلش (پیش‌فرض)', 'grid' => 'شبکه‌ای (چند ردیف)', 'marquee' => 'نوار متحرک خودکار و بی‌انتها' ) ) );
+        $w->add_setting( $p . '_dir', array( 'default' => 'rl', 'sanitize_callback' => 'sanitize_key' ) );
+        $w->add_control( $p . '_dir', array( 'label' => '— جهت حرکت (نوار متحرک)', 'section' => 'sahel_pcs', 'type' => 'select', 'choices' => array( 'rl' => 'از راست به چپ ←', 'lr' => 'از چپ به راست →' ) ) );
+        $w->add_setting( $p . '_speed', array( 'default' => 40, 'sanitize_callback' => 'absint' ) );
+        $w->add_control( $p . '_speed', array( 'label' => '— سرعت حرکت (۱۰ آهسته تا ۳۰۰ سریع)', 'section' => 'sahel_pcs', 'type' => 'number', 'input_attrs' => array( 'min' => 10, 'max' => 300 ) ) );
+        $w->add_setting( $p . '_cols', array( 'default' => 4, 'sanitize_callback' => 'absint' ) );
+        $w->add_control( $p . '_cols', array( 'label' => '— تعداد ستون (چیدمان شبکه‌ای، دسکتاپ)', 'section' => 'sahel_pcs', 'type' => 'number', 'input_attrs' => array( 'min' => 2, 'max' => 6 ) ) );
+    }
+    if ( $w->get_section( 'sahel_styles' ) ) {
+        $w->add_setting( 'sahel_cat_mq_dir', array( 'default' => 'rl', 'sanitize_callback' => 'sanitize_key' ) );
+        $w->add_control( 'sahel_cat_mq_dir', array( 'label' => '🗂 نوار متحرک دسته‌بندی‌ها — جهت حرکت', 'section' => 'sahel_styles', 'type' => 'select', 'choices' => array( 'rl' => 'از راست به چپ ←', 'lr' => 'از چپ به راست →' ) ) );
+        $w->add_setting( 'sahel_cat_mq_speed', array( 'default' => 40, 'sanitize_callback' => 'absint' ) );
+        $w->add_control( 'sahel_cat_mq_speed', array( 'label' => '🗂 نوار متحرک دسته‌بندی‌ها — سرعت (۱۰ تا ۳۰۰)', 'section' => 'sahel_styles', 'type' => 'number', 'input_attrs' => array( 'min' => 10, 'max' => 300 ) ) );
+    }
+}, 48 );
+
+add_action( 'wp_head', function() {
+    echo '<style id="sahel-v67">' . <<<'SHCSS67'
+/* چیدمان شبکه‌ای برای یک بخش محصولات */
+.plx-grid ul.products{display:grid!important;grid-template-columns:repeat(var(--plx-cols,4),minmax(0,1fr))!important;overflow:visible!important;flex-wrap:wrap;mask-image:none!important;-webkit-mask-image:none!important;scroll-snap-type:none!important}
+.plx-grid ul.products li.product{width:auto!important;min-width:0!important;max-width:none!important;flex:none!important}
+section:has(.plx-grid) .strip-arrows,section:has(.plx-marquee) .strip-arrows,.pd-related.plx-grid .strip-arrows,.pd-related.plx-marquee .strip-arrows{display:none}
+@media(max-width:760px){.plx-grid ul.products{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+/* نوار متحرک بی‌انتها (محصولات و دسته‌بندی‌ها) */
+.mq-box{overflow:hidden!important;-webkit-mask-image:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent);mask-image:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent)}
+.mq-box .mq-track{display:flex!important;flex-wrap:nowrap!important;width:max-content!important;max-width:none!important;overflow:visible!important;direction:ltr;scroll-snap-type:none!important;-webkit-mask-image:none!important;mask-image:none!important;animation:sahelMqL var(--mq-dur,40s) linear infinite;will-change:transform}
+.mq-box .mq-track>*{direction:rtl;flex-shrink:0}
+.mq-box .rv{opacity:1!important;transform:none!important}
+/* مسیر نوار از لبه‌ی چپ شروع می‌شود تا تکرارها همیشه در سمت درست باشند؛ متن‌ها راست‌به‌چپ می‌مانند */
+.mq-box,.mq-box :has(> .mq-track){direction:ltr}
+.mq-box > :not(.mq-track):not(:has(.mq-track)),.mq-box :has(> .mq-track) > :not(.mq-track){direction:rtl}
+.mq-box[data-mq-dir="lr"] .mq-track{animation-name:sahelMqR}
+.mq-box:hover .mq-track,.mq-box:focus-within .mq-track{animation-play-state:paused}
+/* نوار متحرک بر تنظیم «یک/دو ستون موبایل» مقدم است */
+html body section .mq-box ul.products.mq-track{display:flex!important;flex-wrap:nowrap!important;width:max-content!important;overflow:visible!important;margin:0!important;padding:4px 0 10px!important;grid-template-columns:none!important}
+html body section .mq-box ul.products.mq-track>li.product{flex:0 0 var(--mq-item,210px)!important;width:var(--mq-item,210px)!important;min-width:0!important}
+html body .pd-related.mq-box ul.products.mq-track{display:flex!important;flex-wrap:nowrap!important;width:max-content!important;grid-template-columns:none!important}
+html body .pd-related.mq-box ul.products.mq-track>li.product{flex:0 0 var(--mq-item,230px)!important;width:var(--mq-item,230px)!important;min-width:0!important;max-width:none!important}
+@media(max-width:760px){html body .mq-box ul.products.mq-track>li.product{--mq-item:168px}}
+html body section#categories .mq-box .cat-grid.mq-track{display:flex!important;flex-wrap:nowrap!important;width:max-content!important;overflow:visible!important;grid-template-columns:none!important;grid-auto-flow:initial!important}
+@media(max-width:920px){html body section#categories .mq-box .cat-grid.mq-track>.cat-card{flex:0 0 auto!important;width:140px!important;min-width:0!important}html body.catst-17 section#categories .mq-box .cat-grid.mq-track>.cat-card{width:auto!important}}
+@keyframes sahelMqL{from{transform:translate3d(0,0,0)}to{transform:translate3d(calc(-1 * var(--mq-w,0px)),0,0)}}
+@keyframes sahelMqR{from{transform:translate3d(calc(-1 * var(--mq-w,0px)),0,0)}to{transform:translate3d(0,0,0)}}
+body.catl-marquee #categories .cat-grid.mq-track{animation:sahelMqL var(--mq-dur,40s) linear infinite;transform:none}
+body.catl-marquee #categories .mq-box[data-mq-dir="lr"] .cat-grid.mq-track{animation-name:sahelMqR}
+body.catl-marquee #categories .mq-box:hover .cat-grid.mq-track{animation-play-state:paused}
+@media (prefers-reduced-motion:reduce){.mq-box .mq-track,body.catl-marquee #categories .cat-grid.mq-track{animation:none!important}.mq-box{overflow-x:auto!important}}
+SHCSS67
+    . '</style>';
+}, 202 );
+add_action( 'wp_footer', function() {
+    $cfg = array( 'cat' => array( 'dir' => 'lr' === get_theme_mod( 'sahel_cat_mq_dir', 'rl' ) ? 'lr' : 'rl', 'speed' => max( 10, min( 300, (int) get_theme_mod( 'sahel_cat_mq_speed', 40 ) ) ), 'on' => 'marquee' === get_theme_mod( 'sahel_cat_layout', 'scroll' ) ) );
+    echo '<script id="sahel-v67-js">var SAHEL_MQ=' . wp_json_encode( $cfg ) . ";\n" . <<<'SHJS67'
+(function(){
+var $$=function(s,c){return Array.prototype.slice.call((c||document).querySelectorAll(s));};
+var reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+/* موتور نوار متحرک: آیتم‌ها آن‌قدر تکرار می‌شوند که صفحه پر شود و حرکت دقیقاً به اندازه‌ی یک دور است؛ پس اتصال بی‌درز است */
+function marquee(box,track,dir,speed){
+  if(reduce||!track||box.dataset.mqReady)return;box.dataset.mqReady='1';
+  box.classList.add('mq-box');box.setAttribute('data-mq-dir',dir);track.classList.add('mq-track');
+  var items=$$(':scope > *',track).filter(function(x){return !x.hasAttribute('data-mq-clone');});
+  if(!items.length)return;
+  var lastW=0;
+  function build(){
+    var bw=box.clientWidth;if(!bw||bw===lastW)return;lastW=bw;
+    $$(':scope > [data-mq-clone]',track).forEach(function(n){track.removeChild(n);});
+    var cs=getComputedStyle(track),gap=parseFloat(cs.columnGap||cs.gap)||0,w=0;
+    items.forEach(function(i){w+=i.getBoundingClientRect().width+gap;});
+    if(w<10)return;
+    var sets=Math.max(2,Math.ceil(bw/w)+1);
+    for(var k=1;k<sets;k++){items.forEach(function(i){var c=i.cloneNode(true);c.setAttribute('data-mq-clone','');c.setAttribute('aria-hidden','true');$$('a,button,input,select,[tabindex]',c).forEach(function(x){x.tabIndex=-1;});$$('[data-ready]',c).forEach(function(x){x.removeAttribute('data-ready');});track.appendChild(c);});}
+    track.style.setProperty('--mq-w',w.toFixed(2)+'px');
+    track.style.setProperty('--mq-dur',(w/speed).toFixed(2)+'s');
+  }
+  build();
+  var t=0;window.addEventListener('resize',function(){clearTimeout(t);t=setTimeout(build,200);});
+  window.addEventListener('load',function(){lastW=0;build();});
+}
+function run(){
+  $$('[data-mq-dir]').forEach(function(box){if(box.classList.contains('mq-box'))return;marquee(box,box.querySelector('ul.products'),box.getAttribute('data-mq-dir'),+box.getAttribute('data-mq-speed')||40);});
+  if(SAHEL_MQ.cat.on){$$('#categories .cat-grid').forEach(function(g){if(g.parentNode.classList.contains('mq-box'))return;var w=document.createElement('div');g.parentNode.insertBefore(w,g);w.appendChild(g);marquee(w,g,SAHEL_MQ.cat.dir,SAHEL_MQ.cat.speed);});}
+}
+if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',run);}else{run();}
+})();
+SHJS67
+    . '</script>';
+}, 35 );
