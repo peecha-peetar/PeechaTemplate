@@ -352,7 +352,7 @@ add_filter( 'loop_shop_per_page', function() { return (int) get_theme_mod( 'sahe
 add_filter( 'woocommerce_product_query', function( $q ) {
     if ( is_admin() ) { return; }
     if ( isset( $_GET['mstock'] ) && $_GET['mstock'] === 'in' ) { $q->set( 'stock_status', array( 'instock' ) ); }
-    if ( ! get_theme_mod( 'sahel_shop_sidebar_on', 0 ) ) { return; }
+    if ( ! get_theme_mod( 'sahel_shop_sidebar_on', 0 ) && ! get_theme_mod( 'sahel_product_sidebar_on', 0 ) ) { return; } /* فیلترهای پنل صفحه محصول هم به فروشگاه می‌روند */
     $tax_query = $q->get( 'tax_query' );
     if ( ! is_array( $tax_query ) ) { $tax_query = array(); }
     $brand_tax = sahel_brand_taxonomy();
@@ -378,7 +378,7 @@ add_filter( 'woocommerce_product_query', function( $q ) {
     if ( $min_price > 0 || $max_price > 0 ) {
         $meta_query = $q->get( 'meta_query' );
         if ( ! is_array( $meta_query ) ) { $meta_query = array(); }
-        $price_query = array( 'key' => '_price', 'type' => 'DECIMAL(10,2)' );
+        $price_query = array( 'key' => '_price', 'type' => 'DECIMAL(20,2)' );
         if ( $min_price > 0 && $max_price > 0 ) { $price_query['value'] = array( $min_price, $max_price ); $price_query['compare'] = 'BETWEEN'; }
         elseif ( $min_price > 0 ) { $price_query['value'] = $min_price; $price_query['compare'] = '>='; }
         else { $price_query['value'] = $max_price; $price_query['compare'] = '<='; }
@@ -429,7 +429,8 @@ function sahel_shop_filters_sidebar_html() {
     $cur_stock = isset( $_GET['mstock'] ) && $_GET['mstock'] === 'in';
     // خارج از فروشگاه (مثلاً صفحه محصول) نتیجه فیلتر باید صفحه فروشگاه رو باز کنه، نه همون صفحه رو.
     $form_action = ( function_exists( 'is_shop' ) && ( is_shop() || is_product_category() || is_product_tag() ) ) ? '' : ' action="' . esc_url( sahel_shop_url() ) . '"';
-    $h = '<button type="button" class="sf-toggle-mob">☰ فیلترها</button><div class="shop-flex"><aside class="shop-filters"><form method="get" class="shop-filters-form"' . $form_action . '>';
+    if ( '' === $form_action && function_exists( 'sahel_filter_form_action' ) ) { $form_action = ' action="' . esc_url( sahel_filter_form_action() ) . '"'; }
+    $h = '<button type="button" class="sf-toggle-mob">☰ فیلترها</button><div class="shop-flex"><aside class="shop-filters"><form method="get" class="shop-filters-form"' . $form_action . '>' . ( function_exists( 'sahel_filter_keep_fields' ) ? sahel_filter_keep_fields() : '' );
     $fcats = sahel_product_cats_flat();
     if ( $fcats ) {
         $h .= '<div class="sf-group"><h4>دسته‌بندی</h4><div class="sf-list">';
@@ -2827,7 +2828,8 @@ $(document).on('click','.sf-toggle-mob',function(){
 $('.shop-filters').toggleClass('open');
 });
 $(document).on('change','.shop-filters-form input[type=checkbox]',function(){
-this.closest('form').submit();
+if(!document.body.classList.contains('sfauto'))return; /* فقط وقتی «اعمال خودکار فیلتر» روشن است */
+var f=this.closest('form');if(f.requestSubmit){f.requestSubmit();}else{$(f).trigger('submit');}
 });
 (function(){
 if(!document.body.classList.contains('catst-9') && !document.body.classList.contains('prodst-11')) return;
@@ -3422,7 +3424,7 @@ function sahel_engine( $template ) {
             // فیلترهای پنل کناری روی query string کار می‌کنن؛ اگه افزونه/سرور کش صفحه رو
             // بدون توجه به query string سرو کنه، تغییر فیلتر هیچ اثری نشون نمی‌ده.
             // این هدرها به کش‌کننده‌های رایج می‌گن این نسخه‌ی خاص (با این فیلترها) کش نشه.
-            if ( $sidebar_on && ( ! empty( $_GET['fcat'] ) || ! empty( $_GET['fbrand'] ) || ! empty( $_GET['fattr'] ) || ! empty( $_GET['min_price'] ) || ! empty( $_GET['max_price'] ) || ! empty( $_GET['fsale'] ) ) && ! headers_sent() ) {
+            if ( ( $sidebar_on || get_theme_mod( 'sahel_product_sidebar_on', 0 ) ) && ( ! empty( $_GET['fcat'] ) || ! empty( $_GET['fbrand'] ) || ! empty( $_GET['fattr'] ) || ! empty( $_GET['min_price'] ) || ! empty( $_GET['max_price'] ) || ! empty( $_GET['fsale'] ) ) && ! headers_sent() ) {
                 nocache_headers();
             }
             $h = '<main class="wrap shop-main"><nav class="crumbs">' . woocommerce_breadcrumb( array( 'echo' => false ) ) . '</nav>';
@@ -5128,7 +5130,7 @@ if($ff.length){
    $min.add($max).on('input',function(){$r.find('.r-min').val($min.val()||mn);$r.find('.r-max').val($max.val()||mx);fill();});fill();
    $r.on('change','input',function(){if(B.contains('sfauto')){$ff.trigger('submit');}});}}
  /* اعمال خودکار فیلتر با هر تغییر */
- if(B.contains('sfauto')){var tm;$ff.on('change','input[type=checkbox],input[type=radio]',function(){$ff.trigger('submit');});$ff.on('input','input[type=number]',function(){clearTimeout(tm);tm=setTimeout(function(){$ff.trigger('submit');},900);});}
+ if(B.contains('sfauto')){var tm;$ff.on('change','input[type=radio]',function(){$ff.trigger('submit');});$ff.on('input','input[type=number]',function(){clearTimeout(tm);tm=setTimeout(function(){$ff.trigger('submit');},900);});}
 }
 });
 SHJS60
@@ -5467,15 +5469,15 @@ function sahel_pwa_ver() {
 }
 /* آیکون‌ها: ۱) آیکون اختصاصی PWA ۲) آیکون سایت (تنظیمات > هویت سایت) ۳) آیکون SVG خودکار با حرف اول برند */
 /* ساخت آیکون مربعی PNG از هر تصویر (آیکون سایت یا لوگو) با GD و ذخیره در پوشه‌ی آپلود */
-function sahel_pwa_make_icon( $url, $size, $pad ) {
+function sahel_pwa_make_icon( $url, $size, $pad, $bg = null ) {
+    /* $bg = null: پس‌زمینه‌ی شفاف (دسکتاپ، نوار وظیفه‌ی ویندوز)؛ رنگ: آیکن مخصوص اندروید/آیفون که شفافیت نمی‌پذیرند */
     if ( ! $url || ! function_exists( 'imagecreatefromstring' ) ) { return ''; }
     $id   = attachment_url_to_postid( $url );
     $path = $id ? get_attached_file( $id ) : '';
     if ( ! $path || ! file_exists( $path ) || preg_match( '/\.svg$/i', $path ) ) { return ''; }
     $up = wp_upload_dir();
     if ( ! empty( $up['error'] ) ) { return ''; }
-    $bg   = sahel_pwa_bg();
-    $key  = substr( md5( $path . '|' . filemtime( $path ) . '|' . $size . '|' . $pad . '|' . $bg ), 0, 12 );
+    $key  = substr( md5( $path . '|' . filemtime( $path ) . '|' . $size . '|' . $pad . '|' . ( null === $bg ? 'alpha2' : $bg ) ), 0, 12 );
     $name = 'icon-' . $size . '-' . $key . '.png';
     $file = trailingslashit( $up['basedir'] ) . 'sahel-pwa/' . $name;
     $furl = trailingslashit( $up['baseurl'] ) . 'sahel-pwa/' . $name;
@@ -5484,14 +5486,21 @@ function sahel_pwa_make_icon( $url, $size, $pad ) {
     $im  = $raw ? @imagecreatefromstring( $raw ) : false;
     if ( ! $im ) { return ''; }
     wp_mkdir_p( dirname( $file ) );
-    $c   = imagecreatetruecolor( $size, $size );
-    $rgb = sscanf( strlen( $bg ) === 4 ? '#' . $bg[1] . $bg[1] . $bg[2] . $bg[2] . $bg[3] . $bg[3] : $bg, '#%02x%02x%02x' );
-    imagefill( $c, 0, 0, imagecolorallocate( $c, (int) $rgb[0], (int) $rgb[1], (int) $rgb[2] ) );
+    $c = imagecreatetruecolor( $size, $size );
+    if ( null === $bg ) {
+        imagealphablending( $c, false );
+        imagesavealpha( $c, true );
+        imagefill( $c, 0, 0, imagecolorallocatealpha( $c, 0, 0, 0, 127 ) );
+    } else {
+        $rgb = sscanf( strlen( $bg ) === 4 ? '#' . $bg[1] . $bg[1] . $bg[2] . $bg[2] . $bg[3] . $bg[3] : $bg, '#%02x%02x%02x' );
+        imagefill( $c, 0, 0, imagecolorallocate( $c, (int) $rgb[0], (int) $rgb[1], (int) $rgb[2] ) );
+    }
     imagealphablending( $c, true );
     $w = imagesx( $im ); $h = imagesy( $im );
     $box = $size * ( 1 - 2 * $pad ); $sc = min( $box / $w, $box / $h );
     $nw = max( 1, (int) round( $w * $sc ) ); $nh = max( 1, (int) round( $h * $sc ) );
     imagecopyresampled( $c, $im, (int) ( ( $size - $nw ) / 2 ), (int) ( ( $size - $nh ) / 2 ), 0, 0, $nw, $nh, $w, $h );
+    if ( null === $bg ) { imagesavealpha( $c, true ); }
     $ok = imagepng( $c, $file );
     imagedestroy( $c ); imagedestroy( $im );
     return $ok ? $furl : '';
@@ -5507,24 +5516,40 @@ function sahel_pwa_icon_source() {
     }
     return array( '', false );
 }
-function sahel_pwa_icons() {
+function sahel_pwa_icon_bg() {
+    $c = sanitize_hex_color( (string) get_theme_mod( 'sahel_pwa_icon_bg', '' ) );
+    return $c ? $c : sahel_pwa_color();
+}
+function sahel_pwa_icon_set() {
     static $cache = null;
     if ( null !== $cache ) { return $cache; }
-    $icons = array();
     list( $src, $is_logo ) = sahel_pwa_icon_source();
-    if ( $src ) {
-        $pad = $is_logo ? 0.1 : 0;
-        foreach ( array( 192, 512 ) as $sz ) {
-            $u = sahel_pwa_make_icon( $src, $sz, $pad );
-            if ( ! $u && ! $is_logo ) { $u = ( function_exists( 'has_site_icon' ) && has_site_icon() && $src === get_site_icon_url( 512 ) ) ? get_site_icon_url( $sz ) : $src; }
-            if ( $u ) { $icons[] = array( 'src' => $u, 'sizes' => $sz . 'x' . $sz, 'type' => 'image/png', 'purpose' => 'any' ); }
+    $tkey = 'sahel_pwa_icons_' . substr( md5( $src . '|' . (int) $is_logo . '|' . sahel_pwa_icon_bg() . '|v3' ), 0, 12 );
+    $set  = get_transient( $tkey );
+    if ( ! is_array( $set ) ) {
+        $set = array( 'any' => array(), 'mask' => '', 'apple' => '' );
+        if ( $src ) {
+            $pad = $is_logo ? 0.1 : 0;
+            foreach ( array( 192, 512 ) as $sz ) {
+                $u = sahel_pwa_make_icon( $src, $sz, $pad );
+                if ( ! $u && ! $is_logo ) { $u = ( function_exists( 'has_site_icon' ) && has_site_icon() && $src === get_site_icon_url( 512 ) ) ? get_site_icon_url( $sz ) : $src; }
+                if ( $u ) { $set['any'][ $sz ] = $u; }
+            }
+            $set['mask']  = sahel_pwa_make_icon( $src, 512, $is_logo ? 0.2 : 0.14, sahel_pwa_icon_bg() );
+            $set['apple'] = sahel_pwa_make_icon( $src, 180, $is_logo ? 0.14 : 0.08, sahel_pwa_icon_bg() );
         }
-        $m = sahel_pwa_make_icon( $src, 512, $is_logo ? 0.2 : 0.12 );
-        if ( $m ) { $icons[] = array( 'src' => $m, 'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'maskable' ); }
+        set_transient( $tkey, $set, DAY_IN_SECONDS );
     }
+    $cache = $set + array( 'src' => $src );
+    return $cache;
+}
+function sahel_pwa_icons() {
+    $set = sahel_pwa_icon_set();
+    $icons = array();
+    foreach ( $set['any'] as $sz => $u ) { $icons[] = array( 'src' => $u, 'sizes' => $sz . 'x' . $sz, 'type' => 'image/png', 'purpose' => 'any' ); }
+    if ( $set['mask'] ) { $icons[] = array( 'src' => $set['mask'], 'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'maskable' ); }
     $icons[] = array( 'src' => sahel_pwa_url( 'icon' ), 'sizes' => 'any', 'type' => 'image/svg+xml', 'purpose' => 'any' );
-    if ( ! $src ) { $icons[] = array( 'src' => sahel_pwa_url( 'icon' ) . '&m=1', 'sizes' => 'any', 'type' => 'image/svg+xml', 'purpose' => 'maskable' ); }
-    $cache = $icons;
+    if ( ! $set['src'] ) { $icons[] = array( 'src' => sahel_pwa_url( 'icon' ) . '&m=1', 'sizes' => 'any', 'type' => 'image/svg+xml', 'purpose' => 'maskable' ); }
     return $icons;
 }
 /* مسیرهایی که هرگز نباید کش شوند (سبد، پرداخت، حساب کاربری، مدیریت، API) */
@@ -5667,7 +5692,8 @@ add_action( 'wp_head', 'sahel_pwa_head', 2 );
 function sahel_pwa_head() {
     if ( ! sahel_pwa_on() || is_customize_preview() ) { return; }
     $icons = sahel_pwa_icons();
-    $apple = $icons[0]['src'];
+    $set   = sahel_pwa_icon_set();
+    $apple = $set['apple'] ? $set['apple'] : $icons[0]['src'];
     echo "\n" . '<link rel="manifest" href="' . esc_url( sahel_pwa_url( 'manifest' ) ) . '">' . "\n";
     echo '<meta name="theme-color" content="' . esc_attr( sahel_pwa_color() ) . '">' . "\n";
     echo '<meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default">' . "\n";
@@ -5772,6 +5798,8 @@ function sahel_pwa_customize( $w ) {
     $w->add_control( new WP_Customize_Color_Control( $w, 'sahel_pwa_color', array( 'label' => 'رنگ نوار بالای اپ (خالی = رنگ اصلی)', 'section' => 'sahel_pwa' ) ) );
     $w->add_setting( 'sahel_pwa_bg', array( 'default' => '', 'sanitize_callback' => 'sanitize_hex_color' ) );
     $w->add_control( new WP_Customize_Color_Control( $w, 'sahel_pwa_bg', array( 'label' => 'رنگ پس‌زمینه‌ی صفحه‌ی بازشدن اپ', 'section' => 'sahel_pwa' ) ) );
+    $w->add_setting( 'sahel_pwa_icon_bg', array( 'default' => '', 'sanitize_callback' => 'sanitize_hex_color' ) );
+    $w->add_control( new WP_Customize_Color_Control( $w, 'sahel_pwa_icon_bg', array( 'label' => 'رنگ پس‌زمینه‌ی آیکن در اندروید و آیفون', 'description' => 'روی دسکتاپ و نوار وظیفه‌ی ویندوز آیکن شفاف است. اندروید و آیفون آیکن شفاف نمی‌پذیرند و یک پس‌زمینه می‌گذارند (اگر خالی باشد سفید)؛ این رنگ جای آن سفید را می‌گیرد. خالی = رنگ اصلی سایت.', 'section' => 'sahel_pwa' ) ) );
     $w->add_setting( 'sahel_pwa_icon', array( 'default' => '', 'sanitize_callback' => 'esc_url_raw' ) );
     $w->add_control( new WP_Customize_Image_Control( $w, 'sahel_pwa_icon', array( 'label' => 'آیکون اپ — اختیاری', 'description' => 'خالی = همان «آیکون سایت» (سفارشی‌سازی ← هویت سایت). اگر آیکون سایت نباشد از لوگوی سایت ساخته می‌شود و در نبود آن از حرف اول نام فروشگاه.', 'section' => 'sahel_pwa' ) ) );
 }
@@ -6269,19 +6297,7 @@ function sahel_card_vars_html( $product ) {
     if ( ! $kids || count( $kids ) > 80 ) { return ''; }
     $attrs = $product->get_variation_attributes();
     if ( ! $attrs ) { return ''; }
-    $data = array();
-    foreach ( (array) $product->get_available_variations() as $v ) {
-        if ( empty( $v['variation_is_active'] ) && isset( $v['variation_is_active'] ) ) { continue; }
-        $img = isset( $v['image'] ) && is_array( $v['image'] ) ? $v['image'] : array();
-        $data[] = array(
-            'id'    => (int) $v['variation_id'],
-            'a'     => (array) $v['attributes'],
-            'img'   => isset( $img['thumb_src'] ) ? $img['thumb_src'] : '',
-            'set'   => isset( $img['srcset'] ) ? $img['srcset'] : '',
-            'price' => isset( $v['price_html'] ) ? $v['price_html'] : '',
-            'ok'    => ! empty( $v['is_in_stock'] ) && ! empty( $v['is_purchasable'] ),
-        );
-    }
+    $data = function_exists( 'sahel_card_vars_data' ) ? sahel_card_vars_data( $product ) : array();
     if ( ! $data ) { return ''; }
     $defaults = $product->get_default_attributes();
     $h = '<div class="prod-vsel pv-' . esc_attr( $mode ) . '" data-pid="' . (int) $product->get_id() . '" data-url="' . esc_url( $product->get_permalink() ) . '" data-vars="' . esc_attr( wp_json_encode( $data ) ) . '">';
@@ -7934,3 +7950,142 @@ add_action( 'customize_register', function ( $w ) {
     $w->add_setting( 'sahel_android_label', array( 'default' => 'دریافت اپ', 'sanitize_callback' => 'sanitize_text_field' ) );
     $w->add_control( 'sahel_android_label', array( 'label' => '🤖 متن دکمه‌ی دریافت اپ', 'section' => 'sahel_pwa', 'type' => 'text', 'priority' => 203 ) );
 }, 50 );
+
+/* =====================================================================
+ * v7.0 — سرعت: CSS قالب در فایل‌های کش‌شونده (به‌جای ۲۵۰ کیلوبایت داخل هر صفحه)،
+ * کش داده‌ی تنوع‌های کارت محصول، اتصال زودتر به سرور فونت
+ * ===================================================================== */
+function sahel_css_file_url( $prefix, $css ) {
+    $up = wp_upload_dir();
+    if ( ! empty( $up['error'] ) ) { return ''; }
+    $dir  = trailingslashit( $up['basedir'] ) . 'sahel-css';
+    $name = $prefix . '-' . substr( md5( $css ), 0, 16 ) . '.css';
+    $file = $dir . '/' . $name;
+    if ( ! file_exists( $file ) ) {
+        if ( ! wp_mkdir_p( $dir ) || ! is_writable( $dir ) ) { return ''; }
+        $tmp = $file . '.' . wp_rand( 1000, 9999 ) . '.tmp';
+        if ( false === @file_put_contents( $tmp, $css ) ) { return ''; } // phpcs:ignore
+        @rename( $tmp, $file ); // phpcs:ignore
+        if ( ! file_exists( $file ) ) { return ''; }
+        /* فایل‌های قدیمی (بعد از تغییر تنظیمات) پس از یک هفته پاک می‌شوند */
+        $old = glob( $dir . '/*.css' );
+        if ( is_array( $old ) && count( $old ) > 40 ) {
+            foreach ( $old as $f ) { if ( filemtime( $f ) < time() - WEEK_IN_SECONDS ) { @unlink( $f ); } } // phpcs:ignore
+        }
+    }
+    return trailingslashit( $up['baseurl'] ) . 'sahel-css/' . $name;
+}
+add_filter( 'sahel_final_html', function ( $html ) {
+    if ( ! (int) get_theme_mod( 'sahel_css_files', 1 ) || is_customize_preview() || ! empty( $_GET['sahel_pv'] ) ) { return $html; } // phpcs:ignore
+    $hp = strpos( $html, '</head>' );
+    if ( false === $hp ) { return $html; }
+    $head = substr( $html, 0, $hp );
+    $rest = substr( $html, $hp );
+    /* گروه ۱: CSS اصلی قالب (رنگ‌ها و پایه) — همان جای قبلی */
+    if ( preg_match( '#<style>(\s*:root\{--c1:.*?)</style>#s', $head, $m, PREG_OFFSET_CAPTURE ) ) {
+        $u = sahel_css_file_url( 'base', $m[1][0] );
+        if ( $u ) { $head = substr_replace( $head, '<link rel="stylesheet" id="sahel-base-css" href="' . esc_url( $u ) . '">', $m[0][1], strlen( $m[0][0] ) ); }
+    }
+    /* گروه ۲: همه‌ی بلوک‌های sahel-* به ترتیب، در یک فایل، جای آخرین بلوک */
+    if ( preg_match_all( '#<style id="(sahel-[\w-]+)">(.*?)</style>#s', $head, $mm, PREG_SET_ORDER | PREG_OFFSET_CAPTURE ) && count( $mm ) > 1 ) {
+        $css = '';
+        foreach ( $mm as $b ) { $css .= '/* ' . $b[1][0] . " */\n" . $b[2][0] . "\n"; }
+        $u = sahel_css_file_url( 'theme', $css );
+        if ( $u ) {
+            for ( $k = count( $mm ) - 1; $k >= 0; $k-- ) {
+                $rep = ( count( $mm ) - 1 === $k ) ? '<link rel="stylesheet" id="sahel-theme-css" href="' . esc_url( $u ) . '">' : '';
+                $head = substr_replace( $head, $rep, $mm[ $k ][0][1], strlen( $mm[ $k ][0][0] ) );
+            }
+        }
+    }
+    return $head . $rest;
+}, 50 );
+/* اتصال زودتر به سرور فونت‌ها */
+add_action( 'wp_head', function () {
+    echo '<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>' . "\n";
+}, 1 );
+add_filter( 'wp_resource_hints', function ( $urls, $type ) {
+    if ( 'dns-prefetch' === $type ) { $urls[] = '//cdn.jsdelivr.net'; }
+    return $urls;
+}, 10, 2 );
+
+/* کش داده‌ی تنوع‌های کارت محصول (با هر تغییر محصول، قیمت یا موجودی تازه می‌شود) */
+function sahel_cv_ver() { return (int) get_option( 'sahel_cv_ver', 1 ); }
+function sahel_cv_bump() { update_option( 'sahel_cv_ver', sahel_cv_ver() + 1, true ); }
+foreach ( array( 'woocommerce_update_product', 'woocommerce_update_product_variation', 'woocommerce_new_product_variation', 'woocommerce_delete_product_variation', 'woocommerce_product_set_stock', 'woocommerce_variation_set_stock', 'woocommerce_product_set_stock_status', 'woocommerce_variation_set_stock_status', 'woocommerce_scheduled_sales', 'customize_save_after' ) as $sahel_hk ) {
+    add_action( $sahel_hk, 'sahel_cv_bump' );
+}
+function sahel_card_vars_data( $product ) {
+    $ctx  = get_woocommerce_currency() . '|' . ( is_user_logged_in() ? implode( ',', (array) wp_get_current_user()->roles ) : 'guest' ) . '|' . get_option( 'woocommerce_tax_display_shop' );
+    $key  = 'sahel_cv_' . $product->get_id() . '_' . sahel_cv_ver() . '_' . substr( md5( $ctx ), 0, 8 );
+    $data = get_transient( $key );
+    if ( is_array( $data ) ) { return $data; }
+    $data = array();
+    foreach ( (array) $product->get_available_variations() as $v ) {
+        if ( empty( $v['variation_is_active'] ) && isset( $v['variation_is_active'] ) ) { continue; }
+        $img = isset( $v['image'] ) && is_array( $v['image'] ) ? $v['image'] : array();
+        $data[] = array(
+            'id'    => (int) $v['variation_id'],
+            'a'     => (array) $v['attributes'],
+            'img'   => isset( $img['thumb_src'] ) ? $img['thumb_src'] : '',
+            'set'   => isset( $img['srcset'] ) ? $img['srcset'] : '',
+            'price' => isset( $v['price_html'] ) ? $v['price_html'] : '',
+            'ok'    => ! empty( $v['is_in_stock'] ) && ! empty( $v['is_purchasable'] ),
+        );
+    }
+    set_transient( $key, $data, 12 * HOUR_IN_SECONDS );
+    return $data;
+}
+add_action( 'customize_register', function ( $w ) {
+    if ( ! $w->get_section( 'sahel_styles' ) ) { return; }
+    $w->add_setting( 'sahel_css_files', array( 'default' => 1, 'sanitize_callback' => 'absint' ) );
+    $w->add_control( 'sahel_css_files', array( 'label' => '⚡ بارگذاری سریع: CSS قالب در فایل کش‌شونده', 'description' => 'به‌جای قرار گرفتن حدود ۲۵۰ کیلوبایت CSS داخل هر صفحه، یک بار دانلود و در مرورگر ذخیره می‌شود. اگر مشکلی دیدید خاموش کنید.', 'section' => 'sahel_styles', 'type' => 'checkbox', 'priority' => 1 ) );
+}, 51 );
+
+/* ---------- v7.0: اصلاح فیلترهای کناری ---------- */
+/* فیلد قیمت خالی نباید ارسال شود: ووکامرس max_price خالی را «صفر» حساب می‌کند و هیچ محصولی نشان نمی‌دهد */
+add_action( 'init', function () {
+    foreach ( array( 'min_price', 'max_price', 'frating', 'fsale', 'mstock' ) as $k ) {
+        if ( isset( $_GET[ $k ] ) && ! is_array( $_GET[ $k ] ) && '' === trim( (string) $_GET[ $k ] ) ) { unset( $_GET[ $k ], $_REQUEST[ $k ] ); } // phpcs:ignore
+    }
+}, 0 );
+/* نشانی فرم فیلتر: صفحه‌ی ۱ همین فهرست (فیلتر از صفحه‌ی ۳ نباید به صفحه‌ی ۳ نتیجه برود که شاید وجود نداشته باشد) */
+function sahel_filter_form_action() {
+    $u = function_exists( 'get_pagenum_link' ) ? get_pagenum_link( 1, false ) : '';
+    if ( ! $u ) { $u = sahel_shop_url(); }
+    $u = strtok( $u, '?' );
+    return preg_replace( '#/page/\d+/?$#', '/', $u );
+}
+/* پارامترهای دیگر نشانی (جستجو، مرتب‌سازی، post_type در پیوند ساده) با فیلتر حفظ می‌شوند */
+function sahel_filter_keep_fields() {
+    $own = array( 'fcat', 'fbrand', 'fattr', 'min_price', 'max_price', 'fsale', 'mstock', 'frating', 'paged', 'product-page', 'page' );
+    $h = '';
+    foreach ( $_GET as $k => $v ) { // phpcs:ignore
+        if ( in_array( $k, $own, true ) || is_array( $v ) ) { continue; }
+        $k = preg_replace( '/[^\w\-]/', '', (string) $k );
+        if ( '' === $k ) { continue; }
+        $h .= '<input type="hidden" name="' . esc_attr( $k ) . '" value="' . esc_attr( sanitize_text_field( wp_unslash( $v ) ) ) . '">';
+    }
+    return $h;
+}
+add_action( 'wp_footer', function () {
+    echo '<script id="sahel-v70-filters">' . <<<'SHJS70'
+(function(){
+var f=document.querySelector('.shop-filters-form');if(!f)return;
+/* هنگام ارسال: فیلدهای خالی فرستاده نمی‌شوند (نشانی تمیز و بدون خطای «قیمت صفر») */
+f.addEventListener('submit',function(){
+  Array.prototype.forEach.call(f.querySelectorAll('input[type=number],input[type=radio],input[type=hidden]'),function(i){
+    if(i.type==='radio'){ if(i.checked&&i.value===''){i.disabled=true;} return; }
+    if(i.value.trim()===''){i.disabled=true;}
+  });
+  /* اعداد فارسی در قیمت */
+  Array.prototype.forEach.call(f.querySelectorAll('input[name=min_price],input[name=max_price]'),function(i){i.value=i.value.replace(/[۰-۹]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d);});});
+});
+/* تعداد فیلترهای انتخاب‌شده روی دکمه‌ی اعمال */
+var btn=f.querySelector('.sf-apply');
+function count(){var n=f.querySelectorAll('input[type=checkbox]:checked').length+(f.querySelector('input[name=min_price]')&&f.querySelector('input[name=min_price]').value?1:0)+(f.querySelector('input[name=max_price]')&&f.querySelector('input[name=max_price]').value?1:0)+(f.querySelector('input[name=frating]:checked')&&f.querySelector('input[name=frating]:checked').value?1:0);if(btn){btn.textContent=n?'اعمال فیلتر ('+n.toLocaleString('fa-IR')+')':'اعمال فیلتر';}}
+f.addEventListener('change',count);f.addEventListener('input',count);count();
+})();
+SHJS70
+    . '</script>';
+}, 36 );
