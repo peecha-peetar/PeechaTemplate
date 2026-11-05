@@ -4848,7 +4848,7 @@ function sahel_body_extra_cls() {
     if ( get_theme_mod( 'sahel_pd_sticky_buy', 1 ) ) { $c .= ' pd-sticky-buy'; }
     return apply_filters( 'sahel_body_extra_cls', $c );
 }
-function sahel_pd_grid_gallery_on() { return in_array( (string) get_theme_mod( 'sahel_product_style', '1' ), array( '4', '9', '10' ), true ); }
+function sahel_pd_grid_gallery_on() { return in_array( (string) get_theme_mod( 'sahel_product_style', '1' ), array( '4', '9', '10', '13' ), true ); }
 function sahel_pd_grid_gallery_html( $p ) {
     $ids = array_filter( array_merge( array( $p->get_image_id() ), (array) $p->get_gallery_image_ids() ) );
     if ( ! $ids ) { ob_start(); woocommerce_show_product_images(); return ob_get_clean(); }
@@ -5138,7 +5138,7 @@ SHJS60
 /* v6.1: صفحه محصول مناسب پوشاک (راهنمای سایز، پنل‌های بازشونده، گالری عمودی) + هیروهای مدرن و مینیمال */
 function sahel_pd_gallery_variant() {
     $st = (string) get_theme_mod( 'sahel_product_style', '1' );
-    return '9' === $st ? 'pg-stack' : ( '10' === $st ? 'pg-two' : ( '4' === $st ? 'pg-grid' : '' ) );
+    return '9' === $st ? 'pg-stack' : ( '10' === $st ? 'pg-two' : ( '4' === $st ? 'pg-grid' : ( '13' === $st ? 'pg-bento' : '' ) ) );
 }
 function sahel_size_guide_data( $p ) {
     $pid = is_object( $p ) ? $p->get_id() : 0;
@@ -5363,7 +5363,7 @@ dialog.pd-sg-modal::backdrop{background:rgba(10,8,6,.55);backdrop-filter:blur(3p
 .pd-acc .pd-acc-c li b{min-width:110px;color:var(--muted);font-weight:700}
 .pd-acc .pd-acc-c li span{color:var(--ink);font-weight:700}
 .pd-acc .pd-sg-table{margin-top:4px}
-body.pdst-7 .pd-acc summary,body.pdst-7 .pd-acc .pd-acc-c li span{color:#fff}
+body.pdst-7 .pd-acc summary,body.pdst-7 .pd-acc .pd-acc-c li:not(.product) span{color:#fff}
 /* ===== v6.1: هیروهای مدرن و مینیمال ===== */
 .hero2{position:relative;overflow:hidden}
 .hero2 .h2-label{display:inline-flex;align-items:center;gap:8px;font-size:.78rem;font-weight:800;letter-spacing:.5px;color:var(--c1)}
@@ -7304,6 +7304,7 @@ function sahel_gallery_sets() {
         'products' => array( 'کارت محصول', $pc, 'sahel_prodcard', array(), 'shop', '', 'sahel_prodcard' ),
         'cats'     => array( 'کارت دسته‌بندی', $cc, 'sahel_catcard', array( 'sahel_slider_on' => 0 ), 'home', '#categories', 'sahel_catcard' ),
         'catlay'   => array( 'چیدمان دسته‌بندی‌ها', $cl, 'sahel_cat_layout', array( 'sahel_slider_on' => 0 ), 'home', '#categories', 'sahel_cat_layout' ),
+        'pdpage'   => array( 'صفحه محصول', array( '1' => 'کلاسیک — دوستونه با کارت', '2' => 'مدرن چسبان (بندانگشتی عمودی)', '3' => 'مجله‌ای — تصویر تمام‌عرض بالا', '4' => 'گالری شبکه‌ای + خلاصه چسبان', '5' => 'کارت شناور روی تصویر بزرگ', '6' => 'دوبخشی با پس‌زمینه رنگی گالری', '7' => 'تیره لوکس', '8' => 'اپلیکیشنی (تصویر بالا + کارت)', '9' => 'پوشاک — تصاویر عمودی پشت‌سرهم', '10' => 'پوشاک — گالری دوستونه عمودی', '11' => 'پوشاک — ادیتوریال مینیمال', '12' => 'مینیمال سفید', '13' => 'گالری بنتو + خلاصه چسبان', '14' => 'پس‌زمینه رنگی + کارت شناور', '15' => 'مرکزچین' ), 'sahel_product_style', array( 'sahel_product_style_m' => '' ), 'product', '', 'sahel_product_style' ),
         'showcase' => array( 'ویترین روی اسلاید', $sc, 'sahel_sc_style', array( 'sahel_slide_count' => 1, 'sahel_sc_on' => 1, 'sahel_sc_type' => 'products', 'sahel_sc_psrc' => 'new', 'sahel_sc_count' => 4 ), 'home', '', 'sahel_sc_style' ),
     );
 }
@@ -7317,6 +7318,10 @@ add_action( 'template_redirect', function () {
     $dm   = isset( $_GET['dm'] ) && in_array( $_GET['dm'], array( 'flat', 'classic' ), true ) ? sanitize_key( $_GET['dm'] ) : get_theme_mod( 'sahel_design_mode', 'flat' ); // phpcs:ignore
     $set  = $sets[ $g ];
     $base = 'shop' === $set[4] && function_exists( 'wc_get_page_permalink' ) ? wc_get_page_permalink( 'shop' ) : home_url( '/' );
+    if ( 'product' === $set[4] ) {
+        $pids = function_exists( 'wc_get_products' ) ? wc_get_products( array( 'limit' => 1, 'status' => 'publish', 'return' => 'ids', 'orderby' => 'date', 'order' => 'DESC' ) ) : array();
+        $base = $pids ? get_permalink( $pids[0] ) : home_url( '/' );
+    }
     $cur  = (string) get_theme_mod( $set[2], 'slides' === $g ? '' : '1' );
     $u    = function ( $args ) { return esc_url( add_query_arg( array_merge( array( 'sahel_gallery' => 1 ), $args ), home_url( '/' ) ) ); };
     $fw = 'm' === $vw ? 390 : 1366; $fh = 'm' === $vw ? 800 : 760; $sc = 'm' === $vw ? 0.62 : 0.3;
@@ -7548,3 +7553,319 @@ if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded'
 SHJS67
     . '</script>';
 }, 35 );
+
+/* =====================================================================
+ * v6.8 — اصلاح گالری چندتصویری صفحه محصول، کنتراست، مدل‌های جدید و نظم منوها
+ * ===================================================================== */
+/* اسلایدر گالری ووکامرس در صفحات راست‌به‌چپ تصویر اول را بیرون از کادر می‌برد؛
+   اسلایدر داخلش چپ‌به‌راست اجرا می‌شود (صفحه همچنان راست‌به‌چپ است) */
+add_filter( 'woocommerce_single_product_carousel_options', function ( $o ) {
+    $o['rtl'] = false;
+    $o['smoothHeight'] = true;
+    return $o;
+} );
+add_action( 'wp_head', function() {
+    if ( function_exists( 'is_product' ) && ! is_product() ) { return; }
+    echo '<style id="sahel-v68-gallery">' . <<<'SHCSS68A'
+.pd-wrap>*{min-width:0}
+.pd-gallery .woocommerce-product-gallery{position:relative;max-width:100%;margin:0}
+.pd-gallery .flex-viewport{direction:ltr;max-width:100%;min-width:0}
+.pd-gallery .woocommerce-product-gallery__wrapper{margin:0;padding:0}
+.pd-gallery .woocommerce-product-gallery__image a{display:block;width:100%;height:100%}
+.pd-gallery .flex-control-thumbs{flex-wrap:wrap;margin-inline:0}
+.pd-gallery .flex-control-thumbs li{flex:0 0 auto;margin:0;float:none}
+.pd-gallery .flex-control-thumbs img{display:block;width:100%;height:auto;aspect-ratio:1/1;object-fit:cover;cursor:pointer;opacity:.7}
+.pd-gallery .flex-control-thumbs img.flex-active,.pd-gallery .flex-control-thumbs img:hover{opacity:1}
+body.pdst-11 .pd-gallery .flex-control-thumbs img{aspect-ratio:3/4}
+/* اگر اسکریپت اسلایدر اجرا نشود: تصویر اول بزرگ و بقیه به‌صورت ردیف کوچک */
+.pd-gallery .woocommerce-product-gallery:not(:has(.flex-viewport)) .woocommerce-product-gallery__image:nth-child(n+2){display:inline-block;width:calc(25% - 8px);margin:10px 4px 0 0;aspect-ratio:1/1;max-height:none!important;border-radius:14px}
+.pd-gallery .woocommerce-product-gallery:not(:has(.flex-viewport)) .woocommerce-product-gallery__image:nth-child(n+2) img{border-radius:14px}
+/* دکمه بزرگ‌نمایی (لایت‌باکس) */
+.pd-gallery .woocommerce-product-gallery__trigger{position:absolute;top:14px;left:14px;z-index:9;width:42px;height:42px;border-radius:50%;background:var(--cardbg,#fff);box-shadow:0 6px 18px rgba(0,0,0,.14);display:grid;place-items:center;font-size:0;color:transparent;text-decoration:none}
+.pd-gallery .woocommerce-product-gallery__trigger::before{content:"";width:18px;height:18px;background:var(--ink);-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M20 20l-3.5-3.5M11 8v6M8 11h6'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M20 20l-3.5-3.5M11 8v6M8 11h6'/%3E%3C/svg%3E") center/contain no-repeat}
+.pd-gallery .woocommerce-product-gallery__trigger img{display:none}
+/* مدل‌های ۲ و ۱۱: بندانگشتی‌های عمودی کنار تصویر (قواعد قبلی به کلاس flexslider اشاره داشتند که گالری ووکامرس ندارد) */
+@media(min-width:921px){
+body:is(.pdst-2,.pdst-11) .pd-gallery .woocommerce-product-gallery:has(.flex-viewport){display:flex;flex-direction:row;gap:14px;align-items:flex-start}
+body:is(.pdst-2,.pdst-11) .pd-gallery .woocommerce-product-gallery:has(.flex-viewport) .flex-viewport{flex:1 1 auto;order:2}
+body:is(.pdst-2,.pdst-11) .pd-gallery .woocommerce-product-gallery:has(.flex-viewport) .flex-control-thumbs{order:1;flex:0 0 auto;flex-direction:column;flex-wrap:nowrap;margin:0;max-height:620px;overflow-y:auto;scrollbar-width:none}
+}
+@media(max-width:920px){
+body:is(.pdst-2,.pdst-11) .pd-gallery .flex-control-thumbs{flex-direction:row!important;width:auto!important;margin-top:12px!important}
+.pd-wrap{grid-template-columns:minmax(0,1fr)!important}
+.pd-gallery .flex-control-thumbs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:4px}
+.pd-gallery .flex-control-thumbs::-webkit-scrollbar{display:none}
+.pd-gallery .flex-control-thumbs li{width:62px!important}
+}
+SHCSS68A
+    . '</style>';
+}, 203 );
+
+/* ---------- v6.8: کنتراست خودکار رنگ‌ها (استاندارد WCAG AA) ---------- */
+function sahel_hex_rgb( $hex ) {
+    $hex = ltrim( (string) $hex, '#' );
+    if ( 3 === strlen( $hex ) ) { $hex = $hex[0] . $hex[0] . $hex[1] . $hex[1] . $hex[2] . $hex[2]; }
+    if ( ! preg_match( '/^[0-9a-f]{6}$/i', $hex ) ) { return null; }
+    return array( hexdec( substr( $hex, 0, 2 ) ), hexdec( substr( $hex, 2, 2 ) ), hexdec( substr( $hex, 4, 2 ) ) );
+}
+function sahel_rgb_hex( $c ) { return sprintf( '#%02x%02x%02x', max( 0, min( 255, round( $c[0] ) ) ), max( 0, min( 255, round( $c[1] ) ) ), max( 0, min( 255, round( $c[2] ) ) ) ); }
+function sahel_lum( $c ) {
+    $f = function ( $v ) { $v /= 255; return $v <= 0.03928 ? $v / 12.92 : pow( ( $v + 0.055 ) / 1.055, 2.4 ); };
+    return 0.2126 * $f( $c[0] ) + 0.7152 * $f( $c[1] ) + 0.0722 * $f( $c[2] );
+}
+function sahel_contrast( $a, $b ) { $l1 = sahel_lum( $a ); $l2 = sahel_lum( $b ); return ( max( $l1, $l2 ) + 0.05 ) / ( min( $l1, $l2 ) + 0.05 ); }
+/* رنگ را با حفظ ته‌رنگ آن‌قدر تیره (یا روشن) می‌کند که با همه‌ی پس‌زمینه‌ها حداقل کنتراست لازم را داشته باشد */
+function sahel_accessible( $hex, $bgs, $target = 4.5 ) {
+    $c = sahel_hex_rgb( $hex );
+    if ( ! $c ) { return $hex; }
+    $bgs = array_filter( array_map( 'sahel_hex_rgb', (array) $bgs ) );
+    if ( ! $bgs ) { return $hex; }
+    $ok = function ( $x ) use ( $bgs, $target ) { foreach ( $bgs as $b ) { if ( sahel_contrast( $x, $b ) < $target ) { return false; } } return true; };
+    if ( $ok( $c ) ) { return $hex; }
+    $avg = 0; foreach ( $bgs as $b ) { $avg += sahel_lum( $b ); } $avg /= count( $bgs );
+    $to = $avg > 0.4 ? array( 0, 0, 0 ) : array( 255, 255, 255 );
+    for ( $t = 0.04; $t <= 1.0001; $t += 0.04 ) {
+        $x = array( $c[0] + ( $to[0] - $c[0] ) * $t, $c[1] + ( $to[1] - $c[1] ) * $t, $c[2] + ( $to[2] - $c[2] ) * $t );
+        if ( $ok( $x ) ) { return sahel_rgb_hex( $x ); }
+    }
+    return sahel_rgb_hex( $to );
+}
+function sahel_contrast_vars() {
+    if ( ! (int) get_theme_mod( 'sahel_contrast_auto', 1 ) ) { return ''; }
+    $bg     = get_theme_mod( 'sahel_bg', '#faf7f2' );
+    $cardbg = get_theme_mod( 'sahel_card_bg', '#ffffff' );
+    $btnt   = get_theme_mod( 'sahel_btn_text', '#ffffff' );
+    $c1     = get_theme_mod( 'sahel_c1', '#b08968' );
+    $c2     = get_theme_mod( 'sahel_c2', '#d4a373' );
+    $surfaces = array( $bg, $cardbg );
+    $bt = sahel_hex_rgb( $btnt );
+    $btn_light = $bt && sahel_lum( $bt ) > 0.45;
+    /* رنگ اصلی: هم به‌عنوان متن روی پس‌زمینه و هم زیر متن دکمه‌ها خوانا باشد */
+    $c1a = sahel_accessible( $c1, $btn_light ? array_merge( $surfaces, array( $btnt ) ) : $surfaces );
+    $c2a = sahel_accessible( $c2, $btn_light ? array( $btnt ) : $surfaces );
+    $out = array(
+        '--c1'      => $c1a,
+        '--muted'   => sahel_accessible( get_theme_mod( 'sahel_muted', '#8b7a6b' ), $surfaces ),
+        '--pricec'  => sahel_accessible( get_theme_mod( 'sahel_price_color', '#c65a3f' ), $surfaces ),
+        '--hot'     => sahel_accessible( get_theme_mod( 'sahel_hot', '#c65a3f' ), $surfaces ),
+        '--ink'     => sahel_accessible( get_theme_mod( 'sahel_ink', '#33261c' ), $surfaces, 7 ),
+        '--mqc'     => sahel_accessible( get_theme_mod( 'sahel_marquee_color', '#8b7a6b' ), $surfaces ),
+        '--header-text' => sahel_accessible( get_theme_mod( 'sahel_header_text_color', '#33261c' ), array( get_theme_mod( 'sahel_headerbg', '#faf7f2' ) ) ),
+        '--ftext'   => sahel_accessible( get_theme_mod( 'sahel_footer_text', '#e7cfb8' ), array( get_theme_mod( 'sahel_footerbg', '#241a12' ) ) ),
+    );
+    $hbt = get_theme_mod( 'sahel_header_btn_text', '#ffffff' );
+    $out['--header-btn-bg'] = sahel_accessible( get_theme_mod( 'sahel_header_btn_color', '#b08968' ), array( $hbt ) );
+    $css = ':root{';
+    foreach ( $out as $k => $v ) { $css .= $k . ':' . $v . ';'; }
+    $css .= '}';
+    /* گرادیان دکمه‌ها در سبک «با افکت»: سر روشن گرادیان هم باید زیر متن خوانا باشد */
+    $css .= 'body:not(.design-flat){--grad:linear-gradient(100deg,' . $c2a . ',' . $c1a . ' 55%,color-mix(in srgb,' . $c1a . ' 75%,#000))}';
+    /* بخش تیره‌ی تخفیف‌ها و بخش‌های با پس‌زمینه تیره */
+    $css .= '.sale-sec .badge.hot{color:#fff;background:var(--hot)}.sale-sec .prod-vsel .pv-row>span{color:rgba(255,255,255,.78)}';
+    $css .= '.pd-wrap{background:var(--cardbg,#fff)}';
+    /* صفحه محصول تیره (مدل ۷): کارت‌های محصول داخل توضیحات رنگ خودشان را دارند؛ جدول سایز و متن‌ها روشن */
+    $css .= 'body:is(.pdst-7,.pdst-m-7) .pd-wrap{background:var(--footerbg)}body:is(.pdst-7,.pdst-m-7) .pd-wrap .prod-card{color:var(--ink)}';
+    $css .= 'body:is(.pdst-7,.pdst-m-7) .pd-wrap .pd-acc-c :is(p,td,th,b,li),body:is(.pdst-7,.pdst-m-7) .pd-wrap .pd-acc-c .pd-sg-table :is(td,th){color:color-mix(in srgb,var(--ftext,#e9e2d8) 92%,transparent)}';
+    $css .= 'body:is(.pdst-7,.pdst-m-7) .pd-wrap .pd-acc-c .prod-card :is(p,li,b){color:inherit}';
+    $css .= 'body:is(.pdst-7,.pdst-m-7) .pd-sg-btn{color:var(--ftext,#e9e2d8);border-color:color-mix(in srgb,var(--ftext,#e9e2d8) 45%,transparent)}';
+    $css .= 'body:is(.pdst-7,.pdst-m-7) .pd-sg-modal{color:var(--ink)}';
+    $css .= 'body:is(.pdst-7,.pdst-m-7) .pd-wrap .pd-cats a,body:is(.pdst-7,.pdst-m-7) .pd-wrap .pd-meta a{color:var(--c2)}';
+    $css .= 'html body.prodst-25 .badge.hot,html body .pcs-25 .badge.hot{color:#fff;background:var(--hot)}';
+    return $css;
+}
+add_action( 'wp_head', function () {
+    $css = sahel_contrast_vars();
+    if ( $css ) { echo '<style id="sahel-contrast">' . $css . '</style>'; }
+}, 205 );
+add_action( 'customize_register', function ( $w ) {
+    if ( ! $w->get_section( 'sahel_colors' ) ) { return; }
+    $w->add_setting( 'sahel_contrast_auto', array( 'default' => 1, 'sanitize_callback' => 'absint' ) );
+    $w->add_control( 'sahel_contrast_auto', array( 'label' => '🌓 تنظیم خودکار کنتراست (خوانایی متن‌ها)', 'description' => 'رنگ‌های انتخابی شما ذخیره می‌مانند؛ فقط هنگام نمایش، اگر رنگی روی پس‌زمینه کم‌خوانا باشد کمی تیره‌تر می‌شود تا طبق استاندارد WCAG خوانا باشد (همان ته‌رنگ).', 'section' => 'sahel_colors', 'type' => 'checkbox', 'priority' => 1 ) );
+}, 49 );
+
+/* ---------- v6.8: چهار مدل مدرن و مینیمال جدید برای صفحه محصول + اصلاح چیدمان‌ها ---------- */
+add_action( 'customize_register', function ( $w ) {
+    $new = array(
+        '12' => '◻ مینیمال سفید (بدون کادر، فضای خالی زیاد، دکمه‌ی تمام‌عرض)',
+        '13' => '🍱 گالری بنتو (تصویر اول بزرگ، بقیه کاشی) + خلاصه‌ی چسبان',
+        '14' => '🎨 پس‌زمینه‌ی رنگی ملایم + کارت اطلاعات شناور (مناسب PNG)',
+        '15' => '🎯 مرکزچین (تصویر بزرگ وسط، اطلاعات زیر آن)',
+    );
+    foreach ( array( 'sahel_product_style', 'sahel_product_style_m' ) as $id ) {
+        if ( $c = $w->get_control( $id ) ) { $c->choices += $new; }
+    }
+}, 49 );
+add_action( 'wp_head', function() {
+    if ( function_exists( 'is_product' ) && ! is_product() ) { return; }
+    echo '<style id="sahel-v68-pd">' . <<<'SHCSS68C'
+/* قیمت: شکسته شدن خط بدون بریدن */
+.pd-pricebox{flex-wrap:wrap;max-width:100%;height:auto}
+.pd-pricebox .price{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px;line-height:1.7}
+/* مدل ۸: بندانگشتی‌ها روی پایین تصویر (کارت اطلاعات روی آن‌ها نمی‌افتد) */
+body:is(.pdst-8,.pdst-m-8) .pd-gallery .woocommerce-product-gallery{position:relative}
+body:is(.pdst-8,.pdst-m-8) .pd-gallery .flex-control-thumbs{position:absolute;bottom:88px;left:50%;transform:translateX(-50%);z-index:3;margin:0!important;padding:8px;border-radius:16px;background:color-mix(in srgb,var(--cardbg) 78%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);flex-wrap:nowrap;max-width:calc(100% - 32px);overflow-x:auto;scrollbar-width:none}
+body:is(.pdst-8,.pdst-m-8) .pd-gallery .flex-control-thumbs li{width:56px!important;flex:0 0 56px}
+@media(max-width:920px){body:is(.pdst-8,.pdst-m-8) .pd-gallery .flex-control-thumbs{bottom:52px;padding:5px}body:is(.pdst-8,.pdst-m-8) .pd-gallery .flex-control-thumbs li{width:42px!important;flex-basis:42px}}
+/* موبایل: بندانگشتی‌ها در یک ردیف جا می‌شوند */
+@media(max-width:920px){.pd-gallery .flex-control-thumbs li{flex:1 1 0!important;width:auto!important;max-width:64px;min-width:44px}}
+
+/* ===== ۱۲: مینیمال سفید ===== */
+body.pdst-12 .pd-wrap{background:transparent;border:0;box-shadow:none;padding:0;grid-template-columns:1.2fr .8fr;gap:clamp(32px,5vw,80px);align-items:start}
+body.pdst-12 .pd-gallery .flex-viewport,body.pdst-12 .pd-gallery .woocommerce-product-gallery__image{border-radius:4px;aspect-ratio:4/5;max-height:760px!important}
+body.pdst-12 .pd-gallery .flex-viewport img,body.pdst-12 .pd-gallery .woocommerce-product-gallery__image img{border:0;border-radius:4px}
+body.pdst-12 .pd-gallery .flex-control-thumbs img{border-radius:2px;border:0;opacity:.55}
+body.pdst-12 .pd-gallery .flex-control-thumbs img.flex-active{opacity:1;outline:1px solid var(--ink);outline-offset:3px}
+body.pdst-12 .pd-summary{position:sticky;top:100px}
+body.pdst-12 .pd-summary .product_title{font-weight:300;font-size:clamp(1.6rem,2.6vw,2.4rem);letter-spacing:-.5px;line-height:1.35}
+body.pdst-12 .pd-pricebox{background:transparent;border:0;padding:0;margin:10px 0 18px}
+body.pdst-12 .pd-pricebox .price{font-weight:500}
+body.pdst-12 .pd-cats a{background:transparent;border:0;padding:0;color:var(--muted);letter-spacing:1px;font-size:.78rem}
+body.pdst-12 .pd-summary .single_add_to_cart_button{width:100%;border-radius:2px!important;background:var(--ink)!important;color:var(--bg)!important;box-shadow:none!important;padding:16px!important}
+body.pdst-12 .pd-summary form.cart:not(.variations_form),body.pdst-12 .pd-summary .woocommerce-variation-add-to-cart{display:flex;gap:10px}
+body.pdst-12 .pd-trust span{background:transparent;border:0;border-top:1px solid var(--line);border-radius:0;padding-inline:0}
+body.pdst-12 .pd-acc details{border-color:var(--line)}
+
+/* ===== ۱۳: گالری بنتو ===== */
+body.pdst-13 .pd-wrap{background:transparent;border:0;box-shadow:none;padding:0;grid-template-columns:1.35fr .65fr;gap:44px;align-items:start}
+body.pdst-13 .pd-summary{position:sticky;top:100px;background:var(--cardbg);border:1px solid var(--line);border-radius:28px;padding:28px}
+.pd-grid-gal.pg-bento{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-rows:minmax(0,auto);gap:12px}
+.pd-grid-gal.pg-bento a{aspect-ratio:1/1;border-radius:22px}
+.pd-grid-gal.pg-bento a:first-child{grid-column:1/3;grid-row:1/3;aspect-ratio:auto}
+.pd-grid-gal.pg-bento a:nth-child(6n+5){grid-column:span 2;aspect-ratio:2/1}
+@media(max-width:920px){.pd-grid-gal.pg-bento{display:flex}.pd-grid-gal.pg-bento a,.pd-grid-gal.pg-bento a:first-child{flex:0 0 84%;aspect-ratio:1/1}body.pdst-13 .pd-summary{position:static;padding:18px}}
+
+/* ===== ۱۴: پس‌زمینه‌ی رنگی + کارت شناور ===== */
+body.pdst-14 .pd-wrap{background:transparent;border:0;box-shadow:none;padding:0;grid-template-columns:1.1fr .9fr;gap:0;align-items:center}
+body.pdst-14 .pd-gallery{background:radial-gradient(circle at 50% 45%,color-mix(in srgb,var(--c1) 16%,var(--bg)),color-mix(in srgb,var(--c1) 7%,var(--bg)) 70%);border-radius:40px;padding:clamp(18px,3vw,44px)}
+body.pdst-14 .pd-gallery .flex-viewport,body.pdst-14 .pd-gallery .woocommerce-product-gallery__image{background:transparent;aspect-ratio:1/1}
+body.pdst-14 .pd-gallery .flex-viewport img,body.pdst-14 .pd-gallery .woocommerce-product-gallery__image img{object-fit:contain;border:0;filter:drop-shadow(0 26px 28px rgba(0,0,0,.16))}
+body.pdst-14 .pd-gallery .flex-control-thumbs{justify-content:center}
+body.pdst-14 .pd-gallery .flex-control-thumbs img{background:var(--cardbg);object-fit:contain;padding:4px}
+body.pdst-14 .pd-summary{position:relative;z-index:2;margin-inline-start:-60px;background:var(--cardbg);border-radius:30px;padding:clamp(22px,3vw,40px);box-shadow:0 30px 70px rgba(0,0,0,.12)}
+@media(max-width:920px){body.pdst-14 .pd-summary{margin:-30px 10px 0;padding:20px}body.pdst-14 .pd-gallery{border-radius:28px;padding:14px}}
+
+/* ===== ۱۵: مرکزچین ===== */
+body.pdst-15 .pd-wrap{display:block;background:transparent;border:0;box-shadow:none;padding:0}
+body.pdst-15 .pd-gallery{max-width:760px;margin:0 auto}
+body.pdst-15 .pd-gallery .flex-viewport,body.pdst-15 .pd-gallery .woocommerce-product-gallery__image{aspect-ratio:1/1;max-height:640px!important;background:color-mix(in srgb,var(--c1) 6%,var(--cardbg));border-radius:32px}
+body.pdst-15 .pd-gallery .flex-viewport img,body.pdst-15 .pd-gallery .woocommerce-product-gallery__image img{object-fit:contain;border:0}
+body.pdst-15 .pd-gallery .flex-control-thumbs{justify-content:center}
+body.pdst-15 .pd-summary{max-width:680px;margin:30px auto 0;text-align:center}
+body.pdst-15 .pd-summary .product_title{font-size:clamp(1.8rem,3.4vw,2.8rem)}
+body.pdst-15 .pd-cats,body.pdst-15 .pd-pricebox,body.pdst-15 .woocommerce-product-rating{justify-content:center}
+body.pdst-15 .pd-pricebox{display:flex;margin-inline:auto;width:max-content;max-width:100%}
+body.pdst-15 .pd-summary form.cart:not(.variations_form){justify-content:center}
+body.pdst-15 .pd-summary table.variations{margin-inline:auto}
+body.pdst-15 .pd-trust{justify-content:center}
+body.pdst-15 .pd-acc{text-align:start}
+SHCSS68C
+    . '</style>';
+}, 204 );
+
+/* ---------- v6.8: نظم منوهای سفارشی‌ساز (فقط جابه‌جایی؛ هیچ تنظیمی حذف یا تغییرنام نمی‌شود) ---------- */
+add_action( 'customize_register', 'sahel_v68_organize', 999 );
+function sahel_v68_organize( $w ) {
+    $panel = function ( $id, $title, $prio, $desc = '' ) use ( $w ) {
+        if ( ! $w->get_panel( $id ) ) { $w->add_panel( $id, array( 'title' => $title, 'priority' => $prio, 'description' => $desc ) ); }
+    };
+    $sec = function ( $id, $panel_id, $prio, $title = null, $create = false ) use ( $w ) {
+        $s = $w->get_section( $id );
+        if ( ! $s && $create ) { $w->add_section( $id, array( 'title' => $title, 'panel' => $panel_id, 'priority' => $prio ) ); return; }
+        if ( ! $s ) { return; }
+        $s->panel = $panel_id; $s->priority = $prio;
+        if ( null !== $title ) { $s->title = $title; }
+    };
+    $move = function ( $ids, $to, $start = 10 ) use ( $w ) {
+        $p = $start;
+        foreach ( (array) $ids as $id ) { if ( $c = $w->get_control( $id ) ) { $c->section = $to; $c->priority = $p; $p += 2; } }
+    };
+
+    $panel( 'sahel_p_brand', '🏷 هویت، رنگ و فونت', 21 );
+    $panel( 'sahel_p_header', '🧭 هدر و منو', 22 );
+    $panel( 'sahel_p_slider', '🎞 اسلایدر و اسلایدها', 23, 'تنظیمات کلی اسلایدر، هر اسلاید، منوی کنار اسلایدر و ویترین روی اسلایدها.' );
+    $panel( 'sahel_p_layout', '🗂 کارت‌ها و چیدمان (محصول، دسته‌بندی، مقاله)', 25, 'همه‌ی طرح کارت‌ها و چیدمان محصولات و دسته‌بندی‌ها در یک جا.' );
+    $panel( 'sahel_p_shop', '🛒 فروشگاه و صفحه محصول', 26 );
+    $panel( 'sahel_p_pages', '📄 صفحات و فوتر', 27 );
+    $panel( 'sahel_p_mobile', '📱 موبایل و دکمه‌های شناور', 28 );
+    $panel( 'sahel_p_global', '⚙ سبک کلی، اپلیکیشن و پیشرفته', 29 );
+    if ( $p = $w->get_panel( 'sahel_home_panel' ) ) { $p->priority = 24; $p->title = '🏠 بخش‌های صفحه اصلی'; }
+
+    /* هویت، رنگ و فونت */
+    $sec( 'sahel_brand', 'sahel_p_brand', 10, 'هویت برند (نام و لوگو)' );
+    $sec( 'sahel_colors', 'sahel_p_brand', 20, 'رنگ‌ها، فونت‌ها و کنتراست' );
+    $move( array( 'sahel_header_font' ), 'sahel_colors', 90 );
+
+    /* هدر و منو */
+    $sec( 'sahel_header', 'sahel_p_header', 10, 'مدل، رنگ و نوار اطلاعیه‌ی هدر' );
+    $sec( 'sahel_menu', 'sahel_p_header', 20, 'آیتم‌های منو' );
+    $move( array( 'sahel_dd_style' ), 'sahel_header', 200 );
+
+    /* اسلایدر */
+    $sec( 'sahel_slider', 'sahel_p_slider', 10, 'تنظیمات کلی اسلایدر' );
+    $sec( 'sahel_x_slider_resp', 'sahel_p_slider', 12, '📱 اسلایدر در موبایل و تبلت', true );
+    $move( array( 'sahel_slide_height_m', 'sahel_slide_height_t', 'sahel_slider_hide_mobile', 'sahel_slider_hide_tablet', 'sahel_slider_hide_desktop', 'sahel_m_h1', 'sahel_m_p', 'sahel_m_hide_desc', 'sahel_m_overlay' ), 'sahel_x_slider_resp' );
+    $sec( 'sahel_x_slider_menu', 'sahel_p_slider', 14, '☰ منوی عمودی کنار اسلایدر', true );
+    $move( array( 'sahel_sm_pos', 'sahel_sm_src', 'sahel_sm_style', 'sahel_sm_title', 'sahel_sm_w', 'sahel_sm_max', 'sahel_sm_imgs', 'sahel_sm_all', 'sahel_sm_hidem' ), 'sahel_x_slider_menu' );
+    $sec( 'sahel_x_slider_sc', 'sahel_p_slider', 16, '🛍 ویترین مشترک روی همه‌ی اسلایدها', true );
+    $sc = array(); foreach ( array( 'on', 'type', 'pos', 'style', 'hs', 'psrc', 'title', 'cat1', 'cat2', 'cat3', 'cat4', 'cat5', 'cat6', 'pids', 'count', 'hidem' ) as $k ) { $sc[] = 'sahel_sc_' . $k; }
+    $move( $sc, 'sahel_x_slider_sc' );
+    for ( $i = 1; $i <= 10; $i++ ) { $sec( 'sahel_slide' . $i, 'sahel_p_slider', 20 + $i, 'اسلاید ' . sahel_fa( $i ) ); }
+
+    /* کارت‌ها و چیدمان — همه در یک منو */
+    $sec( 'sahel_x_prodcard', 'sahel_p_layout', 10, '🃏 کارت محصول (کل سایت)', true );
+    $move( array( 'sahel_prodcard', 'sahel_prodcard16_hover', 'sahel_prodcard_vars', 'sahel_prodcard_vars_buy', 'sahel_prodcard_swap', 'sahel_prod_gap', 'sahel_carticon_color', 'sahel_carticon_hover' ), 'sahel_x_prodcard' );
+    $sec( 'sahel_pcs', 'sahel_p_layout', 12, '🛍 کارت و چیدمان هر بخش محصولات (جدیدترین، تخفیف‌دار، پرفروش، مرتبط، فروشگاه)' );
+    $sec( 'sahel_x_cats', 'sahel_p_layout', 14, '🗂 کارت و چیدمان دسته‌بندی‌ها', true );
+    $move( array( 'sahel_catcard', 'sahel_cat_layout', 'sahel_cat_mq_dir', 'sahel_cat_mq_speed', 'sahel_cat_gap' ), 'sahel_x_cats' );
+    $sec( 'sahel_x_posts', 'sahel_p_layout', 16, '📰 کارت مقاله', true );
+    $move( array( 'sahel_postcard', 'sahel_post_gap' ), 'sahel_x_posts' );
+    $sec( 'sahel_x_mcols', 'sahel_p_layout', 18, '📱 تعداد ستون در موبایل', true );
+    $move( array( 'sahel_mobile_cols' ), 'sahel_x_mcols' );
+
+    /* فروشگاه و صفحه محصول */
+    $sec( 'sahel_shop', 'sahel_p_shop', 10, 'صفحه فروشگاه (بنر، نوار دسته‌ها، تعداد)' );
+    $sec( 'sahel_x_filters', 'sahel_p_shop', 12, '🔎 فیلترها (فروشگاه و صفحه محصول)', true );
+    $move( array( 'sahel_shop_sidebar_on', 'sahel_product_sidebar_on', 'sahel_filter_pos', 'sahel_filter_style', 'sahel_filter_attr_style', 'sahel_filter_price_slider', 'sahel_filter_rating', 'sahel_filter_auto' ), 'sahel_x_filters' );
+    $sec( 'sahel_product', 'sahel_p_shop', 14, '🎨 طراحی صفحه محصول' );
+    $move( array( 'sahel_product_style', 'sahel_product_style_m', 'sahel_product_fullwidth', 'sahel_pd_var_style', 'sahel_product_trust', 'sahel_product_tabs', 'sahel_product_related', 'sahel_pd_sticky_buy' ), 'sahel_product' );
+    $sec( 'sahel_x_pdinfo', 'sahel_p_shop', 16, '🗂 اطلاعات، مشخصات و روش‌های پرداخت', true );
+    $move( array( 'sahel_pd_acc_on', 'sahel_pd_acc_desc', 'sahel_pd_acc_specs', 'sahel_pd_acc_size', 'sahel_pd_acc_care', 'sahel_pd_acc_ship', 'sahel_pd_acc_open', 'sahel_pd_care', 'sahel_pd_ship', 'sahel_pd_specs', 'sahel_pd_specs_title', 'sahel_pd_pay', 'sahel_pd_pay_title', 'sahel_pd_pay_extra' ), 'sahel_x_pdinfo' );
+    $sec( 'sahel_x_sizeguide', 'sahel_p_shop', 18, '📏 راهنمای انتخاب سایز', true );
+    $move( array( 'sahel_sg_on', 'sahel_sg_btn', 'sahel_sg_table', 'sahel_sg_img', 'sahel_sg_note' ), 'sahel_x_sizeguide' );
+
+    /* صفحات و فوتر */
+    $sec( 'sahel_pages', 'sahel_p_pages', 10, 'صفحات (درباره، تماس، ۴۰۴)' );
+    $sec( 'sahel_footer', 'sahel_p_pages', 12, 'فوتر' );
+    $move( array( 'sahel_footerbg', 'sahel_footer_text' ), 'sahel_footer', 1 );
+
+    /* موبایل و دکمه‌های شناور */
+    $sec( 'sahel_bottombar', 'sahel_p_mobile', 10, 'نوار پایین موبایل' );
+    $sec( 'sahel_fab', 'sahel_p_mobile', 12, 'دکمه شناور تماس' );
+    $sec( 'sahel_promo', 'sahel_p_mobile', 14, 'تبلیغ شناور گوشه سایت' );
+    $sec( 'sahel_scrolltop', 'sahel_p_mobile', 16, 'دکمه بالا/پایین صفحه' );
+    $sec( 'sahel_mobile', 'sahel_p_mobile', 18, 'سایر تنظیمات موبایل' );
+
+    /* سبک کلی و پیشرفته */
+    $sec( 'sahel_styles', 'sahel_p_global', 10, '🧩 سبک کلی طراحی، دکمه‌ها، گوشه‌ها و عرض سایت' );
+    $sec( 'sahel_pwa', 'sahel_p_global', 12, '📲 اپلیکیشن (PWA)' );
+}
+
+/* جستجوی تنظیمات در سفارشی‌ساز */
+add_action( 'customize_controls_enqueue_scripts', function () {
+    $css = '.sahel-czs{position:sticky;top:0;z-index:20;background:#fff;padding:10px 12px;border-bottom:1px solid #dcdcde}.sahel-czs input{width:100%;font:inherit;padding:8px 12px;border:1px solid #8c8f94;border-radius:8px}.sahel-czs input:focus{border-color:#2271b1;box-shadow:0 0 0 1px #2271b1;outline:0}.sahel-czs ul{margin:8px 0 0;padding:0;list-style:none;max-height:60vh;overflow:auto}.sahel-czs li{padding:7px 10px;border-radius:6px;cursor:pointer;line-height:1.6}.sahel-czs li:hover,.sahel-czs li.on{background:#f0f6fc}.sahel-czs li b{display:block;font-size:13px;font-weight:600}.sahel-czs li small{display:block;color:#646970;font-size:11px}.sahel-czs .none{color:#646970;cursor:default}';
+    wp_add_inline_style( 'customize-controls', $css );
+    $js = <<<'SHCZS'
+(function(api,$){api.bind('ready',function(){
+ var box=$('<div class="sahel-czs"><input type="search" placeholder="🔍 جستجوی تنظیمات قالب (مثلاً: کارت محصول، رنگ، اسلاید)" aria-label="جستجوی تنظیمات"><ul role="listbox"></ul></div>');
+ $('.wp-full-overlay-sidebar-content').prepend(box);
+ var inp=box.find('input'),ul=box.find('ul'),idx=[];
+ function norm(s){return String(s||'').toLowerCase().replace(/ي/g,'ی').replace(/ك/g,'ک').replace(/[‌ً-ٟ]/g,'').replace(/[^؀-ۿa-z0-9\s]/g,' ').replace(/\s+/g,' ').trim();}
+ function build(){idx=[];api.control.each(function(c){var l=c.params&&c.params.label?$('<div>').html(c.params.label).text():'';if(!l)return;var s=api.section(c.section());if(!s)return;var p=s.panel&&s.panel()?api.panel(s.panel()):null;var st=$('<div>').html(s.params.title||'').text(),pt=p?$('<div>').html(p.params.title||'').text():'';idx.push({c:c,l:l,path:(pt?pt+' › ':'')+st,n:norm(l+' '+st+' '+pt+' '+(c.params.description||''))});});}
+ function show(q){ul.empty();q=norm(q);if(q.length<2)return;var words=q.split(' ');var r=idx.filter(function(o){return words.every(function(w){return o.n.indexOf(w)>-1;});}).slice(0,40);
+  if(!r.length){ul.append('<li class="none">چیزی پیدا نشد</li>');return;}
+  r.forEach(function(o,i){$('<li role="option"><b></b><small></small></li>').toggleClass('on',i===0).find('b').text(o.l).end().find('small').text(o.path).end().on('click',function(){o.c.focus();inp.val('');ul.empty();}).appendTo(ul);});}
+ inp.on('focus',function(){if(!idx.length)build();}).on('input',function(){show(this.value);}).on('keydown',function(e){var li=ul.children('li:not(.none)'),k=li.index(li.filter('.on'));if(e.key==='ArrowDown'){e.preventDefault();li.removeClass('on').eq(Math.min(k+1,li.length-1)).addClass('on');}else if(e.key==='ArrowUp'){e.preventDefault();li.removeClass('on').eq(Math.max(k-1,0)).addClass('on');}else if(e.key==='Enter'){e.preventDefault();li.filter('.on').trigger('click');}else if(e.key==='Escape'){inp.val('');ul.empty();}});
+});})(wp.customize,jQuery);
+SHCZS;
+    wp_add_inline_script( 'customize-controls', $js );
+} );
