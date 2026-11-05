@@ -5575,6 +5575,7 @@ function sahel_pwa_serve() {
             'background_color' => sahel_pwa_bg(),
             'icons'            => sahel_pwa_icons(),
             'categories'       => array( 'shopping' ),
+            'prefer_related_applications' => false,
         );
         $sc = array();
         if ( function_exists( 'wc_get_page_permalink' ) ) {
@@ -5583,6 +5584,9 @@ function sahel_pwa_serve() {
             $sc[] = array( 'name' => 'حساب من', 'url' => wc_get_page_permalink( 'myaccount' ) );
         }
         if ( $sc ) { $m['shortcuts'] = $sc; }
+        $apk = trim( (string) get_theme_mod( 'sahel_android_url', '' ) );
+        $pkg = sahel_twa_package();
+        if ( $pkg && false !== strpos( $apk, 'play.google.com' ) ) { $m['related_applications'] = array( array( 'platform' => 'play', 'id' => $pkg, 'url' => $apk ) ); }
         echo wp_json_encode( apply_filters( 'sahel_pwa_manifest', $m ), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT );
         exit;
     }
@@ -5690,6 +5694,8 @@ function sahel_pwa_footer() {
         'days'  => max( 1, (int) get_theme_mod( 'sahel_pwa_snooze', 14 ) ),
         'delay' => max( 1, (int) get_theme_mod( 'sahel_pwa_delay', 4 ) ) * 1000,
         'desk'  => (int) get_theme_mod( 'sahel_pwa_desktop', 1 ),
+        'apk'   => esc_url_raw( (string) get_theme_mod( 'sahel_android_url', '' ) ),
+        'apkl'  => (string) get_theme_mod( 'sahel_android_label', 'دریافت اپ' ),
     );
     if ( $btn ) {
         $c     = esc_attr( sahel_pwa_color() );
@@ -5718,7 +5724,10 @@ function hide(){box.classList.remove('on');shown=false;setTimeout(function(){box
 box.querySelector('.pi-x').addEventListener('click',function(){snooze();hide()});
 window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();deferred=e;help('');setTimeout(function(){show()},1200)});
 window.addEventListener('appinstalled',function(){hide();snooze()});
+var android=/android/i.test(ua)&&!ios;
+if(C.apk&&android){var g0=box.querySelector('.pi-go');if(g0){g0.textContent=C.apkl||'دریافت اپ';}}
 box.querySelector('.pi-go').addEventListener('click',function(){
+  if(C.apk&&android){snooze();hide();location.href=C.apk;return}
   if(deferred){deferred.prompt();deferred.userChoice.then(function(r){deferred=null;if(r&&r.outcome==='accepted'){hide();snooze()}})}
   else{help(ios?'ios':(mobile?'android':'desktop'));this.textContent='متوجه شدم';this.onclick=function(){snooze();hide()}}
 });
@@ -7852,20 +7861,76 @@ function sahel_v68_organize( $w ) {
 
 /* جستجوی تنظیمات در سفارشی‌ساز */
 add_action( 'customize_controls_enqueue_scripts', function () {
-    $css = '.sahel-czs{position:sticky;top:0;z-index:20;background:#fff;padding:10px 12px;border-bottom:1px solid #dcdcde}.sahel-czs input{width:100%;font:inherit;padding:8px 12px;border:1px solid #8c8f94;border-radius:8px}.sahel-czs input:focus{border-color:#2271b1;box-shadow:0 0 0 1px #2271b1;outline:0}.sahel-czs ul{margin:8px 0 0;padding:0;list-style:none;max-height:60vh;overflow:auto}.sahel-czs li{padding:7px 10px;border-radius:6px;cursor:pointer;line-height:1.6}.sahel-czs li:hover,.sahel-czs li.on{background:#f0f6fc}.sahel-czs li b{display:block;font-size:13px;font-weight:600}.sahel-czs li small{display:block;color:#646970;font-size:11px}.sahel-czs .none{color:#646970;cursor:default}';
+    /* جستجو در پنجره‌ی جدا (روی منو)؛ داخل محتوای اسکرولی منو قرار نمی‌گیرد تا با دکمه‌ی بازگشت و پیمایش تداخل نداشته باشد */
+    $css = '.sahel-czs-btn{display:inline-flex;align-items:center;gap:4px;height:30px;margin:7px 8px;padding:0 10px;border:1px solid #c3c4c7;border-radius:6px;background:#fff;color:#1d2327;font:inherit;font-size:12px;cursor:pointer;vertical-align:middle}.sahel-czs-btn:hover,.sahel-czs-btn:focus{border-color:#2271b1;color:#2271b1;outline:0}.sahel-czs{display:none;position:absolute;top:45px;bottom:45px;left:0;right:0;z-index:600;background:#fff;flex-direction:column;box-shadow:0 0 0 1px #dcdcde}.sahel-czs.on{display:flex}.sahel-czs-h{display:flex;gap:8px;align-items:center;padding:12px;border-bottom:1px solid #dcdcde}.sahel-czs input{flex:1;min-width:0;font:inherit;padding:8px 12px;border:1px solid #8c8f94;border-radius:8px}.sahel-czs input:focus{border-color:#2271b1;box-shadow:0 0 0 1px #2271b1;outline:0}.sahel-czs-x{border:0;background:none;font-size:22px;line-height:1;cursor:pointer;color:#50575e;padding:4px 6px}.sahel-czs ul{flex:1;margin:0;padding:8px;list-style:none;overflow-y:auto}.sahel-czs li{padding:8px 10px;border-radius:6px;cursor:pointer;line-height:1.6}.sahel-czs li:hover,.sahel-czs li.on{background:#f0f6fc}.sahel-czs li b{display:block;font-size:13px;font-weight:600}.sahel-czs li small{display:block;color:#646970;font-size:11px}.sahel-czs .none{color:#646970;cursor:default}.sahel-czs .hint{color:#646970;font-size:12px;padding:10px;cursor:default}';
     wp_add_inline_style( 'customize-controls', $css );
     $js = <<<'SHCZS'
 (function(api,$){api.bind('ready',function(){
- var box=$('<div class="sahel-czs"><input type="search" placeholder="🔍 جستجوی تنظیمات قالب (مثلاً: کارت محصول، رنگ، اسلاید)" aria-label="جستجوی تنظیمات"><ul role="listbox"></ul></div>');
- $('.wp-full-overlay-sidebar-content').prepend(box);
+ var side=$('.wp-full-overlay-sidebar').first(); if(!side.length){return;}
+ var btn=$('<button type="button" class="sahel-czs-btn" aria-label="جستجوی تنظیمات قالب" title="جستجوی تنظیمات (Ctrl+K)">🔍 جستجو</button>');
+ var foot=$('#customize-footer-actions'); if(foot.length){foot.prepend(btn);}else{$('#customize-header-actions').append(btn);}
+ var box=$('<div class="sahel-czs" role="dialog" aria-label="جستجوی تنظیمات"><div class="sahel-czs-h"><input type="search" placeholder="نام تنظیم را بنویسید… (مثلاً: کارت محصول، رنگ قیمت)" aria-label="جستجوی تنظیمات"><button type="button" class="sahel-czs-x" aria-label="بستن">×</button></div><ul role="listbox"><li class="hint">حداقل دو حرف بنویسید.</li></ul></div>');
+ side.append(box);
  var inp=box.find('input'),ul=box.find('ul'),idx=[];
  function norm(s){return String(s||'').toLowerCase().replace(/ي/g,'ی').replace(/ك/g,'ک').replace(/[‌ً-ٟ]/g,'').replace(/[^؀-ۿa-z0-9\s]/g,' ').replace(/\s+/g,' ').trim();}
  function build(){idx=[];api.control.each(function(c){var l=c.params&&c.params.label?$('<div>').html(c.params.label).text():'';if(!l)return;var s=api.section(c.section());if(!s)return;var p=s.panel&&s.panel()?api.panel(s.panel()):null;var st=$('<div>').html(s.params.title||'').text(),pt=p?$('<div>').html(p.params.title||'').text():'';idx.push({c:c,l:l,path:(pt?pt+' › ':'')+st,n:norm(l+' '+st+' '+pt+' '+(c.params.description||''))});});}
- function show(q){ul.empty();q=norm(q);if(q.length<2)return;var words=q.split(' ');var r=idx.filter(function(o){return words.every(function(w){return o.n.indexOf(w)>-1;});}).slice(0,40);
+ function open(){if(!idx.length)build();box.addClass('on');setTimeout(function(){inp.trigger('focus');},30);}
+ function close(){box.removeClass('on');inp.val('');ul.html('<li class="hint">حداقل دو حرف بنویسید.</li>');btn.trigger('focus');}
+ function show(q){ul.empty();q=norm(q);if(q.length<2){ul.html('<li class="hint">حداقل دو حرف بنویسید.</li>');return;}var words=q.split(' ');var r=idx.filter(function(o){return words.every(function(w){return o.n.indexOf(w)>-1;});}).slice(0,60);
   if(!r.length){ul.append('<li class="none">چیزی پیدا نشد</li>');return;}
-  r.forEach(function(o,i){$('<li role="option"><b></b><small></small></li>').toggleClass('on',i===0).find('b').text(o.l).end().find('small').text(o.path).end().on('click',function(){o.c.focus();inp.val('');ul.empty();}).appendTo(ul);});}
- inp.on('focus',function(){if(!idx.length)build();}).on('input',function(){show(this.value);}).on('keydown',function(e){var li=ul.children('li:not(.none)'),k=li.index(li.filter('.on'));if(e.key==='ArrowDown'){e.preventDefault();li.removeClass('on').eq(Math.min(k+1,li.length-1)).addClass('on');}else if(e.key==='ArrowUp'){e.preventDefault();li.removeClass('on').eq(Math.max(k-1,0)).addClass('on');}else if(e.key==='Enter'){e.preventDefault();li.filter('.on').trigger('click');}else if(e.key==='Escape'){inp.val('');ul.empty();}});
+  r.forEach(function(o,i){$('<li role="option"><b></b><small></small></li>').toggleClass('on',i===0).find('b').text(o.l).end().find('small').text(o.path).end().on('click',function(){close();o.c.focus();}).appendTo(ul);});}
+ btn.on('click',function(){box.hasClass('on')?close():open();});
+ box.find('.sahel-czs-x').on('click',close);
+ inp.on('input',function(){show(this.value);}).on('keydown',function(e){var li=ul.children('li[role=option]'),k=li.index(li.filter('.on'));if(e.key==='ArrowDown'){e.preventDefault();li.removeClass('on').eq(Math.min(k+1,li.length-1)).addClass('on')[0].scrollIntoView({block:'nearest'});}else if(e.key==='ArrowUp'){e.preventDefault();li.removeClass('on').eq(Math.max(k-1,0)).addClass('on')[0].scrollIntoView({block:'nearest'});}else if(e.key==='Enter'){e.preventDefault();li.filter('.on').trigger('click');}else if(e.key==='Escape'){e.preventDefault();close();}});
+ $(document).on('keydown',function(e){if((e.ctrlKey||e.metaKey)&&(e.key==='k'||e.key==='K')){e.preventDefault();open();}else if(e.key==='Escape'&&box.hasClass('on')){e.preventDefault();close();}});
 });})(wp.customize,jQuery);
 SHCZS;
     wp_add_inline_script( 'customize-controls', $js );
 } );
+
+/* =====================================================================
+ * v6.9 — آماده‌سازی برای اپ اندروید (APK/AAB با روش TWA) + لینک دریافت اپ
+ * ===================================================================== */
+function sahel_twa_package() {
+    $p = trim( (string) get_theme_mod( 'sahel_twa_package', '' ) );
+    return preg_match( '/^[a-zA-Z][\w]*(\.[a-zA-Z][\w]*)+$/', $p ) ? $p : '';
+}
+function sahel_twa_fingerprints() {
+    $out = array();
+    foreach ( preg_split( '/[\s,،;]+/u', (string) get_theme_mod( 'sahel_twa_sha256', '' ) ) as $f ) {
+        $h = strtoupper( preg_replace( '/[^0-9a-fA-F]/', '', $f ) );
+        if ( 64 === strlen( $h ) ) { $out[] = implode( ':', str_split( $h, 2 ) ); }
+    }
+    return array_values( array_unique( $out ) );
+}
+/* فایل تأیید دامنه برای اپ اندروید: /.well-known/assetlinks.json
+   (بدون این فایل، اپ ساخته‌شده نوار آدرس مرورگر را نشان می‌دهد) */
+add_action( 'init', function () {
+    $uri  = isset( $_SERVER['REQUEST_URI'] ) ? (string) wp_unslash( $_SERVER['REQUEST_URI'] ) : ''; // phpcs:ignore
+    $path = (string) wp_parse_url( $uri, PHP_URL_PATH );
+    $home = untrailingslashit( (string) wp_parse_url( home_url( '/' ), PHP_URL_PATH ) );
+    $hit  = ( $path === $home . '/.well-known/assetlinks.json' ) || ( isset( $_GET['sahel_pwa'] ) && 'assetlinks' === $_GET['sahel_pwa'] ); // phpcs:ignore
+    if ( ! $hit ) { return; }
+    $pkg = sahel_twa_package(); $fps = sahel_twa_fingerprints();
+    if ( ! $pkg || ! $fps ) { status_header( 404 ); header( 'Content-Type: application/json; charset=utf-8' ); echo '[]'; exit; }
+    status_header( 200 );
+    header( 'Content-Type: application/json; charset=utf-8' );
+    header( 'Access-Control-Allow-Origin: *' );
+    header( 'Cache-Control: public, max-age=3600' );
+    echo wp_json_encode( array( array(
+        'relation' => array( 'delegate_permission/common.handle_all_urls' ),
+        'target'   => array( 'namespace' => 'android_app', 'package_name' => $pkg, 'sha256_cert_fingerprints' => $fps ),
+    ) ), JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT );
+    exit;
+}, 0 );
+add_action( 'customize_register', function ( $w ) {
+    if ( ! $w->get_section( 'sahel_pwa' ) ) { return; }
+    $w->add_setting( 'sahel_twa_package', array( 'default' => '', 'sanitize_callback' => 'sanitize_text_field' ) );
+    $w->add_control( 'sahel_twa_package', array( 'label' => '🤖 اپ اندروید — شناسه‌ی بسته (Package ID)', 'description' => 'همان شناسه‌ای که در PWABuilder وارد کرده‌اید، مثلاً ir.peecha.shop. راهنما: pwabuilder.com ← آدرس سایت ← Package for stores ← Android.', 'section' => 'sahel_pwa', 'type' => 'text', 'priority' => 200 ) );
+    $w->add_setting( 'sahel_twa_sha256', array( 'default' => '', 'sanitize_callback' => 'sanitize_textarea_field' ) );
+    $w->add_control( 'sahel_twa_sha256', array( 'label' => '🤖 اپ اندروید — اثر انگشت SHA-256 کلید امضا', 'description' => 'از فایل assetlinks.json یا signing-key-info که PWABuilder داده کپی کنید (هر کدام در یک خط). اگر در گوگل‌پلی منتشر می‌کنید، اثر انگشت «App signing key» کنسول گوگل‌پلی را هم در خط بعد اضافه کنید. قالب خودش فایل /.well-known/assetlinks.json را می‌سازد تا اپ بدون نوار آدرس باز شود.', 'section' => 'sahel_pwa', 'type' => 'textarea', 'priority' => 201 ) );
+    $w->add_setting( 'sahel_android_url', array( 'default' => '', 'sanitize_callback' => 'esc_url_raw' ) );
+    $w->add_control( 'sahel_android_url', array( 'label' => '🤖 لینک دریافت اپ اندروید (کافه‌بازار، مایکت، گوگل‌پلی یا فایل APK)', 'description' => 'اگر پر شود، به کاربران اندروید به‌جای «نصب از مرورگر»، دریافت همین اپ پیشنهاد می‌شود.', 'section' => 'sahel_pwa', 'type' => 'url', 'priority' => 202 ) );
+    $w->add_setting( 'sahel_android_label', array( 'default' => 'دریافت اپ', 'sanitize_callback' => 'sanitize_text_field' ) );
+    $w->add_control( 'sahel_android_label', array( 'label' => '🤖 متن دکمه‌ی دریافت اپ', 'section' => 'sahel_pwa', 'type' => 'text', 'priority' => 203 ) );
+}, 50 );
