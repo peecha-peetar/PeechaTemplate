@@ -104,7 +104,7 @@ function sahel_render_cat_dd_node( $node, $fbimg ) {
     }
     return '<a class="dd-card" href="' . esc_url( get_term_link( $c ) ) . '"><img src="' . esc_url( sahel_cat_img( $c, $fbimg ) ) . '" alt="" loading="lazy" decoding="async"><span><b>' . esc_html( $c->name ) . '</b><small>' . sahel_num( $c->count ) . '</small></span></a>';
 }
-function sahel_page_url( $slug ) { $p = get_page_by_path( $slug ); return $p ? get_permalink( $p ) : home_url( '/' ); }
+function sahel_page_url( $slug ) { if ( function_exists( 'sahel_resolve_page_url' ) ) { return sahel_resolve_page_url( $slug ); } $p = get_page_by_path( $slug ); return $p ? get_permalink( $p ) : home_url( '/' ); }
 function sahel_footer_link_url( $type, $val ) {
     if ( $type === 'home' ) { return home_url( '/' ); }
     if ( $type === 'shop' ) { return sahel_shop_url(); }
@@ -9269,11 +9269,11 @@ function sahel_ld_html() {
     $hv = (int) sahel_ld_opt( 'h', 0 ); $hvm = (int) sahel_ld_opt( 'h_m', 0 );
     if ( $hv > 0 ) { $st .= ';--ld-hv:' . min( 200, $hv ); }
     if ( $hvm > 0 ) { $st .= ';--ld-hvm:' . min( 200, $hvm ); }
-    foreach ( array( 'fs_t' => '--ld-ft', 'fs_t_m' => '--ld-ftm', 'fs_s' => '--ld-fs', 'fs_s_m' => '--ld-fsm', 'fs_c' => '--ld-fc', 'fs_c_m' => '--ld-fcm', 'fs_b' => '--ld-fb', 'fs_q' => '--ld-fq', 'cw' => '--ld-cw' ) as $k => $var ) {
+    foreach ( array( 'fs_t' => '--ld-ft', 'fs_t_m' => '--ld-ftm', 'fs_s' => '--ld-fs', 'fs_s_m' => '--ld-fsm', 'fs_c' => '--ld-fc', 'fs_c_m' => '--ld-fcm', 'fs_b' => '--ld-fb', 'fs_q' => '--ld-fq', 'cw' => '--ld-cw', 'gap' => '--ld-gap', 'gap_m' => '--ld-gapm', 'cats_mt' => '--ld-cmt', 'pad' => '--ld-pad' ) as $k => $var ) {
         $n = (int) sahel_ld_opt( $k, 0 ); if ( $n > 0 ) { $st .= ';' . $var . ':' . min( 400, $n ) . 'px'; }
     }
     foreach ( array( 'c_t' => '--ld-ct', 'c_s' => '--ld-cs' ) as $k => $var ) { $c = sanitize_hex_color( (string) sahel_ld_opt( $k, '' ) ); if ( $c ) { $st .= ';' . $var . ':' . $c; } }
-    $h  = '<section class="ld ld-fx-' . esc_attr( $fx ) . ( $hv > 0 || $hvm > 0 ? ' ld-hset' . ( $hv > 0 ? '' : ' ld-hm-only' ) : ( (int) sahel_ld_opt( 'full', 1 ) ? ' ld-full' : '' ) ) . ( (int) sahel_ld_opt( 'title3d', 1 ) ? ' ld-t3d' : '' ) . '" style="' . esc_attr( $st ) . '">';
+    $h  = '<section class="ld ld-fx-' . esc_attr( $fx ) . ( $hv > 0 ? ' ld-hset ld-hd' : '' ) . ( $hv > 0 || $hvm > 0 ? ' ld-hm' : '' ) . ( $hv > 0 ? '' : ( (int) sahel_ld_opt( 'full', 1 ) ? ' ld-full' : '' ) ) . ( (int) sahel_ld_opt( 'title3d', 1 ) ? ' ld-t3d' : '' ) . '" style="' . esc_attr( $st ) . '">';
     $h .= sahel_ld_bg_html();
     $h .= '<div class="ld-glow" aria-hidden="true"></div><div class="ld-stage"><div class="ld-move"><div class="ld-obj">';
     for ( $i = $depth; $i >= 1; $i-- ) { $h .= '<img class="ld-l" src="' . esc_url( $logo ) . '" alt="" aria-hidden="true" decoding="async" style="--i:' . $i . '">'; }
@@ -9391,10 +9391,13 @@ add_action( 'wp_head', function () {
 .ld-btn{display:inline-flex;align-items:center;padding:12px 26px;border-radius:99px;background:var(--ld-acc);color:#fff!important;font-weight:900;text-decoration:none;box-shadow:0 12px 24px -12px var(--ld-acc);transition:transform .25s}
 .ld-btn:hover{transform:translateY(-2px)}
 .ld-btn2{background:transparent;color:var(--ld-acc)!important;box-shadow:inset 0 0 0 2px var(--ld-acc)}
-.ld-cats{display:flex;flex-wrap:wrap;justify-content:center;align-items:stretch;gap:10px;width:min(1180px,100%);margin-inline:auto}
+.ld-cats{display:flex;flex-wrap:wrap;justify-content:center;align-items:stretch;gap:var(--ld-gap,10px);width:min(1180px,100%);margin:var(--ld-cmt,0px) auto 0}
+.ld{padding-top:var(--ld-pad,46px)!important;padding-bottom:var(--ld-pad,40px)!important}
+.ld-stage{width:var(--ld-fitsz,min(var(--ld-size),78vw))!important}
 .ld-cats .ld-cc{flex:0 0 var(--ld-cw,108px);width:var(--ld-cw,108px);max-width:100%;box-sizing:border-box}
 .ld-cats .ld-cc b{font-size:var(--ld-fc,.82rem)}
-.ld.ld-hset{min-height:calc(var(--ld-hv,0) * 1vh);min-height:calc(var(--ld-hv,0) * 1svh);justify-content:center}
+@media(min-width:761px){.ld.ld-hd{height:calc(var(--ld-hv) * 1vh);height:calc(var(--ld-hv) * 1svh);min-height:0;justify-content:center}}
+.ld.ld-grow{height:auto!important;min-height:calc(var(--ld-hv,0) * 1svh)!important}
 .ld-t{font-size:var(--ld-ft,clamp(2rem,6vw,3.6rem))!important;color:var(--ld-ct,var(--text,#1a1a1a))!important}
 .ld-s{font-size:var(--ld-fs,clamp(.95rem,2.2vw,1.2rem))!important;color:var(--ld-cs,var(--muted,#555))!important}
 .ld-btn{font-size:var(--ld-fb,1rem)}
@@ -9403,16 +9406,18 @@ add_action( 'wp_head', function () {
 .ld-bgm img,.ld-bgm video{position:absolute;inset:0;width:100%!important;height:100%!important;max-width:none;object-fit:var(--ld-fit,cover);opacity:var(--ld-bgo,1);filter:blur(var(--ld-blur,0px));transform:scale(var(--ld-bgs,1))}
 .ld-bgm .ld-ovl{position:absolute;inset:0}
 @media(max-width:760px){
-  .ld.ld-hset{min-height:calc(var(--ld-hvm,var(--ld-hv,0)) * 1vh);min-height:calc(var(--ld-hvm,var(--ld-hv,0)) * 1svh)}
+  .ld.ld-hm{height:calc(var(--ld-hvm,var(--ld-hv)) * 1vh);height:calc(var(--ld-hvm,var(--ld-hv)) * 1svh);min-height:0;justify-content:center}
+  .ld.ld-hm.ld-grow{min-height:calc(var(--ld-hvm,var(--ld-hv)) * 1svh)!important}
+  .ld-cats{gap:var(--ld-gapm,var(--ld-gap,8px))}
   .ld-t{font-size:var(--ld-ftm,var(--ld-ft,clamp(2rem,6vw,3.6rem)))!important}
   .ld-s{font-size:var(--ld-fsm,var(--ld-fs,clamp(.95rem,2.2vw,1.2rem)))!important}
-  .ld-cats .ld-cc{flex-basis:calc((100% - 16px) / 3);width:calc((100% - 16px) / 3)}
+  .ld-cats .ld-cc{flex-basis:calc((100% - 2 * var(--ld-gapm,var(--ld-gap,8px))) / 3);width:calc((100% - 2 * var(--ld-gapm,var(--ld-gap,8px))) / 3)}
   .ld-cats .ld-cc b{font-size:var(--ld-fcm,var(--ld-fc,.78rem))}
 }
 .ld-cats .ld-cc{animation:ldCat .6s cubic-bezier(.2,.8,.2,1) both}
 .ld-cats .ld-cc:nth-child(n){animation-delay:calc(.9s + .04s * var(--n,0))}
 @keyframes ldCat{from{opacity:0;transform:translateY(16px)}}
-@media(max-width:600px){.ld{padding:28px 12px 30px}.ld-cats{gap:8px}.ld-cc{padding:14px 6px 10px!important}}
+@media(max-width:600px){.ld{padding:var(--ld-pad,28px) 12px var(--ld-pad,30px)!important}.ld-cc{padding:14px 6px 10px!important}}
 body.ld-bare #header,body.ld-bare .topbar,body.ld-bare footer,body.ld-bare .bn-bottombar,body.ld-bare .bn-deskbar{display:none!important}
 body.ld-bare .ld-full{min-height:100vh;min-height:100svh}
 @media (prefers-reduced-motion:reduce){.ld *{animation:none!important}}
@@ -10680,3 +10685,141 @@ add_action( 'customize_register', function ( $w ) {
         if ( $sec = $w->get_section( 'sahel_x_bbc' ) ) { $sec->description = 'هر دکمه‌ای که «متن» و «لینک» داشته باشد، خودکار به نوار پایین اضافه می‌شود (موبایل حداکثر ۵ آیتم). برای تعیین جای دقیق، در «آیتم‌ها»ی نوار، «⭐ دکمه‌ی دلخواه» را انتخاب کنید و «محل نمایش» را روی «فقط اگر انتخاب شود» بگذارید.'; }
     }
 }, 1006 );
+
+
+/* =====================================================================
+ * v7.6 — لینک «صفحه وردپرس» در منو، فاصله و ارتفاع لندینگ، سرعت (درخواست اضافه‌ی سبد خرید)
+ *        و صفحه‌ی «بررسی سرعت» با اندازه‌گیری روی همین سرور
+ * ===================================================================== */
+
+/* ---------- منو: پیدا کردن صفحه با نامک، نامک فارسی، شناسه، عنوان یا نشانی ---------- */
+function sahel_resolve_page_url( $v ) {
+    static $cache = array();
+    $v = trim( (string) $v );
+    if ( isset( $cache[ $v ] ) ) { return $cache[ $v ]; }
+    $u = '';
+    if ( '' === $v ) { $u = home_url( '/' ); }
+    elseif ( preg_match( '#^((https?:)?//|/|\?|\#|tel:|mailto:)#i', $v ) ) { $u = $v; }
+    elseif ( preg_match( '/^\d+$/', $v ) ) { $u = (string) get_permalink( (int) $v ); }
+    if ( '' === $u ) {
+        $slug = trim( preg_replace( '#^.*?://[^/]+#', '', $v ), '/' );
+        foreach ( array_unique( array( $slug, sanitize_title( $slug ), strtolower( rawurlencode( $slug ) ) ) ) as $try ) {
+            if ( '' === $try ) { continue; }
+            $p = get_page_by_path( $try );
+            if ( $p && 'publish' === $p->post_status ) { $u = get_permalink( $p ); break; }
+        }
+    }
+    if ( '' === $u ) {
+        $q = get_posts( array( 'post_type' => array( 'page', 'post', 'product' ), 'title' => $v, 'numberposts' => 1, 'post_status' => 'publish', 'fields' => 'ids', 'no_found_rows' => true ) );
+        if ( $q ) { $u = (string) get_permalink( $q[0] ); }
+    }
+    if ( '' === $u ) {
+        $p = get_page_by_path( sanitize_title( $v ), OBJECT, array( 'post', 'product' ) );
+        if ( $p && 'publish' === $p->post_status ) { $u = (string) get_permalink( $p ); }
+    }
+    if ( '' === $u && taxonomy_exists( 'product_cat' ) ) {
+        $t = get_term_by( 'slug', sanitize_title( $v ), 'product_cat' );
+        if ( ! $t ) { $t = get_term_by( 'name', $v, 'product_cat' ); }
+        if ( $t && ! is_wp_error( $t ) ) { $l = get_term_link( $t ); if ( ! is_wp_error( $l ) ) { $u = $l; } }
+    }
+    return $cache[ $v ] = ( '' !== $u ? $u : home_url( '/' ) );
+}
+add_action( 'customize_register', function ( $w ) {
+    for ( $i = 1; $i <= 12; $i++ ) {
+        if ( $c = $w->get_control( 'sahel_m' . $i . '_val' ) ) { $c->description = 'برای «صفحه وردپرس»: نامک، عنوان، شناسه یا نشانی کامل صفحه (هر کدام). برای «لینک دلخواه»: نشانی کامل.'; }
+    }
+}, 1007 );
+
+/* ---------- سرعت: درخواست «به‌روزرسانی سبد» فقط وقتی سبد خالی نیست ---------- */
+/* اسکریپت wc-cart-fragments در هر بار باز شدن صفحه یک درخواست سنگین و کش‌نشدنی به سرور می‌فرستاد.
+   تعداد سبد و سبد کشویی در خود صفحه ساخته می‌شوند و افزودن به سبد هم آن‌ها را به‌روز می‌کند؛ پس برای سبد خالی لازم نیست. */
+add_action( 'wp_enqueue_scripts', function () {
+    if ( ! (int) get_theme_mod( 'sahel_fast_fragments', 1 ) || ! function_exists( 'WC' ) || is_cart() || is_checkout() ) { return; }
+    $empty = ! WC()->cart || WC()->cart->is_empty();
+    if ( $empty && empty( $_COOKIE['woocommerce_items_in_cart'] ) ) { wp_dequeue_script( 'wc-cart-fragments' ); } // phpcs:ignore
+}, 99 );
+
+/* ---------- سرعت: زمان ساخت صفحه برای مدیر (در ابزار توسعه‌دهنده‌ی مرورگر ← Network ← Timing) ---------- */
+add_filter( 'sahel_final_html', function ( $html ) {
+    if ( ! current_user_can( 'manage_options' ) || headers_sent() ) { return $html; }
+    $ms = isset( $_SERVER['REQUEST_TIME_FLOAT'] ) ? round( ( microtime( true ) - (float) $_SERVER['REQUEST_TIME_FLOAT'] ) * 1000 ) : 0; // phpcs:ignore
+    $q = function_exists( 'get_num_queries' ) ? get_num_queries() : 0;
+    header( 'Server-Timing: wp;desc="WordPress+theme";dur=' . $ms . ', db;desc="queries ' . $q . '"' );
+    return $html . "\n<!-- peecha: " . $ms . 'ms, ' . $q . ' queries, ' . round( memory_get_peak_usage() / 1048576, 1 ) . 'MB -->';
+}, 99 );
+
+/* ---------- صفحه‌ی «بررسی سرعت» در پیشخوان ---------- */
+add_action( 'admin_menu', function () {
+    add_management_page( 'بررسی سرعت سایت', '⚡ بررسی سرعت سایت', 'manage_options', 'sahel-speed', 'sahel_speed_page' );
+} );
+function sahel_speed_page() {
+    if ( ! current_user_can( 'manage_options' ) ) { wp_die( 'دسترسی ندارید.', 403 ); }
+    global $wpdb;
+    $row = function ( $label, $val, $ok, $tip = '' ) { return '<tr><td>' . esc_html( $label ) . '</td><td><b>' . wp_kses_post( $val ) . '</b></td><td>' . ( null === $ok ? '' : ( $ok ? '✅' : '⚠️' ) ) . '</td><td style="color:#555">' . esc_html( $tip ) . '</td></tr>'; };
+    echo '<div class="wrap"><h1>⚡ بررسی سرعت سایت</h1><p>این صفحه روی همین سرور اندازه می‌گیرد. هر بار باز شود دوباره اندازه‌گیری می‌کند.</p>';
+    /* ۱) زمان پاسخ صفحه‌ها برای بازدیدکننده (بدون ورود) */
+    $urls = array( 'صفحه اصلی' => home_url( '/' ) );
+    if ( function_exists( 'wc_get_page_permalink' ) ) { $urls['فروشگاه'] = wc_get_page_permalink( 'shop' ); }
+    if ( function_exists( 'wc_get_products' ) ) { $ids = wc_get_products( array( 'limit' => 1, 'status' => 'publish', 'return' => 'ids' ) ); if ( $ids ) { $urls['یک محصول'] = get_permalink( $ids[0] ); } }
+    if ( isset( $_GET['run'] ) && check_admin_referer( 'sahel_speed' ) ) {
+        echo '<h2>زمان پاسخ سرور (بازدیدکننده‌ی مهمان)</h2><table class="widefat striped" style="max-width:900px"><thead><tr><th>صفحه</th><th>زمان</th><th></th><th>توضیح</th></tr></thead><tbody>';
+        foreach ( $urls as $l => $u ) {
+            $t = microtime( true );
+            $r = wp_remote_get( add_query_arg( 'sahel_nocache', wp_rand( 1, 99999 ), $u ), array( 'timeout' => 30, 'redirection' => 3, 'sslverify' => false, 'headers' => array( 'Cache-Control' => 'no-cache' ) ) );
+            $ms = round( ( microtime( true ) - $t ) * 1000 );
+            if ( is_wp_error( $r ) ) { echo $row( $l, 'خطا: ' . esc_html( $r->get_error_message() ), false ); continue; } // phpcs:ignore
+            $kb = round( strlen( wp_remote_retrieve_body( $r ) ) / 1024 );
+            echo $row( $l, sahel_fa( $ms ) . ' میلی‌ثانیه — ' . sahel_fa( $kb ) . ' کیلوبایت', $ms < 800, $ms < 800 ? 'خوب' : ( $ms < 2000 ? 'کند؛ کش صفحه پیشنهاد می‌شود' : 'بسیار کند؛ میزبانی، افزونه‌ها یا پایگاه‌داده را بررسی کنید' ) ); // phpcs:ignore
+        }
+        echo '</tbody></table>';
+    } else {
+        echo '<p><a class="button button-primary" href="' . esc_url( wp_nonce_url( admin_url( 'tools.php?page=sahel-speed&run=1' ), 'sahel_speed' ) ) . '">اندازه‌گیری زمان پاسخ صفحه‌ها</a></p>';
+    }
+    /* ۲) تنظیمات سرور و پایگاه‌داده */
+    $auto = (int) $wpdb->get_var( "SELECT SUM(LENGTH(option_value)) FROM {$wpdb->options} WHERE autoload IN ('yes','on','auto-on','auto')" ); // phpcs:ignore
+    $tr = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->options} WHERE option_name LIKE '\\_transient\\_%'" ); // phpcs:ignore
+    $big = $wpdb->get_results( "SELECT option_name, LENGTH(option_value) AS s FROM {$wpdb->options} WHERE autoload IN ('yes','on','auto-on','auto') ORDER BY s DESC LIMIT 8" ); // phpcs:ignore
+    $plugins = count( (array) get_option( 'active_plugins', array() ) );
+    $oc = wp_using_ext_object_cache();
+    $opc = function_exists( 'opcache_get_status' ) ? @opcache_get_status( false ) : false; // phpcs:ignore
+    $up = wp_upload_dir(); $css = glob( trailingslashit( $up['basedir'] ) . 'sahel-css/*.css' ); $css_n = is_array( $css ) ? count( $css ) : 0;
+    $css_new = 0; if ( is_array( $css ) ) { foreach ( $css as $f ) { if ( filemtime( $f ) > time() - DAY_IN_SECONDS ) { $css_new++; } } }
+    echo '<h2>سرور و پایگاه‌داده</h2><table class="widefat striped" style="max-width:900px"><tbody>';
+    echo $row( 'نسخه‌ی PHP', PHP_VERSION, version_compare( PHP_VERSION, '8.1', '>=' ), 'نسخه‌ی ۸.۱ یا بالاتر تا دو برابر سریع‌تر از ۷.x است' ); // phpcs:ignore
+    echo $row( 'OPcache (کش کد PHP)', $opc && ! empty( $opc['opcache_enabled'] ) ? 'فعال' : 'غیرفعال', $opc && ! empty( $opc['opcache_enabled'] ), 'اگر غیرفعال است از میزبان بخواهید روشن کند' ); // phpcs:ignore
+    echo $row( 'کش اشیاء (Redis/Memcached)', $oc ? 'فعال' : 'ندارد', $oc ? true : null, 'برای ووکامرس پرترافیک بسیار مؤثر است' ); // phpcs:ignore
+    echo $row( 'حجم تنظیمات بارگذاری خودکار', sahel_fa( round( $auto / 1024 ) ) . ' کیلوبایت', $auto < 800 * 1024, 'بیش از ۸۰۰ کیلوبایت هر صفحه را کند می‌کند' ); // phpcs:ignore
+    echo $row( 'تعداد ترنزینت‌ها', sahel_fa( $tr ), $tr < 5000, 'تعداد خیلی زیاد معمولاً از افزونه‌هاست' ); // phpcs:ignore
+    echo $row( 'افزونه‌های فعال', sahel_fa( $plugins ), $plugins <= 25, 'هر افزونه روی همه‌ی صفحه‌ها کد اجرا می‌کند' ); // phpcs:ignore
+    echo $row( 'فایل‌های CSS قالب', sahel_fa( $css_n ) . ' فایل (' . sahel_fa( $css_new ) . ' در ۲۴ ساعت اخیر)', $css_new <= 20, 'اگر هر روز فایل‌های زیادی ساخته شود، گزینه‌ی «CSS در فایل» را خاموش کنید' ); // phpcs:ignore
+    echo $row( 'درخواست اضافه‌ی سبد خرید', (int) get_theme_mod( 'sahel_fast_fragments', 1 ) ? 'فقط وقتی سبد پر است' : 'در همه‌ی صفحه‌ها', (bool) (int) get_theme_mod( 'sahel_fast_fragments', 1 ) ); // phpcs:ignore
+    echo '</tbody></table>';
+    if ( $big ) {
+        echo '<h3>بزرگ‌ترین تنظیمات بارگذاری خودکار</h3><table class="widefat striped" style="max-width:600px"><tbody>';
+        foreach ( $big as $b ) { echo '<tr><td dir="ltr">' . esc_html( $b->option_name ) . '</td><td>' . esc_html( sahel_fa( round( $b->s / 1024, 1 ) ) ) . ' KB</td></tr>'; }
+        echo '</tbody></table>';
+    }
+    echo '<h2>زمان هر صفحه هنگام بازدید شما</h2><p>وقتی به‌عنوان مدیر وارد هستید، زمان ساخت هر صفحه و تعداد پرسش‌های پایگاه‌داده در انتهای کد صفحه (<code>&lt;!-- peecha: … --&gt;</code>) و در ابزار توسعه‌دهنده‌ی مرورگر (Network ← Timing) نوشته می‌شود.</p></div>';
+}
+
+/* ---------- لندینگ: فاصله‌ی دسته‌ها و ارتفاع واقعی ---------- */
+add_action( 'customize_register', function ( $w ) {
+    if ( ! $w->get_section( 'sahel_x_landing' ) ) { return; }
+    foreach ( array( 'sahel_ld_gap' => array( '↔ فاصله‌ی بین کارت‌های دسته (پیکسل، ۰ = ۱۰)', 80 ), 'sahel_ld_gap_m' => array( '↔ فاصله‌ی بین کارت‌های دسته در موبایل (پیکسل)', 60 ), 'sahel_ld_cats_mt' => array( '↕ فاصله‌ی دسته‌ها از بالا (پیکسل)', 200 ), 'sahel_ld_pad' => array( '↕ فاصله‌ی داخلی بالا و پایین لندینگ (پیکسل)', 300 ) ) as $id => $a ) {
+        $w->add_setting( $id, array( 'default' => 0, 'sanitize_callback' => 'absint' ) );
+        $w->add_control( $id, array( 'label' => $a[0], 'section' => 'sahel_x_landing', 'type' => 'number', 'input_attrs' => array( 'min' => 0, 'max' => $a[1] ), 'priority' => 33 ) );
+    }
+    if ( $c = $w->get_control( 'sahel_ld_h' ) ) { $c->description = 'مثلاً ۶۰ یعنی ۶۰٪ ارتفاع صفحه. اگر محتوا جا نشود، اندازه‌ی لوگو خودکار کوچک می‌شود.'; }
+    $w->add_setting( 'sahel_fast_fragments', array( 'default' => 1, 'sanitize_callback' => 'absint' ) );
+    $w->add_control( 'sahel_fast_fragments', array( 'label' => '⚡ درخواست به‌روزرسانی سبد فقط وقتی سبد خالی نیست', 'description' => 'یک درخواست سنگین اضافه در هر صفحه حذف می‌شود. نتیجه‌ی سرعت: ابزارها ← ⚡ بررسی سرعت سایت.', 'section' => $w->get_section( 'sahel_x_security' ) ? 'sahel_x_security' : 'sahel_x_landing', 'type' => 'checkbox', 'priority' => 4 ) );
+}, 1008 );
+/* لندینگ با ارتفاع ثابت: اگر محتوا جا نشد، لوگو کوچک می‌شود؛ اگر باز هم جا نشد، ارتفاع به اندازه‌ی محتوا بزرگ می‌شود */
+add_action( 'wp_footer', function () {
+    if ( ! sahel_ld_assets( true ) ) { return; }
+    echo '<script id="sahel-v76-ldfit">(function(){var s=document.querySelector(".ld.ld-hm,.ld.ld-hd");if(!s)return;var st=s.querySelector(".ld-stage");'
+        . 'function need(){var t=1e9,b=-1e9,cs=getComputedStyle(s);Array.prototype.forEach.call(s.children,function(k){var c=getComputedStyle(k);if(c.position==="absolute"||c.position==="fixed")return;var q=k.getBoundingClientRect();t=Math.min(t,q.top-parseFloat(c.marginTop||0));b=Math.max(b,q.bottom+parseFloat(c.marginBottom||0));});return b-t+parseFloat(cs.paddingTop||0)+parseFloat(cs.paddingBottom||0);}'
+        . 'function fit(){s.classList.remove("ld-grow");if(st)st.style.removeProperty("--ld-fitsz");var h=s.clientHeight;if(!h)return;'
+        . 'var over=Math.ceil(need()-h);if(over>1&&st){var w=st.getBoundingClientRect().width,min=Math.max(90,Math.round(w*.45));st.style.setProperty("--ld-fitsz",Math.max(min,Math.floor(w-over-2))+"px");over=Math.ceil(need()-s.clientHeight);}'
+        . 'if(over>1)s.classList.add("ld-grow");}'
+        . 'fit();window.addEventListener("load",fit);var t;window.addEventListener("resize",function(){clearTimeout(t);t=setTimeout(fit,150);});})();</script>';
+}, 43 );
