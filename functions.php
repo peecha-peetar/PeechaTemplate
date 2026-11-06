@@ -2619,7 +2619,7 @@ function sahel_shell( $content ) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?php echo esc_html( get_bloginfo( 'name' ) ); ?> | <?php echo esc_html( $brand ); ?></title>
+<?php if ( ! current_theme_supports( 'title-tag' ) ) : /* با title-tag وردپرس (و افزونه‌های سئو) عنوان مخصوص هر صفحه را در wp_head چاپ می‌کنند */ ?><title><?php echo esc_html( get_bloginfo( 'name' ) ); ?> | <?php echo esc_html( $brand ); ?></title><?php endif; ?>
 <style><?php echo sahel_css(); ?></style>
 <?php wp_head(); ?>
 </head>
@@ -9616,3 +9616,363 @@ add_action( 'customize_register', function ( $w ) {
         }
     }
 }, 1003 );
+
+
+/* =====================================================================
+ * v7.3 — سئو: عنوان درست هر صفحه، توضیحات متا، کنونیکال، اوپن‌گراف،
+ *        داده‌ی ساختاریافته (اسکیما)، H1 یکتا، ایندکس نشدن صفحه‌های تکراری،
+ *        توضیح دسته‌بندی، نقشه‌ی سایت و robots.txt
+ * اگر افزونه‌ی سئو (یوست، رنک‌مث، AIOSEO، SEOPress، …) فعال باشد، قالب متا و اسکیمای خودش را
+ * چاپ نمی‌کند تا تکراری نشود؛ بخش‌هایی که افزونه‌ها انجام نمی‌دهند فعال می‌مانند.
+ * ===================================================================== */
+function sahel_seo_plugin() {
+    return defined( 'WPSEO_VERSION' ) || defined( 'RANK_MATH_VERSION' ) || class_exists( 'RankMath' ) || defined( 'AIOSEO_VERSION' ) || defined( 'SEOPRESS_VERSION' ) || defined( 'THE_SEO_FRAMEWORK_VERSION' ) || defined( 'SLIM_SEO_VER' ) || class_exists( 'Smartcrawl_Loader' );
+}
+function sahel_seo_on() { return (int) get_theme_mod( 'sahel_seo_on', 1 ) && ! sahel_seo_plugin(); }
+function sahel_seo_txt( $s, $len = 160 ) {
+    $s = trim( preg_replace( '/\s+/u', ' ', wp_strip_all_tags( strip_shortcodes( (string) $s ) ) ) );
+    if ( function_exists( 'mb_strlen' ) && mb_strlen( $s ) > $len ) {
+        $s = mb_substr( $s, 0, $len );
+        $p = mb_strrpos( $s, ' ' );
+        if ( $p > $len * .6 ) { $s = mb_substr( $s, 0, $p ); }
+        $s = rtrim( $s, ' ،,.؛:' ) . '…';
+    }
+    return $s;
+}
+function sahel_seo_tpl( $t, $name = '', $count = 0 ) {
+    return strtr( (string) $t, array( '{name}' => $name, '{brand}' => sahel_brand(), '{count}' => sahel_fa( (int) $count ) ) );
+}
+/* پارامترهایی که نسخه‌ی تکراری از یک صفحه می‌سازند */
+function sahel_seo_dup_params() {
+    return array( 'fcat', 'fbrand', 'fattr', 'min_price', 'max_price', 'fsale', 'mstock', 'frating', 'orderby', 'order', 'rating_filter', 'pcm', 'pcfx', 'pcper', 'sahel_landing', 'sahel_catalog', 'sahel_pv', 'sahel_gallery', 'add-to-cart', 'replytocom' );
+}
+function sahel_seo_is_dup() {
+    foreach ( array_keys( $_GET ) as $k ) { // phpcs:ignore
+        if ( in_array( $k, sahel_seo_dup_params(), true ) || 0 === strpos( (string) $k, 'filter_' ) || 0 === strpos( (string) $k, 'query_type_' ) ) {
+            if ( 'sahel_catalog' === $k && function_exists( 'sahel_pc_is_page' ) && is_page() && (int) get_theme_mod( 'sahel_pc_page', 0 ) === get_queried_object_id() ) { continue; }
+            return true;
+        }
+    }
+    return false;
+}
+
+/* ---------- عنوان صفحه ---------- */
+add_filter( 'document_title_separator', function ( $s ) {
+    if ( ! sahel_seo_on() ) { return $s; }
+    $x = trim( (string) get_theme_mod( 'sahel_seo_sep', '|' ) );
+    return '' !== $x ? $x : $s;
+} );
+add_filter( 'document_title_parts', function ( $p ) {
+    if ( ! sahel_seo_on() ) { return $p; }
+    $b = sahel_brand();
+    if ( $b ) { if ( isset( $p['site'] ) ) { $p['site'] = $b; } elseif ( is_front_page() && isset( $p['title'] ) ) { $p['title'] = $b; } }
+    if ( is_front_page() && '' !== trim( (string) get_theme_mod( 'sahel_seo_home_tag', '' ) ) ) { $p['tagline'] = trim( (string) get_theme_mod( 'sahel_seo_home_tag', '' ) ); }
+    if ( function_exists( 'is_shop' ) && is_shop() && ! is_search() && '' !== trim( (string) get_theme_mod( 'sahel_seo_shop_title', '' ) ) ) { $p['title'] = trim( (string) get_theme_mod( 'sahel_seo_shop_title', '' ) ); }
+    return $p;
+} );
+add_filter( 'pre_get_document_title', function ( $t ) {
+    if ( ! sahel_seo_on() || ! is_front_page() ) { return $t; }
+    $h = trim( (string) get_theme_mod( 'sahel_seo_home_title', '' ) );
+    return '' !== $h ? $h : $t;
+}, 20 );
+
+/* ---------- توضیحات متا ---------- */
+function sahel_seo_desc() {
+    $d = '';
+    if ( is_front_page() ) {
+        $d = (string) get_theme_mod( 'sahel_seo_home_desc', '' );
+        if ( '' === trim( $d ) ) { $d = get_bloginfo( 'description' ); }
+    } elseif ( function_exists( 'is_product' ) && is_product() ) {
+        $p = wc_get_product( get_queried_object_id() );
+        if ( $p ) {
+            $d = (string) get_post_meta( $p->get_id(), '_sahel_seo_desc', true );
+            if ( '' === trim( $d ) ) { $d = $p->get_short_description() ? $p->get_short_description() : $p->get_description(); }
+            if ( '' === trim( wp_strip_all_tags( $d ) ) ) { $d = sahel_seo_tpl( 'خرید {name} با بهترین قیمت از {brand}', $p->get_name() ); }
+        }
+    } elseif ( is_category() || is_tag() || is_tax() ) {
+        $t = get_queried_object();
+        if ( $t && isset( $t->term_id ) ) {
+            $d = term_description( $t->term_id, $t->taxonomy );
+            if ( '' === trim( wp_strip_all_tags( (string) $d ) ) ) { $d = sahel_seo_tpl( get_theme_mod( 'sahel_seo_term_tpl', 'خرید آنلاین {name} از {brand}؛ {count} محصول با قیمت مناسب و ارسال سریع.' ), $t->name, $t->count ); }
+        }
+    } elseif ( function_exists( 'is_shop' ) && is_shop() ) {
+        $d = (string) get_theme_mod( 'sahel_seo_shop_desc', '' );
+        if ( '' === trim( $d ) ) { $d = sahel_seo_tpl( 'فروشگاه اینترنتی {brand}؛ خرید آنلاین با قیمت مناسب و ارسال سریع.' ); }
+    } elseif ( is_singular() ) {
+        $post = get_queried_object();
+        if ( $post ) { $d = has_excerpt( $post ) ? $post->post_excerpt : $post->post_content; }
+    }
+    return sahel_seo_txt( $d );
+}
+/* ---------- نشانی اصلی (کنونیکال) ---------- */
+function sahel_seo_url() {
+    if ( is_singular() ) { $u = wp_get_canonical_url(); return $u ? $u : get_permalink(); }
+    if ( is_404() || is_search() ) { return ''; }
+    $paged = max( 1, (int) get_query_var( 'paged' ) );
+    $u = get_pagenum_link( $paged, false );
+    $drop = array_merge( sahel_seo_dup_params(), array( 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'gclid', 'fbclid' ) );
+    foreach ( array_keys( $_GET ) as $k ) { if ( 0 === strpos( (string) $k, 'filter_' ) || 0 === strpos( (string) $k, 'query_type_' ) ) { $drop[] = $k; } } // phpcs:ignore
+    return remove_query_arg( $drop, $u );
+}
+function sahel_seo_image() {
+    $id = 0;
+    if ( function_exists( 'is_product' ) && is_product() && ( $p = wc_get_product( get_queried_object_id() ) ) ) { $id = (int) $p->get_image_id(); }
+    elseif ( is_singular() ) { $id = (int) get_post_thumbnail_id( get_queried_object_id() ); }
+    elseif ( is_tax() || is_category() || is_tag() ) { $t = get_queried_object(); if ( $t && isset( $t->term_id ) ) { $id = (int) get_term_meta( $t->term_id, 'thumbnail_id', true ); } }
+    if ( $id && ( $src = wp_get_attachment_image_src( $id, 'large' ) ) ) { return array( $src[0], (int) $src[1], (int) $src[2] ); }
+    $def = (string) get_theme_mod( 'sahel_seo_og_img', '' );
+    if ( '' !== $def ) { return array( $def, 0, 0 ); }
+    $logo = function_exists( 'sahel_logo_url' ) ? sahel_logo_url() : '';
+    return $logo ? array( $logo, 0, 0 ) : array( '', 0, 0 );
+}
+/* ---------- چاپ متا در هد ---------- */
+add_action( 'wp_head', function () {
+    $o = '';
+    foreach ( array( 'google' => 'google-site-verification', 'bing' => 'msvalidate.01', 'yandex' => 'yandex-verification' ) as $k => $n ) {
+        $v = trim( (string) get_theme_mod( 'sahel_seo_verify_' . $k, '' ) );
+        if ( preg_match( '/content=["\']([^"\']+)/', $v, $m ) ) { $v = $m[1]; }
+        $v = preg_replace( '/[^\w\-]/', '', $v );
+        if ( '' !== $v ) { $o .= '<meta name="' . $n . '" content="' . esc_attr( $v ) . '">' . "\n"; }
+    }
+    if ( sahel_seo_on() ) {
+        $desc = sahel_seo_desc();
+        $url  = sahel_seo_url();
+        $title = function_exists( 'wp_get_document_title' ) ? wp_get_document_title() : get_bloginfo( 'name' );
+        if ( '' !== $desc ) { $o .= '<meta name="description" content="' . esc_attr( $desc ) . '">' . "\n"; }
+        /* برگه‌ها و نوشته‌ها را خود وردپرس کنونیکال می‌دهد؛ فروشگاه، دسته‌ها و صفحه‌ی اصلی بلاگ را قالب (نسخه‌ی فیلترشده هم به نسخه‌ی اصلی اشاره می‌کند) */
+        if ( $url && ! is_singular() ) { $o .= '<link rel="canonical" href="' . esc_url( $url ) . '">' . "\n"; }
+        if ( (int) get_theme_mod( 'sahel_seo_og', 1 ) ) {
+            $type = ( function_exists( 'is_product' ) && is_product() ) ? 'product' : ( is_singular( 'post' ) ? 'article' : 'website' );
+            $img = sahel_seo_image();
+            $o .= '<meta property="og:locale" content="fa_IR">' . "\n";
+            $o .= '<meta property="og:type" content="' . $type . '">' . "\n";
+            $o .= '<meta property="og:title" content="' . esc_attr( $title ) . '">' . "\n";
+            if ( '' !== $desc ) { $o .= '<meta property="og:description" content="' . esc_attr( $desc ) . '">' . "\n"; }
+            if ( $url ) { $o .= '<meta property="og:url" content="' . esc_url( $url ) . '">' . "\n"; }
+            $o .= '<meta property="og:site_name" content="' . esc_attr( sahel_brand() ) . '">' . "\n";
+            if ( $img[0] ) {
+                $o .= '<meta property="og:image" content="' . esc_url( $img[0] ) . '">' . "\n";
+                if ( $img[1] ) { $o .= '<meta property="og:image:width" content="' . (int) $img[1] . '"><meta property="og:image:height" content="' . (int) $img[2] . '">' . "\n"; }
+            }
+            if ( 'product' === $type && ( $p = wc_get_product( get_queried_object_id() ) ) ) {
+                if ( '' !== (string) $p->get_price() ) { $o .= '<meta property="product:price:amount" content="' . esc_attr( wc_get_price_to_display( $p ) ) . '"><meta property="product:price:currency" content="' . esc_attr( get_woocommerce_currency() ) . '">' . "\n"; }
+                $o .= '<meta property="product:availability" content="' . ( $p->is_in_stock() ? 'in stock' : 'out of stock' ) . '">' . "\n";
+            }
+            if ( 'article' === $type ) {
+                $o .= '<meta property="article:published_time" content="' . esc_attr( get_the_date( 'c', get_queried_object_id() ) ) . '"><meta property="article:modified_time" content="' . esc_attr( get_the_modified_date( 'c', get_queried_object_id() ) ) . '">' . "\n";
+            }
+            $o .= '<meta name="twitter:card" content="' . ( $img[0] ? 'summary_large_image' : 'summary' ) . '">' . "\n";
+            $tw = ltrim( trim( (string) get_theme_mod( 'sahel_seo_twitter', '' ) ), '@' );
+            if ( '' !== $tw ) { $o .= '<meta name="twitter:site" content="@' . esc_attr( preg_replace( '/[^\w]/', '', $tw ) ) . '">' . "\n"; }
+        }
+        $o .= sahel_seo_jsonld();
+    }
+    echo $o; // phpcs:ignore -- همه‌ی مقادیر بالا escape شده‌اند
+}, 1 );
+
+/* ---------- داده‌ی ساختاریافته (JSON-LD) ---------- */
+function sahel_seo_org() {
+    $home = home_url( '/' );
+    $type = (string) get_theme_mod( 'sahel_seo_org_type', 'OnlineStore' );
+    if ( ! in_array( $type, array( 'OnlineStore', 'Store', 'Organization', 'LocalBusiness' ), true ) ) { $type = 'OnlineStore'; }
+    $org = array( '@type' => $type, '@id' => $home . '#organization', 'name' => sahel_brand(), 'url' => $home );
+    $logo = function_exists( 'sahel_logo_url' ) ? sahel_logo_url() : '';
+    if ( $logo && 0 !== strpos( $logo, 'data:' ) ) { $org['logo'] = array( '@type' => 'ImageObject', 'url' => $logo ); $org['image'] = $logo; }
+    $same = array();
+    foreach ( array( 'sahel_instagram', 'sahel_telegram' ) as $k ) { $v = trim( (string) get_theme_mod( $k, '' ) ); if ( preg_match( '#^https?://#', $v ) ) { $same[] = $v; } }
+    foreach ( preg_split( '/[\r\n\s,]+/', (string) get_theme_mod( 'sahel_seo_sameas', '' ) ) as $v ) { if ( preg_match( '#^https?://#', $v ) ) { $same[] = esc_url_raw( $v ); } }
+    if ( $same ) { $org['sameAs'] = array_values( array_unique( $same ) ); }
+    $tel = trim( (string) get_theme_mod( 'sahel_phone', '' ) );
+    if ( '' !== $tel ) { $org['telephone'] = $tel; $org['contactPoint'] = array( '@type' => 'ContactPoint', 'telephone' => $tel, 'contactType' => 'customer service', 'areaServed' => 'IR', 'availableLanguage' => 'Persian' ); }
+    $addr = trim( (string) get_theme_mod( 'sahel_address', '' ) );
+    if ( '' !== $addr ) { $org['address'] = array( '@type' => 'PostalAddress', 'streetAddress' => $addr, 'addressCountry' => 'IR' ); }
+    if ( 'Organization' !== $type && '' !== trim( (string) get_theme_mod( 'sahel_seo_price_range', '' ) ) ) { $org['priceRange'] = trim( (string) get_theme_mod( 'sahel_seo_price_range', '' ) ); }
+    return $org;
+}
+function sahel_seo_jsonld() {
+    if ( ! (int) get_theme_mod( 'sahel_seo_schema', 1 ) ) { return ''; }
+    $home = home_url( '/' );
+    $g = array( sahel_seo_org() );
+    $site = array( '@type' => 'WebSite', '@id' => $home . '#website', 'url' => $home, 'name' => sahel_brand(), 'inLanguage' => 'fa-IR', 'publisher' => array( '@id' => $home . '#organization' ) );
+    $site['potentialAction'] = array( '@type' => 'SearchAction', 'target' => array( '@type' => 'EntryPoint', 'urlTemplate' => $home . '?s={search_term_string}' . ( function_exists( 'wc_get_products' ) ? '&post_type=product' : '' ) ), 'query-input' => 'required name=search_term_string' );
+    $g[] = $site;
+    /* مسیر (Breadcrumb) برای برگه‌ها و مقاله‌ها؛ برای فروشگاه و محصول، خود ووکامرس می‌سازد */
+    if ( is_singular( array( 'page', 'post' ) ) && ! is_front_page() ) {
+        $id = get_queried_object_id();
+        $items = array( array( 'name' => sahel_brand() ? sahel_brand() : 'خانه', 'item' => $home ) );
+        foreach ( array_reverse( get_post_ancestors( $id ) ) as $a ) { $items[] = array( 'name' => get_the_title( $a ), 'item' => get_permalink( $a ) ); }
+        if ( is_singular( 'post' ) ) { $cats = get_the_category( $id ); if ( $cats ) { $items[] = array( 'name' => $cats[0]->name, 'item' => get_category_link( $cats[0] ) ); } }
+        $items[] = array( 'name' => get_the_title( $id ), 'item' => get_permalink( $id ) );
+        $li = array(); foreach ( $items as $i => $it ) { $li[] = array( '@type' => 'ListItem', 'position' => $i + 1, 'name' => wp_strip_all_tags( $it['name'] ), 'item' => $it['item'] ); }
+        $g[] = array( '@type' => 'BreadcrumbList', '@id' => get_permalink( $id ) . '#breadcrumb', 'itemListElement' => $li );
+    }
+    if ( is_singular( 'post' ) ) {
+        $id = get_queried_object_id();
+        $art = array( '@type' => 'BlogPosting', '@id' => get_permalink( $id ) . '#article', 'headline' => sahel_seo_txt( get_the_title( $id ), 110 ), 'datePublished' => get_the_date( 'c', $id ), 'dateModified' => get_the_modified_date( 'c', $id ), 'mainEntityOfPage' => get_permalink( $id ), 'author' => array( '@type' => 'Person', 'name' => get_the_author_meta( 'display_name', (int) get_post_field( 'post_author', $id ) ) ), 'publisher' => array( '@id' => $home . '#organization' ), 'inLanguage' => 'fa-IR' );
+        $t = get_the_post_thumbnail_url( $id, 'large' ); if ( $t ) { $art['image'] = $t; }
+        $art['description'] = sahel_seo_desc();
+        $g[] = $art;
+    }
+    if ( is_tax( array( 'product_cat', 'product_tag' ) ) || ( function_exists( 'is_shop' ) && is_shop() ) ) {
+        $g[] = array( '@type' => 'CollectionPage', '@id' => sahel_seo_url() . '#webpage', 'url' => sahel_seo_url(), 'name' => wp_get_document_title(), 'isPartOf' => array( '@id' => $home . '#website' ), 'inLanguage' => 'fa-IR' );
+    }
+    return '<script type="application/ld+json">' . wp_json_encode( array( '@context' => 'https://schema.org', '@graph' => $g ), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG ) . '</script>' . "\n";
+}
+/* اسکیمای محصول ووکامرس: موتور قالب صفحه‌ی محصول را خودش می‌چیند و رویدادی که ووکامرس با آن اسکیما می‌ساخت اجرا نمی‌شد */
+add_action( 'wp', function () {
+    if ( ! function_exists( 'is_product' ) || ! is_product() || ! function_exists( 'WC' ) || ! isset( WC()->structured_data ) ) { return; }
+    if ( ! (int) get_theme_mod( 'sahel_seo_product_schema', 1 ) ) { return; }
+    $p = wc_get_product( get_queried_object_id() );
+    if ( $p ) { WC()->structured_data->generate_product_data( $p ); }
+} );
+
+/* ---------- ایندکس نشدن صفحه‌های تکراری و جستجو ---------- */
+function sahel_seo_noindex_now() {
+    if ( ! (int) get_theme_mod( 'sahel_seo_noindex', 1 ) ) { return false; }
+    return is_search() || sahel_seo_is_dup();
+}
+add_filter( 'wp_robots', function ( $r ) {
+    if ( sahel_seo_noindex_now() ) { $r['noindex'] = true; $r['follow'] = true; unset( $r['index'] ); }
+    elseif ( sahel_seo_on() && ! isset( $r['noindex'] ) ) { $r['max-image-preview'] = 'large'; }
+    return $r;
+} );
+add_filter( 'wpseo_robots', function ( $s ) { return sahel_seo_noindex_now() ? 'noindex, follow' : $s; } );
+add_filter( 'rank_math/frontend/robots', function ( $r ) { if ( sahel_seo_noindex_now() ) { $r['index'] = 'noindex'; $r['follow'] = 'follow'; } return $r; } );
+/* robots.txt: افزودن به سبد و درخواست‌های ایجکس ارزش خزیدن ندارند */
+add_filter( 'robots_txt', function ( $txt, $public ) {
+    if ( ! $public || ! (int) get_theme_mod( 'sahel_seo_robots', 1 ) ) { return $txt; }
+    $add = "Disallow: /*?*add-to-cart=\nDisallow: /*?*wc-ajax=\nDisallow: /*?*sahel_pv=\n";
+    if ( false === strpos( $txt, 'add-to-cart' ) ) {
+        if ( preg_match( '/User-agent:\s*\*\s*\n/i', $txt ) ) { $txt = preg_replace( '/(User-agent:\s*\*\s*\n)/i', '$1' . $add, $txt, 1 ); }
+        else { $txt .= "\nUser-agent: *\n" . $add; }
+    }
+    if ( false === stripos( $txt, 'sitemap:' ) && function_exists( 'get_sitemap_url' ) && get_sitemap_url( 'index' ) ) { $txt .= "\nSitemap: " . get_sitemap_url( 'index' ) . "\n"; }
+    return $txt;
+}, 20, 2 );
+/* نقشه‌ی سایت وردپرس: صفحه‌های نویسنده برای مهمان بسته شده‌اند، پس در نقشه هم نباشند */
+add_filter( 'wp_sitemaps_add_provider', function ( $provider, $name ) {
+    return ( 'users' === $name && function_exists( 'sahel_sec_on' ) && sahel_sec_on( 'users' ) ) ? false : $provider;
+}, 10, 2 );
+
+/* ---------- ساختار تیترها، توضیح دسته‌بندی، پیوند طراح ---------- */
+function sahel_seo_archive_h1() {
+    if ( is_search() ) { return 'نتایج جستجو برای «' . get_search_query() . '»'; }
+    if ( is_tax() || is_category() || is_tag() ) { return single_term_title( '', false ); }
+    if ( function_exists( 'is_shop' ) && is_shop() ) { $t = trim( (string) get_theme_mod( 'sahel_shop_title', '' ) ); return '' !== $t ? $t : ( function_exists( 'woocommerce_page_title' ) ? woocommerce_page_title( false ) : 'فروشگاه' ); }
+    return '';
+}
+add_filter( 'sahel_final_html', function ( $html ) {
+    $bp = stripos( $html, '<body' );
+    if ( false === $bp ) { return $html; }
+    $is_arch = ( function_exists( 'is_shop' ) && ( is_shop() || is_product_taxonomy() ) ) || is_search();
+    /* ۱) صفحه‌ی اصلی: فقط یک H1 — تیتر بقیه‌ی اسلایدها H2 می‌شود (ظاهرشان تغییر نمی‌کند) */
+    if ( (int) get_theme_mod( 'sahel_seo_one_h1', 1 ) && preg_match_all( '#<h1(\s[^>]*)?>#i', $html, $mm, PREG_OFFSET_CAPTURE, $bp ) && count( $mm[0] ) > 1 ) {
+        $s1 = strpos( $html, '<div class="slides">', $bp );
+        $s2 = false !== $s1 ? strpos( $html, '<div class="s-dots">', $s1 ) : false;
+        if ( false !== $s1 && false !== $s2 ) {
+            $keep_first = true;
+            foreach ( $mm[0] as $m ) { if ( $m[1] < $s1 || $m[1] > $s2 ) { $keep_first = false; break; } }
+            $out = ''; $last = 0; $n = 0;
+            foreach ( $mm[0] as $m ) {
+                if ( $m[1] < $s1 || $m[1] > $s2 ) { continue; }
+                $n++;
+                if ( $keep_first && 1 === $n ) { continue; }
+                $close = stripos( $html, '</h1>', $m[1] );
+                if ( false === $close ) { continue; }
+                $tag = $m[0];
+                $new = preg_match( '/class="/', $tag ) ? preg_replace( '/^<h1/i', '<h2', preg_replace( '/class="/', 'class="sh1 ', $tag, 1 ) ) : preg_replace( '/^<h1/i', '<h2 class="sh1"', $tag );
+                $out .= substr( $html, $last, $m[1] - $last ) . $new . substr( $html, $m[1] + strlen( $tag ), $close - $m[1] - strlen( $tag ) ) . '</h2>';
+                $last = $close + 5;
+            }
+            if ( $last ) {
+                $html = $out . substr( $html, $last );
+                $html = preg_replace( '/(\.(?:slide-txt|sm-txt))(\s*>?\s*)h1(?![\w-])/', '$1$2:is(h1,h2.sh1)', $html );
+            }
+        }
+    }
+    /* ۲) فروشگاه و دسته‌ها بدون بنر H1 نداشتند */
+    if ( $is_arch && (int) get_theme_mod( 'sahel_seo_shop_h1', 1 ) && ! preg_match( '#<h1[\s>]#i', substr( $html, $bp ) ) ) {
+        $t = sahel_seo_archive_h1();
+        $p = strpos( $html, '<main class="wrap shop-main">' );
+        if ( '' !== $t && false !== $p ) {
+            $c = strpos( $html, '</nav>', $p );
+            $at = ( false !== $c && $c - $p < 4000 ) ? $c + 6 : $p + strlen( '<main class="wrap shop-main">' );
+            $html = substr( $html, 0, $at ) . '<h1 class="page-title shop-h1">' . esc_html( $t ) . '</h1>' . substr( $html, $at );
+        }
+    }
+    /* ۳) لندینگ و کاتالوگ بدون عنوان قابل‌مشاهده: H1 برای موتور جستجو و صفحه‌خوان */
+    if ( ! preg_match( '#<h1[\s>]#i', substr( $html, $bp ) ) && ( ! empty( $GLOBALS['sahel_ld_req'] ) || false !== strpos( $html, 'class="pcat ' ) ) ) {
+        $t = ! empty( $GLOBALS['sahel_ld_req'] ) ? sahel_brand() : ( is_page() ? get_the_title( get_queried_object_id() ) : (string) get_theme_mod( 'sahel_pc_cover_title', 'کاتالوگ محصولات' ) );
+        $html = preg_replace( '#(<main[^>]*>|<section class="ld )#', '<h1 class="screen-reader-text sahel-sr-h1">' . esc_html( $t ) . '</h1>$1', $html, 1 );
+    }
+    /* ۴) توضیح دسته‌بندی (متن مهم برای سئو) زیر محصولات */
+    $pos = (string) get_theme_mod( 'sahel_seo_term_desc', 'bottom' );
+    if ( 'off' !== $pos && ( is_tax( array( 'product_cat', 'product_tag' ) ) ) && ! is_paged() ) {
+        $d = term_description();
+        if ( '' !== trim( wp_strip_all_tags( (string) $d ) ) && false === strpos( $html, 'class="term-seo' ) ) {
+            $box = '<section class="term-seo' . ( 'top' === $pos ? ' term-seo-top' : '' ) . '"><div class="term-seo-in">' . wp_kses_post( wpautop( do_shortcode( $d ) ) ) . '</div><button type="button" class="term-seo-more" onclick="this.parentNode.classList.toggle(\'open\')">ادامه‌ی مطلب</button></section>';
+            if ( 'top' === $pos && preg_match( '#<h1 class="page-title shop-h1">.*?</h1>#s', $html ) ) { $html = preg_replace( '#(<h1 class="page-title shop-h1">.*?</h1>)#s', '$1' . str_replace( '$', '\$', $box ), $html, 1 ); }
+            else { $p = strpos( $html, '<main class="wrap shop-main">' ); $e = false !== $p ? strpos( $html, '</main>', $p ) : false; if ( false !== $e ) { $html = substr( $html, 0, $e ) . $box . substr( $html, $e ); } }
+        }
+    }
+    /* ۵) پیوند طراح در فوتر همه‌ی سایت‌ها: nofollow (پیوند تکراری سراسری از نظر گوگل طبیعی نیست) */
+    if ( (int) get_theme_mod( 'sahel_seo_credit_nofollow', 1 ) ) { $html = preg_replace( '#(<a class="peecha-link" href="[^"]*" target="_blank") rel="noopener">#', '$1 rel="nofollow noopener">', $html, 1 ); }
+    return $html;
+}, 30 );
+add_action( 'wp_head', function () {
+    echo '<style id="sahel-v73-seo">.screen-reader-text.sahel-sr-h1{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}'
+        . '.shop-h1{margin:0 0 18px;font-size:clamp(1.25rem,3vw,1.7rem)}'
+        . '.term-seo{margin:34px 0 0;padding:22px 24px 16px;border:1px solid var(--line,rgba(0,0,0,.08));border-radius:var(--rad,18px);background:var(--card,var(--bg,#fff));position:relative}'
+        . '.term-seo-top{margin:0 0 22px}.term-seo-in{max-height:7.5em;overflow:hidden;line-height:1.9;color:var(--muted,#555);font-size:.92rem;-webkit-mask-image:linear-gradient(#000 55%,transparent);mask-image:linear-gradient(#000 55%,transparent)}'
+        . '.term-seo.open .term-seo-in{max-height:none;-webkit-mask-image:none;mask-image:none}.term-seo-in h2,.term-seo-in h3{color:var(--text,#222);font-size:1.05rem;margin:.6em 0 .3em}'
+        . '.term-seo-more{margin-top:8px;border:0;background:none;color:var(--c1,#8a6a4f);font:inherit;font-weight:800;cursor:pointer;padding:4px 0}.term-seo.open .term-seo-more{display:none}</style>';
+}, 209 );
+/* توضیح متای دلخواه برای هر محصول (اختیاری؛ وقتی افزونه‌ی سئو نیست) */
+add_action( 'add_meta_boxes', function () {
+    if ( sahel_seo_plugin() ) { return; }
+    add_meta_box( 'sahel_seo_box', '🔍 سئو (توضیحات متا)', function ( $post ) {
+        wp_nonce_field( 'sahel_seo_save', 'sahel_seo_nonce' );
+        echo '<p><textarea name="sahel_seo_desc" rows="3" style="width:100%" maxlength="320" placeholder="خالی = توضیح کوتاه محصول">' . esc_textarea( get_post_meta( $post->ID, '_sahel_seo_desc', true ) ) . '</textarea></p><p class="description">بهتر است بین ۱۲۰ تا ۱۶۰ حرف باشد و کلمه‌ی اصلی محصول را داشته باشد.</p>';
+    }, 'product', 'side', 'default' );
+} );
+add_action( 'save_post_product', function ( $post_id ) {
+    if ( ! isset( $_POST['sahel_seo_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['sahel_seo_nonce'] ) ), 'sahel_seo_save' ) ) { return; }
+    if ( ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) || ! current_user_can( 'edit_post', $post_id ) ) { return; }
+    update_post_meta( $post_id, '_sahel_seo_desc', sanitize_textarea_field( wp_unslash( isset( $_POST['sahel_seo_desc'] ) ? $_POST['sahel_seo_desc'] : '' ) ) );
+} );
+
+/* ---------- تنظیمات سئو ---------- */
+add_action( 'customize_register', function ( $w ) {
+    $s = 'sahel_x_seo';
+    $w->add_section( $s, array( 'title' => '🔍 سئو (بهینه‌سازی برای گوگل)', 'panel' => $w->get_panel( 'sahel_p_global' ) ? 'sahel_p_global' : '', 'priority' => 4, 'description' => sahel_seo_plugin() ? '✅ یک افزونه‌ی سئو فعال است؛ عنوان، توضیحات، اوپن‌گراف و اسکیمای کلی را افزونه می‌سازد و این تنظیمات (به‌جز موارد علامت‌دار ⚙) نادیده گرفته می‌شوند.' : 'قالب بدون نیاز به افزونه، پایه‌ی سئو را انجام می‌دهد. اگر بعداً یوست یا رنک‌مث نصب کنید، قالب خودش کنار می‌کشد.' ) );
+    $p = 10;
+    $add = function ( $id, $def, $san, $args ) use ( $w, $s, &$p ) {
+        $w->add_setting( $id, array( 'default' => $def, 'sanitize_callback' => $san ) );
+        if ( isset( $args['ctrl'] ) ) { $w->add_control( new $args['ctrl']( $w, $id, array( 'label' => $args['label'], 'section' => $s, 'priority' => $p++ ) ) ); return; }
+        $w->add_control( $id, $args + array( 'section' => $s, 'priority' => $p++ ) );
+    };
+    $add( 'sahel_seo_on', 1, 'absint', array( 'label' => 'فعال بودن سئوی قالب (عنوان، توضیحات، اوپن‌گراف، اسکیما)', 'type' => 'checkbox' ) );
+    $add( 'sahel_seo_home_title', '', 'sanitize_text_field', array( 'label' => 'عنوان صفحه‌ی اصلی در گوگل (خالی = نام فروشگاه | شعار)', 'type' => 'text', 'description' => 'حدود ۵۰ تا ۶۰ حرف، با کلمه‌ی اصلی کسب‌وکار. مثلاً: «بازار انبار نفت | پخش عمده مواد غذایی و فست‌فود»' ) );
+    $add( 'sahel_seo_home_desc', '', 'sanitize_textarea_field', array( 'label' => 'توضیحات صفحه‌ی اصلی در گوگل (۱۲۰ تا ۱۶۰ حرف)', 'type' => 'textarea' ) );
+    $add( 'sahel_seo_sep', '|', 'sanitize_text_field', array( 'label' => 'جداکننده‌ی عنوان', 'type' => 'select', 'choices' => array( '|' => '|', '-' => '-', '–' => '–', '«' => '«', '•' => '•' ) ) );
+    $add( 'sahel_seo_shop_title', '', 'sanitize_text_field', array( 'label' => 'عنوان صفحه‌ی فروشگاه در گوگل', 'type' => 'text' ) );
+    $add( 'sahel_seo_shop_desc', '', 'sanitize_textarea_field', array( 'label' => 'توضیحات صفحه‌ی فروشگاه', 'type' => 'textarea' ) );
+    $add( 'sahel_seo_term_tpl', 'خرید آنلاین {name} از {brand}؛ {count} محصول با قیمت مناسب و ارسال سریع.', 'sanitize_text_field', array( 'label' => 'الگوی توضیحات دسته‌هایی که توضیح ندارند', 'type' => 'text', 'description' => '{name} نام دسته، {brand} نام فروشگاه، {count} تعداد محصول. بهتر است برای هر دسته در «محصولات ← دسته‌ها» توضیح اختصاصی بنویسید.' ) );
+    $add( 'sahel_seo_term_desc', 'bottom', 'sanitize_key', array( 'label' => '⚙ نمایش توضیح دسته‌بندی در صفحه‌ی دسته', 'type' => 'select', 'choices' => array( 'bottom' => 'زیر محصولات (جمع‌شونده)', 'top' => 'بالای محصولات (جمع‌شونده)', 'off' => 'نمایش داده نشود' ) ) );
+    $add( 'sahel_seo_og_img', '', 'esc_url_raw', array( 'label' => 'تصویر پیش‌فرض اشتراک‌گذاری (۱۲۰۰×۶۳۰)', 'ctrl' => 'WP_Customize_Image_Control' ) );
+    $add( 'sahel_seo_og', 1, 'absint', array( 'label' => 'اوپن‌گراف و توییتر (پیش‌نمایش زیبا در تلگرام، واتساپ و …)', 'type' => 'checkbox' ) );
+    $add( 'sahel_seo_twitter', '', 'sanitize_text_field', array( 'label' => 'نام کاربری X (توییتر)', 'type' => 'text' ) );
+    $add( 'sahel_seo_schema', 1, 'absint', array( 'label' => 'داده‌ی ساختاریافته (اسکیما) کسب‌وکار و سایت', 'type' => 'checkbox' ) );
+    $add( 'sahel_seo_org_type', 'OnlineStore', 'sanitize_text_field', array( 'label' => 'نوع کسب‌وکار', 'type' => 'select', 'choices' => array( 'OnlineStore' => 'فروشگاه اینترنتی', 'Store' => 'فروشگاه (با محل فیزیکی)', 'LocalBusiness' => 'کسب‌وکار محلی', 'Organization' => 'سازمان / شرکت' ) ) );
+    $add( 'sahel_seo_price_range', '', 'sanitize_text_field', array( 'label' => 'بازه‌ی قیمت (اختیاری، مثلاً $$)', 'type' => 'text' ) );
+    $add( 'sahel_seo_sameas', '', 'sanitize_textarea_field', array( 'label' => 'صفحه‌های رسمی دیگر (هر لینک در یک خط)', 'type' => 'textarea', 'description' => 'لینکدین، آپارات، روبیکا و … — به گوگل می‌گوید این صفحه‌ها مال همین کسب‌وکار است. اینستاگرام و تلگرامِ تنظیمات فوتر خودکار اضافه می‌شوند.' ) );
+    $add( 'sahel_seo_product_schema', 1, 'absint', array( 'label' => '⚙ اسکیمای محصول ووکامرس (قیمت، موجودی، امتیاز در نتایج گوگل)', 'type' => 'checkbox' ) );
+    $add( 'sahel_seo_noindex', 1, 'absint', array( 'label' => '⚙ ایندکس نشدن صفحه‌های تکراری (فیلترها، مرتب‌سازی، جستجو)', 'type' => 'checkbox' ) );
+    $add( 'sahel_seo_robots', 1, 'absint', array( 'label' => '⚙ بهینه‌سازی robots.txt', 'type' => 'checkbox' ) );
+    $add( 'sahel_seo_one_h1', 1, 'absint', array( 'label' => '⚙ فقط یک H1 در صفحه‌ی اصلی (تیتر اسلایدهای بعدی H2)', 'type' => 'checkbox' ) );
+    $add( 'sahel_seo_shop_h1', 1, 'absint', array( 'label' => '⚙ تیتر H1 در فروشگاه و دسته‌ها (وقتی بنر ندارند)', 'type' => 'checkbox' ) );
+    $add( 'sahel_seo_credit_nofollow', 1, 'absint', array( 'label' => '⚙ پیوند «طراحی شده توسط» در فوتر nofollow باشد', 'type' => 'checkbox' ) );
+    foreach ( array( 'google' => 'گوگل سرچ کنسول', 'bing' => 'بینگ', 'yandex' => 'یاندکس' ) as $k => $l ) {
+        $add( 'sahel_seo_verify_' . $k, '', 'sanitize_text_field', array( 'label' => '⚙ کد تأیید ' . $l, 'type' => 'text', 'description' => 'google' === $k ? 'کل تگ meta یا فقط مقدار content را بچسبانید.' : '' ) );
+    }
+}, 1004 );
