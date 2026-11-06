@@ -9976,3 +9976,529 @@ add_action( 'customize_register', function ( $w ) {
         $add( 'sahel_seo_verify_' . $k, '', 'sanitize_text_field', array( 'label' => '⚙ کد تأیید ' . $l, 'type' => 'text', 'description' => 'google' === $k ? 'کل تگ meta یا فقط مقدار content را بچسبانید.' : '' ) );
     }
 }, 1004 );
+
+
+/* =====================================================================
+ * v7.4 — عمده‌فروشی (قیمت همکار، حداقل تعداد، تخفیف پلکانی، درخواست همکاری)
+ *        و همکاری در فروش (لینک معرف، پورسانت، داشبورد، تسویه)
+ * سرعت: برای بازدیدکننده‌ی عادی فقط یک بررسی ساده انجام می‌شود؛ بدون جدول جدید،
+ * بدون فایل CSS/JS اضافه در صفحه‌های معمولی، و لینک معرف بعد از ثبت به نشانی تمیز می‌رود
+ * تا کش صفحه‌ها خراب نشود.
+ * ===================================================================== */
+
+/* ---------- عمده‌فروشی ---------- */
+function sahel_ws_on() { return (int) get_theme_mod( 'sahel_ws_on', 0 ) && function_exists( 'WC' ); }
+add_action( 'init', function () {
+    if ( get_option( 'sahel_ws_role_v' ) === '1' ) { return; }
+    $c = get_role( 'customer' );
+    add_role( 'sahel_wholesale', 'همکار عمده', $c ? $c->capabilities : array( 'read' => true ) );
+    update_option( 'sahel_ws_role_v', '1', true );
+} );
+/* آیا کاربر فعلی همکار عمده است؟ (یک بار در هر درخواست محاسبه می‌شود) */
+function sahel_ws_is_user( $uid = 0 ) {
+    static $cache = array();
+    if ( ! sahel_ws_on() ) { return false; }
+    $uid = $uid ? (int) $uid : get_current_user_id();
+    if ( ! $uid ) { return false; }
+    if ( isset( $cache[ $uid ] ) ) { return $cache[ $uid ]; }
+    $u = get_userdata( $uid );
+    return $cache[ $uid ] = ( $u && in_array( 'sahel_wholesale', (array) $u->roles, true ) );
+}
+/* در پیشخوان قیمت واقعی نمایش داده شود */
+function sahel_ws_ctx() { return sahel_ws_is_user() && ( ! is_admin() || wp_doing_ajax() ); }
+/* قیمت همکار یک محصول/تنوع: قیمت اختصاصی، وگرنه قیمت عادی منهای درصد کلی همکاران */
+function sahel_ws_value( $product ) {
+    $ws = (float) $product->get_meta( '_sahel_ws_price', true );
+    if ( $ws > 0 ) { return $ws; }
+    $pct = (float) get_theme_mod( 'sahel_ws_pct', 0 );
+    $reg = (float) $product->get_regular_price( 'edit' );
+    return ( $pct > 0 && $pct < 100 && $reg > 0 ) ? round( $reg * ( 1 - $pct / 100 ), wc_get_price_decimals() ) : 0;
+}
+/* برای همکار: قیمت فعلی و قیمت حراج = کمترینِ (قیمت فعلی، قیمت همکار)؛ قیمت عادی خط‌خورده می‌ماند */
+function sahel_ws_filter_price( $price, $product ) {
+    if ( ! sahel_ws_ctx() ) { return $price; }
+    $ws = sahel_ws_value( $product );
+    if ( $ws <= 0 ) { return $price; }
+    $reg = (float) $product->get_regular_price( 'edit' );
+    if ( $reg > 0 && $ws >= $reg ) { return $price; }
+    return ( '' === $price || null === $price || $ws < (float) $price ) ? $ws : $price;
+}
+foreach ( array( 'woocommerce_product_get_price', 'woocommerce_product_variation_get_price', 'woocommerce_product_get_sale_price', 'woocommerce_product_variation_get_sale_price', 'woocommerce_variation_prices_price', 'woocommerce_variation_prices_sale_price' ) as $sahel_hk ) {
+    add_filter( $sahel_hk, 'sahel_ws_filter_price', 50, 2 );
+}
+/* کش قیمت محصولات متغیر ووکامرس برای همکار جدا نگه داشته شود */
+add_filter( 'woocommerce_get_variation_prices_hash', function ( $h ) { if ( sahel_ws_ctx() ) { $h[] = 'sahel_ws_' . (float) get_theme_mod( 'sahel_ws_pct', 0 ); } return $h; } );
+add_filter( 'woocommerce_product_is_on_sale', function ( $on, $p ) { if ( ! sahel_ws_ctx() ) { return $on; } return $on || (float) $p->get_price() < (float) $p->get_regular_price( 'edit' ); }, 50, 2 );
+/* برچسب «قیمت همکار» و پنهان کردن قیمت برای غیرهمکاران (حالت فقط عمده) */
+function sahel_ws_hidden_for_user() {
+    if ( ! sahel_ws_on() || is_admin() && ! wp_doing_ajax() ) { return false; }
+    $m = (string) get_theme_mod( 'sahel_ws_hide', 'no' );
+    if ( 'guests' === $m ) { return ! is_user_logged_in(); }
+    if ( 'nonws' === $m ) { return ! sahel_ws_is_user() && ! current_user_can( 'manage_woocommerce' ); }
+    return false;
+}
+add_filter( 'woocommerce_get_price_html', function ( $html, $p ) {
+    if ( sahel_ws_hidden_for_user() ) {
+        $u = (int) get_theme_mod( 'sahel_ws_page', 0 ) ? get_permalink( (int) get_theme_mod( 'sahel_ws_page', 0 ) ) : wc_get_page_permalink( 'myaccount' );
+        return '<a class="ws-login" href="' . esc_url( $u ) . '">' . esc_html( get_theme_mod( 'sahel_ws_hide_text', 'برای دیدن قیمت، وارد شوید یا همکار شوید' ) ) . '</a>';
+    }
+    if ( $html && sahel_ws_ctx() && ( sahel_ws_value( $p ) > 0 || ( $p->is_type( 'variable' ) && (float) get_theme_mod( 'sahel_ws_pct', 0 ) > 0 ) ) ) {
+        $html .= ' <small class="ws-tag">' . esc_html( get_theme_mod( 'sahel_ws_label', 'قیمت همکار' ) ) . '</small>';
+    }
+    return $html;
+}, 50, 2 );
+add_filter( 'woocommerce_is_purchasable', function ( $ok, $p ) { return sahel_ws_hidden_for_user() ? false : $ok; }, 50, 2 );
+add_filter( 'woocommerce_variation_is_purchasable', function ( $ok, $p ) { return sahel_ws_hidden_for_user() ? false : $ok; }, 50, 2 );
+
+/* ---------- تعداد: حداقل و گام (کارتن) برای همکار ---------- */
+function sahel_ws_qty_rules( $product ) {
+    $min = (int) $product->get_meta( '_sahel_ws_min', true );
+    $step = (int) $product->get_meta( '_sahel_ws_step', true );
+    if ( ( $min < 1 || $step < 1 ) && $product->is_type( 'variation' ) && ( $par = wc_get_product( $product->get_parent_id() ) ) ) {
+        if ( $min < 1 ) { $min = (int) $par->get_meta( '_sahel_ws_min', true ); }
+        if ( $step < 1 ) { $step = (int) $par->get_meta( '_sahel_ws_step', true ); }
+    }
+    return array( max( 1, $min ), max( 1, $step ) );
+}
+add_filter( 'woocommerce_quantity_input_args', function ( $a, $product ) {
+    if ( ! sahel_ws_ctx() || ! $product ) { return $a; }
+    list( $min, $step ) = sahel_ws_qty_rules( $product );
+    if ( $min > 1 || $step > 1 ) {
+        $a['min_value'] = max( $min, $step );
+        $a['step'] = $step;
+        if ( ! is_cart() ) { $a['input_value'] = max( (int) $a['input_value'], $a['min_value'] ); }
+    }
+    return $a;
+}, 50, 2 );
+add_filter( 'woocommerce_available_variation', function ( $d, $parent, $v ) {
+    if ( ! sahel_ws_ctx() ) { return $d; }
+    list( $min, $step ) = sahel_ws_qty_rules( $v );
+    if ( $min > 1 || $step > 1 ) { $d['min_qty'] = max( $min, $step ); }
+    return $d;
+}, 50, 3 );
+add_action( 'woocommerce_check_cart_items', function () {
+    if ( ! sahel_ws_ctx() || ! WC()->cart ) { return; }
+    foreach ( WC()->cart->get_cart() as $it ) {
+        $p = $it['data']; list( $min, $step ) = sahel_ws_qty_rules( $p );
+        $q = (int) $it['quantity'];
+        if ( $q < $min ) { wc_add_notice( sprintf( 'حداقل تعداد سفارش «%s» برای همکاران %s عدد است.', $p->get_name(), sahel_fa( $min ) ), 'error' ); }
+        elseif ( $step > 1 && 0 !== $q % $step ) { wc_add_notice( sprintf( 'تعداد «%s» باید مضربی از %s باشد (بسته‌بندی %s تایی).', $p->get_name(), sahel_fa( $step ), sahel_fa( $step ) ), 'error' ); }
+    }
+    $mo = (float) get_theme_mod( 'sahel_ws_min_order', 0 );
+    if ( $mo > 0 && (float) WC()->cart->get_subtotal() < $mo ) {
+        wc_add_notice( 'حداقل مبلغ سفارش همکاران ' . wp_strip_all_tags( wc_price( $mo ) ) . ' است.', 'error' );
+    }
+} );
+
+/* ---------- تخفیف پلکانی (تعداد بیشتر، قیمت کمتر) ---------- */
+/* قالب: «10:5%, 50:10%» یعنی از ۱۰ عدد ۵٪ و از ۵۰ عدد ۱۰٪ — یا «10:145000» یعنی قیمت هر عدد */
+function sahel_ws_tiers( $product ) {
+    $raw = (string) $product->get_meta( '_sahel_ws_tiers', true );
+    if ( '' === trim( $raw ) && $product->is_type( 'variation' ) && ( $par = wc_get_product( $product->get_parent_id() ) ) ) { $raw = (string) $par->get_meta( '_sahel_ws_tiers', true ); }
+    if ( '' === trim( $raw ) ) { $raw = (string) get_theme_mod( 'sahel_ws_tiers', '' ); }
+    $raw = strtr( $raw, array( '۰' => '0', '۱' => '1', '۲' => '2', '۳' => '3', '۴' => '4', '۵' => '5', '۶' => '6', '۷' => '7', '۸' => '8', '۹' => '9', '٪' => '%', '،' => ',' ) );
+    $out = array();
+    foreach ( preg_split( '/[,\n;]+/', $raw ) as $part ) {
+        if ( preg_match( '/^\s*(\d+)\s*[:=]\s*([\d.]+)\s*(%?)\s*$/', $part, $m ) && (int) $m[1] > 1 ) { $out[ (int) $m[1] ] = array( (float) $m[2], '%' === $m[3] ); }
+    }
+    ksort( $out );
+    return $out;
+}
+function sahel_ws_tiers_apply_for_user() {
+    if ( ! sahel_ws_on() ) { return false; }
+    return 'all' === get_theme_mod( 'sahel_ws_tiers_for', 'ws' ) ? ! sahel_ws_hidden_for_user() : sahel_ws_is_user();
+}
+function sahel_ws_tier_price( $product, $qty, $base ) {
+    $best = $base;
+    foreach ( sahel_ws_tiers( $product ) as $min => $t ) {
+        if ( $qty < $min ) { break; }
+        $best = $t[1] ? round( $base * ( 1 - min( 95, $t[0] ) / 100 ), wc_get_price_decimals() ) : min( $base, $t[0] );
+    }
+    return $best;
+}
+add_action( 'woocommerce_before_calculate_totals', function ( $cart ) {
+    if ( ( is_admin() && ! wp_doing_ajax() ) || ! sahel_ws_tiers_apply_for_user() ) { return; }
+    foreach ( $cart->get_cart() as $it ) {
+        $p = $it['data'];
+        if ( ! sahel_ws_tiers( $p ) ) { continue; }
+        $fresh = wc_get_product( $p->get_id() );
+        if ( ! $fresh ) { continue; }
+        $base = (float) $fresh->get_price();
+        $n = sahel_ws_tier_price( $fresh, (int) $it['quantity'], $base );
+        if ( $n < $base ) { $p->set_price( $n ); }
+    }
+}, 20 );
+/* جدول تخفیف پلکانی در صفحه‌ی محصول */
+add_action( 'woocommerce_before_add_to_cart_form', function () {
+    global $product;
+    if ( ! $product || ! sahel_ws_tiers_apply_for_user() ) { return; }
+    $t = sahel_ws_tiers( $product );
+    if ( ! $t ) { return; }
+    $base = (float) $product->get_price();
+    $h = '<div class="ws-tiers"><div class="ws-tiers-t">🏷 خرید عمده، قیمت کمتر</div><table><tr><th>تعداد</th><th>قیمت هر عدد</th></tr>';
+    foreach ( $t as $min => $x ) {
+        $lbl = $x[1] ? sahel_fa( rtrim( rtrim( number_format( $x[0], 1, '.', '' ), '0' ), '.' ) ) . '٪ تخفیف' : '';
+        $price = ( $product->is_type( 'variable' ) && $x[1] ) ? $lbl : wc_price( sahel_ws_tier_price( $product, $min, $base ) ) . ( $lbl ? ' <small>(' . $lbl . ')</small>' : '' );
+        $h .= '<tr><td>' . esc_html( sahel_fa( $min ) ) . ' عدد به بالا</td><td>' . wp_kses_post( $price ) . '</td></tr>';
+    }
+    echo $h . '</table></div>'; // phpcs:ignore
+    echo '<style>.ws-tiers{margin:0 0 16px;border:1px solid var(--line,#e5e5e5);border-radius:14px;overflow:hidden;font-size:.86rem}.ws-tiers-t{padding:9px 14px;font-weight:900;background:color-mix(in srgb,var(--c1,#8a6a4f) 10%,transparent)}.ws-tiers table{width:100%;border-collapse:collapse;margin:0}.ws-tiers th,.ws-tiers td{padding:8px 14px;border-top:1px solid var(--line,#eee);text-align:right}.ws-tiers th{font-weight:800;color:var(--muted,#666);font-size:.8rem}</style>';
+}, 5 );
+add_action( 'wp_head', function () {
+    if ( ! sahel_ws_on() ) { return; }
+    echo '<style id="sahel-v74-ws">.ws-tag{display:inline-block;margin-inline-start:4px;padding:1px 8px;border-radius:99px;font-size:.68em;font-weight:900;background:var(--c1,#8a6a4f);color:#fff;vertical-align:middle}.ws-login{display:inline-block;font-size:.8em;font-weight:800;color:var(--c1,#8a6a4f);text-decoration:underline}</style>';
+}, 210 );
+
+/* ---------- فیلدهای محصول در پیشخوان ---------- */
+add_action( 'woocommerce_product_options_pricing', function () {
+    if ( ! sahel_ws_on() ) { return; }
+    echo '<div class="options_group sahel-ws-fields">';
+    woocommerce_wp_text_input( array( 'id' => '_sahel_ws_price', 'label' => 'قیمت همکار (عمده) (' . get_woocommerce_currency_symbol() . ')', 'data_type' => 'price', 'desc_tip' => true, 'description' => 'فقط همکاران عمده این قیمت را می‌بینند. خالی = قیمت عادی منهای درصد تخفیف کلی همکاران.' ) );
+    echo '</div>';
+} );
+add_action( 'woocommerce_product_options_inventory_product_data', function () {
+    if ( ! sahel_ws_on() ) { return; }
+    echo '<div class="options_group">';
+    woocommerce_wp_text_input( array( 'id' => '_sahel_ws_min', 'label' => 'حداقل تعداد برای همکار', 'type' => 'number', 'custom_attributes' => array( 'min' => 1, 'step' => 1 ) ) );
+    woocommerce_wp_text_input( array( 'id' => '_sahel_ws_step', 'label' => 'تعداد در هر بسته / کارتن', 'type' => 'number', 'custom_attributes' => array( 'min' => 1, 'step' => 1 ), 'desc_tip' => true, 'description' => 'همکار فقط مضرب این عدد را می‌تواند سفارش دهد.' ) );
+    woocommerce_wp_text_input( array( 'id' => '_sahel_ws_tiers', 'label' => 'تخفیف پلکانی', 'placeholder' => '10:5%, 50:10%', 'desc_tip' => true, 'description' => 'از ۱۰ عدد ۵٪ و از ۵۰ عدد ۱۰٪ تخفیف. یا 10:145000 یعنی قیمت هر عدد از ۱۰ عدد به بالا.' ) );
+    echo '</div>';
+} );
+add_action( 'woocommerce_admin_process_product_object', function ( $product ) {
+    if ( ! current_user_can( 'edit_product', $product->get_id() ) ) { return; }
+    // phpcs:disable WordPress.Security.NonceVerification -- ووکامرس پیش از این رویداد nonce فرم محصول را بررسی کرده است
+    if ( isset( $_POST['_sahel_ws_price'] ) ) { $product->update_meta_data( '_sahel_ws_price', wc_format_decimal( wp_unslash( $_POST['_sahel_ws_price'] ) ) ); }
+    foreach ( array( '_sahel_ws_min', '_sahel_ws_step' ) as $k ) { if ( isset( $_POST[ $k ] ) ) { $v = absint( wp_unslash( $_POST[ $k ] ) ); $product->update_meta_data( $k, $v > 1 ? $v : '' ); } }
+    if ( isset( $_POST['_sahel_ws_tiers'] ) ) { $product->update_meta_data( '_sahel_ws_tiers', sanitize_text_field( wp_unslash( $_POST['_sahel_ws_tiers'] ) ) ); }
+    // phpcs:enable
+} );
+add_action( 'woocommerce_variation_options_pricing', function ( $loop, $data, $variation ) {
+    if ( ! sahel_ws_on() ) { return; }
+    woocommerce_wp_text_input( array( 'id' => '_sahel_ws_price_' . $loop, 'name' => '_sahel_ws_price[' . $loop . ']', 'value' => get_post_meta( $variation->ID, '_sahel_ws_price', true ), 'label' => 'قیمت همکار (' . get_woocommerce_currency_symbol() . ')', 'data_type' => 'price', 'wrapper_class' => 'form-row form-row-first' ) );
+}, 10, 3 );
+add_action( 'woocommerce_admin_process_variation_object', function ( $variation, $i ) {
+    // phpcs:ignore WordPress.Security.NonceVerification -- بررسی شده توسط ووکامرس
+    if ( isset( $_POST['_sahel_ws_price'][ $i ] ) ) { $variation->update_meta_data( '_sahel_ws_price', wc_format_decimal( wp_unslash( $_POST['_sahel_ws_price'][ $i ] ) ) ); }
+}, 10, 2 );
+
+/* ---------- درخواست همکاری عمده ---------- */
+add_shortcode( 'peecha_wholesale_form', function () {
+    if ( ! sahel_ws_on() ) { return ''; }
+    if ( ! is_user_logged_in() ) { return '<div class="ws-box"><p>برای ثبت درخواست همکاری عمده، ابتدا <a href="' . esc_url( wc_get_page_permalink( 'myaccount' ) ) . '">وارد شوید یا حساب بسازید</a>.</p></div>'; }
+    $uid = get_current_user_id();
+    if ( sahel_ws_is_user() ) { return '<div class="ws-box ws-ok">✅ حساب شما همکار عمده است و قیمت‌های همکاری برایتان نمایش داده می‌شود.</div>'; }
+    $req = get_user_meta( $uid, '_sahel_ws_req', true );
+    $msg = '';
+    if ( isset( $_POST['sahel_ws_req_nonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['sahel_ws_req_nonce'] ) ), 'sahel_ws_req' ) ) {
+        $d = array();
+        foreach ( array( 'name', 'company', 'phone', 'city', 'activity' ) as $k ) { $d[ $k ] = isset( $_POST[ 'ws_' . $k ] ) ? sanitize_text_field( wp_unslash( $_POST[ 'ws_' . $k ] ) ) : ''; }
+        $d['address'] = isset( $_POST['ws_address'] ) ? sanitize_textarea_field( wp_unslash( $_POST['ws_address'] ) ) : '';
+        if ( '' === $d['name'] || '' === $d['phone'] ) { $msg = '<p class="ws-err">نام و شماره تماس لازم است.</p>'; }
+        else {
+            $d['time'] = time(); $d['status'] = 'pending';
+            update_user_meta( $uid, '_sahel_ws_req', $d );
+            if ( (int) get_theme_mod( 'sahel_ws_auto', 0 ) ) { sahel_ws_approve( $uid ); return '<div class="ws-box ws-ok">✅ حساب شما همکار عمده شد. قیمت‌های همکاری از همین حالا نمایش داده می‌شود.</div>'; }
+            wp_mail( get_option( 'admin_email' ), 'درخواست همکاری عمده‌ی جدید', $d['name'] . ' (' . $d['company'] . ') — ' . $d['phone'] . "\n" . admin_url( 'admin.php?page=sahel-wholesale' ) );
+            $req = $d;
+        }
+    }
+    if ( is_array( $req ) && 'pending' === ( $req['status'] ?? '' ) ) { return '<div class="ws-box">⏳ درخواست همکاری شما ثبت شده و در حال بررسی است. نتیجه به شما اطلاع داده می‌شود.</div>'; }
+    $f = function ( $k, $l, $t = 'text', $req = false ) { return '<p><label>' . esc_html( $l ) . ( $req ? ' *' : '' ) . '<br>' . ( 'textarea' === $t ? '<textarea name="ws_' . $k . '" rows="2"></textarea>' : '<input type="' . $t . '" name="ws_' . $k . '"' . ( $req ? ' required' : '' ) . '>' ) . '</label></p>'; };
+    $h = '<form method="post" class="ws-box ws-form">' . $msg . '<h3>درخواست همکاری عمده</h3>' . wp_nonce_field( 'sahel_ws_req', 'sahel_ws_req_nonce', true, false );
+    $h .= $f( 'name', 'نام و نام خانوادگی', 'text', true ) . $f( 'company', 'نام فروشگاه / شرکت' ) . $f( 'phone', 'شماره تماس', 'tel', true ) . $f( 'city', 'شهر' ) . $f( 'activity', 'نوع فعالیت (سوپرمارکت، رستوران، …)' ) . $f( 'address', 'آدرس', 'textarea' );
+    $h .= '<button type="submit" class="btn btn-primary">ثبت درخواست</button></form>';
+    return $h . '<style>.ws-box{max-width:560px;padding:20px 22px;border:1px solid var(--line,#e5e5e5);border-radius:18px;background:var(--card,var(--bg,#fff))}.ws-ok{border-color:#9bd3a8}.ws-form label{display:block;font-weight:800;font-size:.9rem}.ws-form input,.ws-form textarea{width:100%;margin-top:4px}.ws-err{color:#c0392b;font-weight:800}</style>';
+} );
+function sahel_ws_approve( $uid ) {
+    $u = get_userdata( $uid );
+    if ( ! $u || user_can( $u, 'manage_options' ) ) { return; }
+    $u->add_role( 'sahel_wholesale' );
+    $r = get_user_meta( $uid, '_sahel_ws_req', true ); if ( ! is_array( $r ) ) { $r = array(); }
+    $r['status'] = 'approved'; update_user_meta( $uid, '_sahel_ws_req', $r );
+    wp_mail( $u->user_email, 'همکاری عمده تأیید شد', 'درخواست همکاری عمده‌ی شما در ' . sahel_brand() . ' تأیید شد. با ورود به حساب، قیمت‌های همکار را می‌بینید.' );
+}
+add_action( 'woocommerce_account_dashboard', function () {
+    if ( ! sahel_ws_on() ) { return; }
+    if ( sahel_ws_is_user() ) { echo '<p class="ws-dash">🏭 حساب شما <b>همکار عمده</b> است.</p>'; return; }
+    $pg = (int) get_theme_mod( 'sahel_ws_page', 0 );
+    if ( $pg ) { echo '<p class="ws-dash">🏭 خرید عمده دارید؟ <a href="' . esc_url( get_permalink( $pg ) ) . '">درخواست همکاری عمده</a></p>'; }
+} );
+
+/* ---------- همکاری در فروش (افیلیت) ---------- */
+function sahel_af_on() { return (int) get_theme_mod( 'sahel_af_on', 0 ) && function_exists( 'WC' ); }
+function sahel_af_param() { $p = sanitize_key( (string) get_theme_mod( 'sahel_af_param', 'ref' ) ); return '' !== $p ? $p : 'ref'; }
+function sahel_af_is( $uid ) { return 'approved' === get_user_meta( $uid, '_sahel_af_status', true ); }
+function sahel_af_code( $uid ) {
+    $c = (string) get_user_meta( $uid, '_sahel_af_code', true );
+    if ( '' === $c ) {
+        do { $c = strtolower( base_convert( (string) $uid, 10, 36 ) . substr( str_shuffle( 'abcdefghjkmnpqrstuvwxyz23456789' ), 0, 4 ) ); } while ( sahel_af_user_by_code( $c ) );
+        update_user_meta( $uid, '_sahel_af_code', $c );
+    }
+    return $c;
+}
+function sahel_af_user_by_code( $code ) {
+    $code = strtolower( preg_replace( '/[^a-z0-9]/i', '', (string) $code ) );
+    if ( strlen( $code ) < 4 || strlen( $code ) > 24 ) { return 0; }
+    $u = get_users( array( 'meta_key' => '_sahel_af_code', 'meta_value' => $code, 'number' => 1, 'fields' => 'ID' ) ); // phpcs:ignore
+    return $u ? (int) $u[0] : 0;
+}
+function sahel_af_link( $uid, $url = '' ) { return add_query_arg( sahel_af_param(), sahel_af_code( $uid ), $url ? $url : home_url( '/' ) ); }
+/* ورود با لینک معرف: ذخیره در کوکی، شمارش بازدید، سپس انتقال به همان نشانی بدون پارامتر (کش و سئو سالم می‌مانند) */
+add_action( 'init', function () {
+    if ( ! sahel_af_on() || is_admin() || wp_doing_ajax() || empty( $_GET[ sahel_af_param() ] ) || 'GET' !== ( $_SERVER['REQUEST_METHOD'] ?? '' ) ) { return; } // phpcs:ignore
+    $code = strtolower( preg_replace( '/[^a-z0-9]/i', '', (string) wp_unslash( $_GET[ sahel_af_param() ] ) ) ); // phpcs:ignore
+    $aid = sahel_af_user_by_code( $code );
+    if ( $aid && sahel_af_is( $aid ) && $aid !== get_current_user_id() ) {
+        $prev = isset( $_COOKIE['sahel_aff'] ) ? (string) $_COOKIE['sahel_aff'] : ''; // phpcs:ignore
+        if ( $prev !== $code ) {
+            $days = max( 1, min( 365, (int) get_theme_mod( 'sahel_af_days', 30 ) ) );
+            if ( '' === $prev || 'last' === get_theme_mod( 'sahel_af_attr', 'last' ) ) {
+                setcookie( 'sahel_aff', $code, array( 'expires' => time() + $days * DAY_IN_SECONDS, 'path' => COOKIEPATH ? COOKIEPATH : '/', 'domain' => COOKIE_DOMAIN, 'secure' => is_ssl(), 'httponly' => true, 'samesite' => 'Lax' ) );
+            }
+            $ua = isset( $_SERVER['HTTP_USER_AGENT'] ) ? (string) $_SERVER['HTTP_USER_AGENT'] : ''; // phpcs:ignore
+            if ( ! preg_match( '/bot|crawl|spider|slurp|preview|facebookexternalhit|telegram/i', $ua ) ) { update_user_meta( $aid, '_sahel_af_clicks', (int) get_user_meta( $aid, '_sahel_af_clicks', true ) + 1 ); }
+        }
+    }
+    $url = remove_query_arg( sahel_af_param() );
+    wp_safe_redirect( $url ? $url : home_url( '/' ), 302 );
+    exit;
+}, 1 );
+/* ثبت معرف روی سفارش */
+function sahel_af_attach( $order ) {
+    if ( ! sahel_af_on() || ! $order || $order->get_meta( '_sahel_af_uid' ) ) { return; }
+    $raw = isset( $_COOKIE['sahel_aff'] ) ? $_COOKIE['sahel_aff'] : ( isset( $_COOKIE['sahel_aff_js'] ) ? $_COOKIE['sahel_aff_js'] : '' ); // phpcs:ignore
+    $code = strtolower( preg_replace( '/[^a-z0-9]/i', '', (string) wp_unslash( $raw ) ) );
+    if ( '' === $code ) { return; }
+    $aid = sahel_af_user_by_code( $code );
+    if ( ! $aid || ! sahel_af_is( $aid ) ) { return; }
+    $cid = (int) $order->get_customer_id();
+    $au = get_userdata( $aid );
+    if ( $cid === $aid || ( $au && strtolower( $au->user_email ) === strtolower( (string) $order->get_billing_email() ) ) ) { return; } /* خرید از لینک خود */
+    if ( (int) get_theme_mod( 'sahel_af_no_ws', 1 ) && $cid && function_exists( 'sahel_ws_is_user' ) && sahel_ws_is_user( $cid ) ) { return; }
+    $rate = get_user_meta( $aid, '_sahel_af_rate', true );
+    $rate = '' !== $rate ? (float) $rate : (float) get_theme_mod( 'sahel_af_rate', 10 );
+    $base = max( 0, (float) $order->get_subtotal() - (float) $order->get_discount_total() );
+    $amt = round( $base * max( 0, min( 90, $rate ) ) / 100, wc_get_price_decimals() );
+    if ( $amt <= 0 ) { return; }
+    $order->update_meta_data( '_sahel_af_uid', $aid );
+    $order->update_meta_data( '_sahel_af_amount', $amt );
+    $order->update_meta_data( '_sahel_af_rate', $rate );
+    $order->update_meta_data( '_sahel_af_status', 'pending' );
+    $order->add_order_note( 'همکاری در فروش: معرف ' . ( $au ? $au->display_name : '#' . $aid ) . ' — پورسانت ' . wp_strip_all_tags( wc_price( $amt ) ) . ' (در انتظار تکمیل سفارش)' );
+    $order->save();
+}
+add_action( 'woocommerce_checkout_order_processed', function ( $id ) { sahel_af_attach( wc_get_order( $id ) ); }, 20 );
+add_action( 'woocommerce_store_api_checkout_order_processed', 'sahel_af_attach', 20 );
+/* با تکمیل سفارش پورسانت قطعی می‌شود؛ با لغو یا بازپرداخت برمی‌گردد */
+add_action( 'woocommerce_order_status_changed', function ( $id, $from, $to, $order ) {
+    if ( ! $order || ! ( $aid = (int) $order->get_meta( '_sahel_af_uid' ) ) ) { return; }
+    $st = (string) $order->get_meta( '_sahel_af_status' ); $amt = (float) $order->get_meta( '_sahel_af_amount' );
+    if ( 'completed' === $to && 'pending' === $st ) {
+        update_user_meta( $aid, '_sahel_af_earned', (float) get_user_meta( $aid, '_sahel_af_earned', true ) + $amt );
+        $order->update_meta_data( '_sahel_af_status', 'approved' ); $order->save();
+    } elseif ( in_array( $to, array( 'cancelled', 'refunded', 'failed' ), true ) && in_array( $st, array( 'pending', 'approved' ), true ) ) {
+        if ( 'approved' === $st ) { update_user_meta( $aid, '_sahel_af_earned', max( 0, (float) get_user_meta( $aid, '_sahel_af_earned', true ) - $amt ) ); }
+        $order->update_meta_data( '_sahel_af_status', 'rejected' ); $order->save();
+    }
+}, 10, 4 );
+add_action( 'woocommerce_admin_order_data_after_order_details', function ( $order ) {
+    $aid = (int) $order->get_meta( '_sahel_af_uid' );
+    if ( ! $aid ) { return; }
+    $u = get_userdata( $aid ); $st = array( 'pending' => 'در انتظار', 'approved' => 'قطعی', 'rejected' => 'لغو شده' );
+    echo '<p class="form-field form-field-wide"><strong>🤝 معرف:</strong> ' . esc_html( $u ? $u->display_name : '#' . $aid ) . ' — پورسانت ' . wp_kses_post( wc_price( (float) $order->get_meta( '_sahel_af_amount' ) ) ) . ' (' . esc_html( $st[ (string) $order->get_meta( '_sahel_af_status' ) ] ?? '' ) . ')</p>';
+} );
+/* سفارش‌های یک معرف (فقط در داشبورد و پیشخوان اجرا می‌شود) */
+function sahel_af_orders( $aid, $limit = 50 ) {
+    return wc_get_orders( array( 'limit' => $limit, 'orderby' => 'date', 'order' => 'DESC', 'meta_key' => '_sahel_af_uid', 'meta_value' => (int) $aid, 'status' => array_keys( wc_get_order_statuses() ) ) ); // phpcs:ignore
+}
+function sahel_af_stats( $aid ) {
+    $pend = 0; $n = 0;
+    foreach ( sahel_af_orders( $aid, 500 ) as $o ) { $n++; if ( 'pending' === $o->get_meta( '_sahel_af_status' ) ) { $pend += (float) $o->get_meta( '_sahel_af_amount' ); } }
+    $earned = (float) get_user_meta( $aid, '_sahel_af_earned', true ); $paid = (float) get_user_meta( $aid, '_sahel_af_paid', true );
+    return array( 'clicks' => (int) get_user_meta( $aid, '_sahel_af_clicks', true ), 'orders' => $n, 'pending' => $pend, 'earned' => $earned, 'paid' => $paid, 'balance' => max( 0, $earned - $paid ) );
+}
+
+/* ---------- داشبورد همکاری در فروش در «حساب کاربری» ---------- */
+add_action( 'init', function () {
+    if ( ! sahel_af_on() ) { return; }
+    add_rewrite_endpoint( 'affiliate', EP_ROOT | EP_PAGES );
+    if ( get_option( 'sahel_af_rw' ) !== '1' ) { flush_rewrite_rules( false ); update_option( 'sahel_af_rw', '1', true ); }
+} );
+add_filter( 'woocommerce_get_query_vars', function ( $v ) { if ( sahel_af_on() ) { $v['affiliate'] = 'affiliate'; } return $v; } );
+add_filter( 'woocommerce_account_menu_items', function ( $items ) {
+    if ( ! sahel_af_on() ) { return $items; }
+    $out = array();
+    foreach ( $items as $k => $l ) { if ( 'customer-logout' === $k ) { $out['affiliate'] = '🤝 همکاری در فروش'; } $out[ $k ] = $l; }
+    if ( ! isset( $out['affiliate'] ) ) { $out['affiliate'] = '🤝 همکاری در فروش'; }
+    return $out;
+} );
+add_filter( 'woocommerce_endpoint_affiliate_title', function () { return 'همکاری در فروش'; } );
+add_action( 'woocommerce_account_affiliate_endpoint', function () {
+    $uid = get_current_user_id(); if ( ! $uid ) { return; }
+    $msg = '';
+    if ( isset( $_POST['sahel_af_nonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['sahel_af_nonce'] ) ), 'sahel_af_' . $uid ) ) {
+        $act = isset( $_POST['sahel_af_act'] ) ? sanitize_key( wp_unslash( $_POST['sahel_af_act'] ) ) : '';
+        if ( 'join' === $act && ! get_user_meta( $uid, '_sahel_af_status', true ) ) {
+            update_user_meta( $uid, '_sahel_af_status', (int) get_theme_mod( 'sahel_af_auto', 1 ) ? 'approved' : 'pending' ); sahel_af_code( $uid );
+            if ( ! (int) get_theme_mod( 'sahel_af_auto', 1 ) ) { wp_mail( get_option( 'admin_email' ), 'درخواست همکاری در فروش', wp_get_current_user()->display_name . "\n" . admin_url( 'admin.php?page=sahel-affiliates' ) ); }
+        } elseif ( 'bank' === $act ) {
+            update_user_meta( $uid, '_sahel_af_bank', array( 'name' => sanitize_text_field( wp_unslash( $_POST['af_bname'] ?? '' ) ), 'sheba' => strtoupper( preg_replace( '/[^0-9A-Za-z]/', '', (string) wp_unslash( $_POST['af_sheba'] ?? '' ) ) ), 'card' => preg_replace( '/\D/', '', strtr( (string) wp_unslash( $_POST['af_card'] ?? '' ), array( '۰' => '0', '۱' => '1', '۲' => '2', '۳' => '3', '۴' => '4', '۵' => '5', '۶' => '6', '۷' => '7', '۸' => '8', '۹' => '9' ) ) ) ) );
+            $msg = '<p class="af-ok">اطلاعات بانکی ذخیره شد.</p>';
+        } elseif ( 'payout' === $act && sahel_af_is( $uid ) ) {
+            $s = sahel_af_stats( $uid ); $min = (float) get_theme_mod( 'sahel_af_min', 0 );
+            if ( $s['balance'] > 0 && $s['balance'] >= $min ) {
+                update_user_meta( $uid, '_sahel_af_req', array( 'amount' => $s['balance'], 'time' => time() ) );
+                wp_mail( get_option( 'admin_email' ), 'درخواست تسویه‌ی همکاری در فروش', wp_get_current_user()->display_name . ' — ' . wp_strip_all_tags( wc_price( $s['balance'] ) ) . "\n" . admin_url( 'admin.php?page=sahel-affiliates' ) );
+                $msg = '<p class="af-ok">درخواست تسویه ثبت شد.</p>';
+            }
+        }
+    }
+    $st = (string) get_user_meta( $uid, '_sahel_af_status', true );
+    $nf = wp_nonce_field( 'sahel_af_' . $uid, 'sahel_af_nonce', true, false );
+    echo '<div class="af">' . $msg; // phpcs:ignore
+    $terms = (string) get_theme_mod( 'sahel_af_terms', '' );
+    if ( '' === $st ) {
+        echo '<h3>کسب درآمد با معرفی ' . esc_html( sahel_brand() ) . '</h3><p>لینک اختصاصی خودتان را به دوستان و مشتریان بدهید؛ از هر خریدی که با لینک شما انجام شود <b>' . esc_html( sahel_fa( (float) get_theme_mod( 'sahel_af_rate', 10 ) ) ) . '٪</b> پورسانت می‌گیرید.</p>';
+        if ( '' !== $terms ) { echo '<div class="af-terms">' . wp_kses_post( wpautop( $terms ) ) . '</div>'; }
+        echo '<form method="post">' . $nf . '<input type="hidden" name="sahel_af_act" value="join"><button class="btn btn-primary" type="submit">عضویت در همکاری در فروش</button></form></div>'; // phpcs:ignore
+        return;
+    }
+    if ( 'pending' === $st ) { echo '<p>⏳ درخواست همکاری شما در حال بررسی است.</p></div>'; return; }
+    if ( 'approved' !== $st ) { echo '<p>همکاری در فروش برای این حساب فعال نیست.</p></div>'; return; }
+    $s = sahel_af_stats( $uid ); $link = sahel_af_link( $uid );
+    echo '<div class="af-link"><label>لینک اختصاصی شما</label><div><input type="text" readonly value="' . esc_attr( $link ) . '" id="afLink" dir="ltr"><button type="button" class="btn btn-primary" onclick="var i=document.getElementById(\'afLink\');i.select();navigator.clipboard&&navigator.clipboard.writeText(i.value);this.textContent=\'کپی شد ✓\'">کپی</button></div>';
+    echo '<small>هر صفحه‌ای از سایت را هم می‌توانید معرفی کنید؛ کافی است به آخر نشانی آن <code dir="ltr">?' . esc_html( sahel_af_param() ) . '=' . esc_html( sahel_af_code( $uid ) ) . '</code> اضافه کنید.</small></div>';
+    $cards = array( array( 'بازدید از لینک', sahel_fa( $s['clicks'] ) ), array( 'سفارش معرفی‌شده', sahel_fa( $s['orders'] ) ), array( 'در انتظار تکمیل', wc_price( $s['pending'] ) ), array( 'درآمد قطعی', wc_price( $s['earned'] ) ), array( 'پرداخت‌شده', wc_price( $s['paid'] ) ), array( 'قابل برداشت', wc_price( $s['balance'] ) ) );
+    echo '<div class="af-cards">'; foreach ( $cards as $c ) { echo '<div><span>' . esc_html( $c[0] ) . '</span><b>' . wp_kses_post( $c[1] ) . '</b></div>'; } echo '</div>';
+    $req = get_user_meta( $uid, '_sahel_af_req', true ); $min = (float) get_theme_mod( 'sahel_af_min', 0 );
+    if ( is_array( $req ) ) { echo '<p class="af-ok">⏳ درخواست تسویه‌ی ' . wp_kses_post( wc_price( $req['amount'] ) ) . ' ثبت شده است.</p>'; }
+    elseif ( $s['balance'] > 0 && $s['balance'] >= $min ) { echo '<form method="post">' . $nf . '<input type="hidden" name="sahel_af_act" value="payout"><button class="btn btn-primary" type="submit">درخواست تسویه‌ی ' . wp_kses_post( wc_price( $s['balance'] ) ) . '</button></form>'; } // phpcs:ignore
+    elseif ( $min > 0 ) { echo '<p><small>حداقل مبلغ برای درخواست تسویه: ' . wp_kses_post( wc_price( $min ) ) . '</small></p>'; }
+    $orders = sahel_af_orders( $uid, 20 );
+    if ( $orders ) {
+        $sl = array( 'pending' => 'در انتظار', 'approved' => 'قطعی', 'rejected' => 'لغو' );
+        echo '<h4>آخرین سفارش‌های معرفی‌شده</h4><table class="af-tbl"><tr><th>تاریخ</th><th>مبلغ سفارش</th><th>پورسانت</th><th>وضعیت</th></tr>';
+        foreach ( $orders as $o ) { $d = $o->get_date_created(); echo '<tr><td>' . esc_html( $d ? ( function_exists( 'sahel_jdate' ) ? sahel_jdate( $d->getTimestamp() ) : sahel_fa( $d->date_i18n( 'Y/m/d' ) ) ) : '' ) . '</td><td>' . wp_kses_post( wc_price( $o->get_total() ) ) . '</td><td>' . wp_kses_post( wc_price( (float) $o->get_meta( '_sahel_af_amount' ) ) ) . '</td><td>' . esc_html( $sl[ (string) $o->get_meta( '_sahel_af_status' ) ] ?? '' ) . '</td></tr>'; }
+        echo '</table>';
+    }
+    $b = get_user_meta( $uid, '_sahel_af_bank', true ); if ( ! is_array( $b ) ) { $b = array(); }
+    echo '<h4>اطلاعات واریز</h4><form method="post" class="af-bank">' . $nf . '<input type="hidden" name="sahel_af_act" value="bank">'; // phpcs:ignore
+    echo '<label>نام صاحب حساب<input type="text" name="af_bname" value="' . esc_attr( $b['name'] ?? '' ) . '"></label><label>شماره شبا<input type="text" name="af_sheba" dir="ltr" placeholder="IR..." value="' . esc_attr( $b['sheba'] ?? '' ) . '"></label><label>شماره کارت<input type="text" name="af_card" dir="ltr" value="' . esc_attr( $b['card'] ?? '' ) . '"></label><button class="btn" type="submit">ذخیره</button></form>';
+    if ( '' !== $terms ) { echo '<details class="af-terms"><summary>قوانین همکاری</summary>' . wp_kses_post( wpautop( $terms ) ) . '</details>'; }
+    echo '</div><style>.af h4{margin:22px 0 10px}.af-link{padding:16px;border:1px dashed var(--c1,#8a6a4f);border-radius:16px;margin-bottom:16px}.af-link label{font-weight:900;display:block;margin-bottom:6px}.af-link>div{display:flex;gap:8px}.af-link input{flex:1;min-width:0}.af-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin:0 0 16px}.af-cards>div{padding:14px;border:1px solid var(--line,#e5e5e5);border-radius:14px;background:var(--card,var(--bg,#fff))}.af-cards span{display:block;font-size:.78rem;color:var(--muted,#777);font-weight:700}.af-cards b{font-size:1.05rem}.af-tbl{width:100%;font-size:.86rem}.af-bank{display:grid;gap:8px;max-width:420px}.af-bank label{font-weight:800;font-size:.86rem}.af-bank input{width:100%}.af-ok{color:#1e8449;font-weight:800}.af-terms{margin-top:14px;font-size:.88rem;color:var(--muted,#666)}</style>';
+} );
+
+/* ---------- پیشخوان: همکاران عمده و همکاری در فروش ---------- */
+add_action( 'admin_menu', function () {
+    if ( sahel_ws_on() ) { add_submenu_page( 'woocommerce', 'همکاران عمده', '🏭 همکاران عمده', 'manage_woocommerce', 'sahel-wholesale', 'sahel_ws_admin' ); }
+    if ( sahel_af_on() ) { add_submenu_page( 'woocommerce', 'همکاری در فروش', '🤝 همکاری در فروش', 'manage_woocommerce', 'sahel-affiliates', 'sahel_af_admin' ); }
+}, 60 );
+function sahel_ws_admin() {
+    if ( ! current_user_can( 'manage_woocommerce' ) ) { wp_die( 'دسترسی ندارید.', 403 ); }
+    if ( isset( $_POST['sahel_wsa_nonce'], $_POST['uid'], $_POST['act'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['sahel_wsa_nonce'] ) ), 'sahel_wsa' ) ) {
+        $uid = absint( $_POST['uid'] ); $act = sanitize_key( wp_unslash( $_POST['act'] ) );
+        if ( 'approve' === $act ) { sahel_ws_approve( $uid ); }
+        elseif ( 'reject' === $act || 'remove' === $act ) { $u = get_userdata( $uid ); if ( $u ) { $u->remove_role( 'sahel_wholesale' ); if ( ! $u->roles ) { $u->add_role( 'customer' ); } } $r = get_user_meta( $uid, '_sahel_ws_req', true ); if ( is_array( $r ) ) { $r['status'] = 'rejected'; update_user_meta( $uid, '_sahel_ws_req', $r ); } }
+        echo '<div class="notice notice-success"><p>انجام شد.</p></div>';
+    }
+    $nf = wp_nonce_field( 'sahel_wsa', 'sahel_wsa_nonce', true, false );
+    $btn = function ( $uid, $act, $l, $cls = 'button' ) use ( $nf ) { return '<form method="post" style="display:inline">' . $nf . '<input type="hidden" name="uid" value="' . (int) $uid . '"><input type="hidden" name="act" value="' . esc_attr( $act ) . '"><button class="' . esc_attr( $cls ) . '">' . esc_html( $l ) . '</button></form> '; };
+    echo '<div class="wrap"><h1>🏭 همکاران عمده</h1><p>کاربر را می‌توانید در «کاربران» هم با نقش «همکار عمده» مشخص کنید. فرم درخواست: کد کوتاه <code>[peecha_wholesale_form]</code></p>';
+    $pend = get_users( array( 'meta_key' => '_sahel_ws_req', 'number' => 200 ) ); // phpcs:ignore
+    echo '<h2>درخواست‌های در انتظار</h2><table class="widefat striped"><thead><tr><th>نام</th><th>فروشگاه</th><th>تلفن</th><th>شهر</th><th>فعالیت</th><th>آدرس</th><th></th></tr></thead><tbody>';
+    $any = false;
+    foreach ( $pend as $u ) { $r = get_user_meta( $u->ID, '_sahel_ws_req', true ); if ( ! is_array( $r ) || 'pending' !== ( $r['status'] ?? '' ) ) { continue; } $any = true;
+        echo '<tr><td>' . esc_html( $r['name'] ) . '<br><small>' . esc_html( $u->user_email ) . '</small></td><td>' . esc_html( $r['company'] ) . '</td><td dir="ltr">' . esc_html( $r['phone'] ) . '</td><td>' . esc_html( $r['city'] ) . '</td><td>' . esc_html( $r['activity'] ) . '</td><td>' . esc_html( $r['address'] ) . '</td><td>' . $btn( $u->ID, 'approve', 'تأیید', 'button button-primary' ) . $btn( $u->ID, 'reject', 'رد' ) . '</td></tr>'; } // phpcs:ignore
+    if ( ! $any ) { echo '<tr><td colspan="7">درخواستی در انتظار نیست.</td></tr>'; }
+    echo '</tbody></table><h2>همکاران فعلی</h2><table class="widefat striped"><thead><tr><th>نام</th><th>ایمیل</th><th></th></tr></thead><tbody>';
+    foreach ( get_users( array( 'role' => 'sahel_wholesale', 'number' => 500 ) ) as $u ) { echo '<tr><td>' . esc_html( $u->display_name ) . '</td><td>' . esc_html( $u->user_email ) . '</td><td>' . $btn( $u->ID, 'remove', 'حذف از همکاران' ) . '</td></tr>'; } // phpcs:ignore
+    echo '</tbody></table></div>';
+}
+function sahel_af_admin() {
+    if ( ! current_user_can( 'manage_woocommerce' ) ) { wp_die( 'دسترسی ندارید.', 403 ); }
+    if ( isset( $_POST['sahel_afa_nonce'], $_POST['uid'], $_POST['act'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['sahel_afa_nonce'] ) ), 'sahel_afa' ) ) {
+        $uid = absint( $_POST['uid'] ); $act = sanitize_key( wp_unslash( $_POST['act'] ) );
+        if ( 'approve' === $act ) { update_user_meta( $uid, '_sahel_af_status', 'approved' ); sahel_af_code( $uid ); }
+        elseif ( 'block' === $act ) { update_user_meta( $uid, '_sahel_af_status', 'blocked' ); }
+        elseif ( 'rate' === $act ) { $r = isset( $_POST['rate'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['rate'] ) ) ) : ''; if ( '' === $r ) { delete_user_meta( $uid, '_sahel_af_rate' ); } else { update_user_meta( $uid, '_sahel_af_rate', max( 0, min( 90, (float) $r ) ) ); } }
+        elseif ( 'pay' === $act ) {
+            $amt = isset( $_POST['amount'] ) ? (float) wc_format_decimal( wp_unslash( $_POST['amount'] ) ) : 0;
+            if ( $amt > 0 ) {
+                update_user_meta( $uid, '_sahel_af_paid', (float) get_user_meta( $uid, '_sahel_af_paid', true ) + $amt );
+                $log = get_user_meta( $uid, '_sahel_af_payouts', true ); if ( ! is_array( $log ) ) { $log = array(); }
+                $log[] = array( 'amount' => $amt, 'time' => time(), 'note' => isset( $_POST['note'] ) ? sanitize_text_field( wp_unslash( $_POST['note'] ) ) : '' );
+                update_user_meta( $uid, '_sahel_af_payouts', $log ); delete_user_meta( $uid, '_sahel_af_req' );
+            }
+        }
+        echo '<div class="notice notice-success"><p>انجام شد.</p></div>';
+    }
+    $nf = wp_nonce_field( 'sahel_afa', 'sahel_afa_nonce', true, false );
+    echo '<div class="wrap"><h1>🤝 همکاری در فروش</h1><p>پورسانت با «تکمیل» سفارش قطعی می‌شود و با لغو یا بازپرداخت برمی‌گردد. پس از واریز، مبلغ را اینجا ثبت کنید.</p>';
+    echo '<table class="widefat striped"><thead><tr><th>همکار</th><th>کد</th><th>وضعیت</th><th>بازدید</th><th>سفارش</th><th>در انتظار</th><th>قطعی</th><th>پرداخت‌شده</th><th>مانده</th><th>اطلاعات واریز</th><th>درصد اختصاصی</th><th>ثبت پرداخت</th></tr></thead><tbody>';
+    $users = get_users( array( 'meta_key' => '_sahel_af_status', 'number' => 500 ) ); // phpcs:ignore
+    if ( ! $users ) { echo '<tr><td colspan="12">هنوز همکاری ثبت نشده است.</td></tr>'; }
+    $sl = array( 'approved' => '✅ فعال', 'pending' => '⏳ در انتظار', 'blocked' => '⛔ مسدود' );
+    foreach ( $users as $u ) {
+        $st = (string) get_user_meta( $u->ID, '_sahel_af_status', true ); $s = sahel_af_stats( $u->ID ); $b = get_user_meta( $u->ID, '_sahel_af_bank', true ); $req = get_user_meta( $u->ID, '_sahel_af_req', true );
+        $f = function ( $act, $inner, $l, $cls = 'button' ) use ( $nf, $u ) { return '<form method="post" style="display:inline-flex;gap:4px">' . $nf . '<input type="hidden" name="uid" value="' . (int) $u->ID . '"><input type="hidden" name="act" value="' . esc_attr( $act ) . '">' . $inner . '<button class="' . esc_attr( $cls ) . '">' . esc_html( $l ) . '</button></form>'; };
+        echo '<tr><td>' . esc_html( $u->display_name ) . '<br><small>' . esc_html( $u->user_email ) . '</small></td><td dir="ltr">' . esc_html( get_user_meta( $u->ID, '_sahel_af_code', true ) ) . '</td><td>' . esc_html( $sl[ $st ] ?? $st ) . '<br>' . ( 'approved' !== $st ? $f( 'approve', '', 'تأیید', 'button button-small' ) : $f( 'block', '', 'مسدود', 'button button-small' ) ) . '</td>'; // phpcs:ignore
+        echo '<td>' . esc_html( sahel_fa( $s['clicks'] ) ) . '</td><td>' . esc_html( sahel_fa( $s['orders'] ) ) . '</td><td>' . wp_kses_post( wc_price( $s['pending'] ) ) . '</td><td>' . wp_kses_post( wc_price( $s['earned'] ) ) . '</td><td>' . wp_kses_post( wc_price( $s['paid'] ) ) . '</td><td><b>' . wp_kses_post( wc_price( $s['balance'] ) ) . '</b>' . ( is_array( $req ) ? '<br><span style="color:#b45309">درخواست تسویه</span>' : '' ) . '</td>';
+        echo '<td><small>' . ( is_array( $b ) ? esc_html( $b['name'] ?? '' ) . '<br><span dir="ltr">' . esc_html( $b['sheba'] ?? '' ) . '<br>' . esc_html( $b['card'] ?? '' ) . '</span>' : '—' ) . '</small></td>';
+        echo '<td>' . $f( 'rate', '<input type="number" name="rate" step="0.1" min="0" max="90" style="width:64px" value="' . esc_attr( get_user_meta( $u->ID, '_sahel_af_rate', true ) ) . '" placeholder="' . esc_attr( (string) get_theme_mod( 'sahel_af_rate', 10 ) ) . '">', 'ذخیره', 'button button-small' ) . '</td>'; // phpcs:ignore
+        echo '<td>' . $f( 'pay', '<input type="number" name="amount" min="0" step="any" style="width:110px" value="' . esc_attr( $s['balance'] ) . '"><input type="text" name="note" placeholder="کد پیگیری" style="width:90px">', 'ثبت', 'button button-primary button-small' ) . '</td></tr>'; // phpcs:ignore
+    }
+    echo '</tbody></table></div>';
+}
+
+/* ---------- تنظیمات ---------- */
+add_action( 'customize_register', function ( $w ) {
+    $pan = $w->get_panel( 'sahel_p_shop' ) ? 'sahel_p_shop' : '';
+    $mk = function ( $s, $rows ) use ( $w ) {
+        $p = 1;
+        foreach ( $rows as $r ) {
+            list( $id, $def, $san, $args ) = $r;
+            $w->add_setting( $id, array( 'default' => $def, 'sanitize_callback' => $san ) );
+            $w->add_control( $id, $args + array( 'section' => $s, 'priority' => $p++ ) );
+        }
+    };
+    $w->add_section( 'sahel_x_ws', array( 'title' => '🏭 عمده‌فروشی (قیمت همکار)', 'panel' => $pan, 'priority' => 95, 'description' => 'قیمت همکار، حداقل تعداد، بسته‌بندی و تخفیف پلکانی را در ویرایش هر محصول وارد کنید. مدیریت درخواست‌ها: ووکامرس ← 🏭 همکاران عمده.' ) );
+    $mk( 'sahel_x_ws', array(
+        array( 'sahel_ws_on', 0, 'absint', array( 'label' => 'فعال کردن عمده‌فروشی', 'type' => 'checkbox' ) ),
+        array( 'sahel_ws_pct', 0, 'sahel_ws_san_num', array( 'label' => 'درصد تخفیف کلی همکاران (برای محصولاتی که قیمت همکار ندارند؛ ۰ = ندارد)', 'type' => 'number', 'input_attrs' => array( 'min' => 0, 'max' => 90, 'step' => 0.5 ) ) ),
+        array( 'sahel_ws_label', 'قیمت همکار', 'sanitize_text_field', array( 'label' => 'برچسب کنار قیمت', 'type' => 'text' ) ),
+        array( 'sahel_ws_min_order', 0, 'sahel_ws_san_num', array( 'label' => 'حداقل مبلغ سفارش همکاران (۰ = ندارد)', 'type' => 'number', 'input_attrs' => array( 'min' => 0 ) ) ),
+        array( 'sahel_ws_tiers', '', 'sanitize_text_field', array( 'label' => 'تخفیف پلکانی پیش‌فرض همه‌ی محصولات', 'type' => 'text', 'description' => 'مثلاً 10:3%, 50:7%, 100:10% — هر محصول می‌تواند پلکان خودش را داشته باشد.' ) ),
+        array( 'sahel_ws_tiers_for', 'ws', 'sanitize_key', array( 'label' => 'تخفیف پلکانی برای', 'type' => 'select', 'choices' => array( 'ws' => 'فقط همکاران عمده', 'all' => 'همه‌ی خریداران' ) ) ),
+        array( 'sahel_ws_hide', 'no', 'sanitize_key', array( 'label' => 'نمایش قیمت', 'type' => 'select', 'choices' => array( 'no' => 'برای همه', 'guests' => 'فقط کاربران واردشده', 'nonws' => 'فقط همکاران عمده (فروشگاه فقط عمده)' ) ) ),
+        array( 'sahel_ws_hide_text', 'برای دیدن قیمت، وارد شوید یا همکار شوید', 'sanitize_text_field', array( 'label' => 'متن جای قیمت پنهان', 'type' => 'text' ) ),
+        array( 'sahel_ws_auto', 0, 'absint', array( 'label' => 'تأیید خودکار درخواست همکاری عمده', 'type' => 'checkbox' ) ),
+        array( 'sahel_ws_page', 0, 'absint', array( 'label' => 'برگه‌ی فرم درخواست همکاری (حاوی [peecha_wholesale_form])', 'type' => 'dropdown-pages', 'allow_addition' => true ) ),
+    ) );
+    $w->add_section( 'sahel_x_af', array( 'title' => '🤝 همکاری در فروش (پورسانت)', 'panel' => $pan, 'priority' => 96, 'description' => 'هر مشتری از «حساب کاربری ← همکاری در فروش» لینک اختصاصی می‌گیرد. گزارش و تسویه: ووکامرس ← 🤝 همکاری در فروش.' ) );
+    $mk( 'sahel_x_af', array(
+        array( 'sahel_af_on', 0, 'absint', array( 'label' => 'فعال کردن همکاری در فروش', 'type' => 'checkbox' ) ),
+        array( 'sahel_af_rate', 10, 'sahel_ws_san_num', array( 'label' => 'درصد پورسانت (از جمع خرید بدون هزینه‌ی ارسال)', 'type' => 'number', 'input_attrs' => array( 'min' => 0, 'max' => 90, 'step' => 0.5 ) ) ),
+        array( 'sahel_af_days', 30, 'absint', array( 'label' => 'مدت اعتبار لینک (روز)', 'type' => 'number', 'input_attrs' => array( 'min' => 1, 'max' => 365 ) ) ),
+        array( 'sahel_af_attr', 'last', 'sanitize_key', array( 'label' => 'اگر خریدار از دو معرف آمده باشد', 'type' => 'select', 'choices' => array( 'last' => 'آخرین معرف', 'first' => 'اولین معرف' ) ) ),
+        array( 'sahel_af_auto', 1, 'absint', array( 'label' => 'عضویت خودکار (بدون نیاز به تأیید مدیر)', 'type' => 'checkbox' ) ),
+        array( 'sahel_af_min', 0, 'sahel_ws_san_num', array( 'label' => 'حداقل مبلغ برای درخواست تسویه', 'type' => 'number', 'input_attrs' => array( 'min' => 0 ) ) ),
+        array( 'sahel_af_no_ws', 1, 'absint', array( 'label' => 'برای خرید همکاران عمده پورسانت تعلق نگیرد', 'type' => 'checkbox' ) ),
+        array( 'sahel_af_param', 'ref', 'sanitize_key', array( 'label' => 'نام پارامتر لینک', 'type' => 'text', 'description' => 'مثلاً ref ← example.com/?ref=کد' ) ),
+        array( 'sahel_af_terms', '', 'wp_kses_post', array( 'label' => 'قوانین همکاری (در داشبورد همکار نمایش داده می‌شود)', 'type' => 'textarea' ) ),
+    ) );
+}, 1005 );
+function sahel_ws_san_num( $v ) { $v = strtr( (string) $v, array( '۰' => '0', '۱' => '1', '۲' => '2', '۳' => '3', '۴' => '4', '۵' => '5', '۶' => '6', '۷' => '7', '۸' => '8', '۹' => '9' ) ); return max( 0, (float) preg_replace( '/[^\d.]/', '', $v ) ); }
+/* پشتیبان برای سایت‌هایی با افزونه‌ی کش: اگر صفحه از کش آمد و کد سرور اجرا نشد، مرورگر کد معرف را ذخیره و نشانی را تمیز می‌کند */
+add_action( 'wp_footer', function () {
+    if ( ! sahel_af_on() ) { return; }
+    $cfg = array( 'p' => sahel_af_param(), 'd' => max( 1, min( 365, (int) get_theme_mod( 'sahel_af_days', 30 ) ) ), 'f' => 'first' === get_theme_mod( 'sahel_af_attr', 'last' ) ? 1 : 0, 'a' => admin_url( 'admin-ajax.php' ) );
+    echo '<script id="sahel-v74-af">(function(c){try{var u=new URL(location.href),v=u.searchParams.get(c.p);if(!v)return;v=v.toLowerCase().replace(/[^a-z0-9]/g,"");u.searchParams.delete(c.p);history.replaceState(null,"",u.toString());if(v.length<4||(c.f&&/(^|; )sahel_aff_js=/.test(document.cookie)))return;document.cookie="sahel_aff_js="+v+";path=/;max-age="+(c.d*86400)+";samesite=lax"+(location.protocol==="https:"?";secure":"");if(navigator.sendBeacon){var f=new FormData();f.append("action","sahel_af_hit");f.append("c",v);navigator.sendBeacon(c.a,f);}}catch(e){}})(' . wp_json_encode( $cfg ) . ');</script>'; // phpcs:ignore
+}, 50 );
+foreach ( array( 'wp_ajax_sahel_af_hit', 'wp_ajax_nopriv_sahel_af_hit' ) as $sahel_hk ) {
+    add_action( $sahel_hk, function () {
+        if ( ! sahel_af_on() || ! function_exists( 'sahel_rate_ok' ) || ! sahel_rate_ok( 'afhit', 20, 400, HOUR_IN_SECONDS ) ) { wp_die( '', '', array( 'response' => 204 ) ); }
+        $aid = sahel_af_user_by_code( isset( $_POST['c'] ) ? sanitize_text_field( wp_unslash( $_POST['c'] ) ) : '' ); // phpcs:ignore
+        if ( $aid && sahel_af_is( $aid ) && $aid !== get_current_user_id() ) { update_user_meta( $aid, '_sahel_af_clicks', (int) get_user_meta( $aid, '_sahel_af_clicks', true ) + 1 ); }
+        wp_die( '', '', array( 'response' => 204 ) );
+    } );
+}
