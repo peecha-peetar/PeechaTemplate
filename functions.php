@@ -10901,7 +10901,7 @@ try{document.querySelectorAll('[data-promo-id]').forEach(function(p){if(sessionS
 document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-promo-id] .promo-close');if(!b)return;e.preventDefault();e.stopImmediatePropagation();var p=b.closest('[data-promo-id]');p.style.display='none';try{sessionStorage.setItem('sahelPromoClosed_'+p.getAttribute('data-promo-id'),'1');}catch(x){}lay();},true);
 if(!c.on)return;
 /* هر گوشه: دکمه‌ها به ترتیب «ترتیب نمایش» از لبه روی هم چیده می‌شوند و فاصله‌شان ثابت است */
-var els=function(){return Array.prototype.slice.call(document.querySelectorAll('.fab-wrap,.promo-float,.scroll-nav'));};
+var els=function(){return Array.prototype.slice.call(document.querySelectorAll('.fab-wrap,.promo-float,.scroll-nav,.chat-launch'));};
 function ord(el){if(el.hasAttribute('data-dock-order'))return +el.getAttribute('data-dock-order');if(el.classList.contains('fab-wrap'))return c.fab;if(el.classList.contains('scroll-nav'))return c.scroll;return c.promo;}
 var busy=false;
 function lay(){
@@ -10964,7 +10964,7 @@ add_filter( 'sahel_final_html', function ( $html ) {
     $bp = stripos( $html, '<body' );
     if ( false === $bp || ! preg_match_all( '#<script id="(sahel-[\w-]+)">(.*?)</script>#s', $html, $mm, PREG_SET_ORDER | PREG_OFFSET_CAPTURE, $bp ) ) { return $html; }
     /* اسکریپت‌هایی که داده‌ی مخصوص هر صفحه دارند، داخل صفحه می‌مانند */
-    $keep = apply_filters( 'sahel_js_inline_keep', array( 'sahel-v77-dock', 'sahel-v74-af', 'sahel-v67-js', 'sahel-pwa-js' ) );
+    $keep = apply_filters( 'sahel_js_inline_keep', array( 'sahel-v77-dock', 'sahel-v74-af', 'sahel-v67-js', 'sahel-pwa-js', 'sahel-v78-chatcfg' ) );
     $runs = array(); $cur = -1; $prev_end = -1;
     foreach ( $mm as $k => $m ) {
         if ( in_array( $m[1][0], $keep, true ) || false !== strpos( $m[2][0], '</' . 'script' ) ) { $cur = -1; continue; }
@@ -11065,3 +11065,606 @@ add_action( 'customize_register', function ( $w ) {
         $w->add_control( 'sahel_lazy_skip', array( 'label' => '⚡ تعداد تصاویر بالای صفحه که فوری بارگذاری شوند', 'section' => 'sahel_x_security', 'type' => 'number', 'input_attrs' => array( 'min' => 0, 'max' => 10 ), 'priority' => 6 ) );
     }
 }, 1010 );
+
+
+/* =====================================================================
+ * v7.8 — ورود و ثبت‌نام با شماره موبایل (کد یک‌بارمصرف پیامکی)
+ * امنیت: کد فقط به‌صورت هش ذخیره می‌شود، ۵ تلاش اشتباه = باطل شدن کد، محدودیت ارسال برای هر شماره
+ * و هر دستگاه، مدیران به‌طور پیش‌فرض با کد وارد نمی‌شوند. سرعت: فقط در صفحه‌ی ورود بارگذاری می‌شود.
+ * ===================================================================== */
+function sahel_otp_on() { return (int) get_theme_mod( 'sahel_otp_on', 0 ) > 0; }
+function sahel_otp_opt( $k, $d = '' ) { return get_theme_mod( 'sahel_otp_' . $k, $d ); }
+/* ۰۹۱۲… / +98912… / 98912… / 912… → 0912xxxxxxx */
+function sahel_otp_norm( $m ) {
+    $m = strtr( (string) $m, array( '۰' => '0', '۱' => '1', '۲' => '2', '۳' => '3', '۴' => '4', '۵' => '5', '۶' => '6', '۷' => '7', '۸' => '8', '۹' => '9', '٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4', '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9' ) );
+    $m = preg_replace( '/\D/', '', $m );
+    if ( 0 === strpos( $m, '0098' ) ) { $m = '0' . substr( $m, 4 ); }
+    elseif ( 0 === strpos( $m, '98' ) && 12 === strlen( $m ) ) { $m = '0' . substr( $m, 2 ); }
+    elseif ( 10 === strlen( $m ) && '9' === $m[0] ) { $m = '0' . $m; }
+    return preg_match( '/^09\d{9}$/', $m ) ? $m : '';
+}
+function sahel_otp_key( $mobile ) { return substr( hash_hmac( 'sha256', $mobile, wp_salt( 'auth' ) ), 0, 32 ); }
+function sahel_otp_hash( $mobile, $code ) { return hash_hmac( 'sha256', $mobile . '|' . $code, wp_salt( 'secure_auth' ) ); }
+
+/* ---------- ارسال پیامک ---------- */
+function sahel_otp_send_sms( $mobile, $code ) {
+    $p   = (string) sahel_otp_opt( 'provider', 'test' );
+    $key = trim( (string) sahel_otp_opt( 'api_key', '' ) );
+    $tpl = trim( (string) sahel_otp_opt( 'template', '' ) );
+    $var = trim( (string) sahel_otp_opt( 'var', 'code' ) ); if ( '' === $var ) { $var = 'code'; }
+    $snd = trim( (string) sahel_otp_opt( 'sender', '' ) );
+    $intl = '98' . substr( $mobile, 1 );
+    $json = function ( $url, $body, $headers = array() ) { return wp_remote_post( $url, array( 'timeout' => 12, 'headers' => array_merge( array( 'Content-Type' => 'application/json', 'Accept' => 'application/json' ), $headers ), 'body' => wp_json_encode( $body ) ) ); };
+    $res = null; $ok = false;
+    switch ( $p ) {
+        case 'test':
+            /* حالت آزمایش: پیامکی ارسال نمی‌شود؛ کد فقط برای ایمیل مدیر فرستاده می‌شود (هرگز به بازدیدکننده نشان داده نمی‌شود) */
+            wp_mail( get_option( 'admin_email' ), 'کد ورود آزمایشی ' . $mobile, 'کد: ' . $code . "\n(حالت آزمایش ورود با موبایل؛ پیش از راه‌اندازی، سرویس پیامک را در سفارشی‌سازی انتخاب کنید.)" );
+            return array( true, '' );
+        case 'kavenegar':
+            $res = wp_remote_get( 'https://api.kavenegar.com/v1/' . rawurlencode( $key ) . '/verify/lookup.json?' . http_build_query( array( 'receptor' => $mobile, 'token' => $code, 'template' => $tpl ) ), array( 'timeout' => 12 ) );
+            $b = json_decode( wp_remote_retrieve_body( $res ), true ); $ok = isset( $b['return']['status'] ) && 200 === (int) $b['return']['status'];
+            break;
+        case 'smsir':
+            $res = $json( 'https://api.sms.ir/v1/send/verify', array( 'mobile' => $mobile, 'templateId' => (int) $tpl, 'parameters' => array( array( 'name' => $var, 'value' => (string) $code ) ) ), array( 'x-api-key' => $key ) );
+            $b = json_decode( wp_remote_retrieve_body( $res ), true ); $ok = isset( $b['status'] ) && 1 === (int) $b['status'];
+            break;
+        case 'melipayamak':
+            $res = $json( 'https://console.melipayamak.com/api/send/shared/' . rawurlencode( $key ), array( 'bodyId' => (int) $tpl, 'to' => $mobile, 'args' => array( (string) $code ) ) );
+            $b = json_decode( wp_remote_retrieve_body( $res ), true ); $ok = ! empty( $b['recId'] ) && (int) $b['recId'] > 1000;
+            break;
+        case 'ippanel':
+            $res = $json( 'https://api2.ippanel.com/api/v1/sms/pattern/normal/send', array( 'code' => $tpl, 'sender' => $snd, 'recipient' => $mobile, 'variable' => array( $var => (string) $code ) ), array( 'apikey' => $key ) );
+            $b = json_decode( wp_remote_retrieve_body( $res ), true ); $ok = ( isset( $b['status'] ) && 'OK' === strtoupper( (string) $b['status'] ) ) || ( isset( $b['code'] ) && 200 === (int) $b['code'] );
+            break;
+        case 'ghasedak':
+            $res = wp_remote_post( 'https://api.ghasedak.me/v2/verification/send/simple', array( 'timeout' => 12, 'headers' => array( 'apikey' => $key ), 'body' => array( 'receptor' => $mobile, 'type' => 1, 'template' => $tpl, 'param1' => (string) $code ) ) );
+            $b = json_decode( wp_remote_retrieve_body( $res ), true ); $ok = isset( $b['result']['code'] ) && 200 === (int) $b['result']['code'];
+            break;
+        case 'custom':
+            $url = (string) sahel_otp_opt( 'custom_url', '' );
+            if ( '' === $url ) { return array( false, 'نشانی سرویس پیامک تنظیم نشده است.' ); }
+            $url = strtr( $url, array( '{mobile}' => rawurlencode( $mobile ), '{mobile98}' => rawurlencode( $intl ), '{code}' => rawurlencode( (string) $code ), '{key}' => rawurlencode( $key ), '{template}' => rawurlencode( $tpl ) ) );
+            $res = 'post' === sahel_otp_opt( 'custom_method', 'get' ) ? wp_remote_post( $url, array( 'timeout' => 12 ) ) : wp_remote_get( $url, array( 'timeout' => 12 ) );
+            $c = (int) wp_remote_retrieve_response_code( $res ); $ok = $c >= 200 && $c < 300;
+            break;
+        default:
+            return array( false, 'سرویس پیامک انتخاب نشده است.' );
+    }
+    if ( ! $ok ) {
+        $err = is_wp_error( $res ) ? $res->get_error_message() : 'HTTP ' . wp_remote_retrieve_response_code( $res ) . ' ' . substr( wp_strip_all_tags( (string) wp_remote_retrieve_body( $res ) ), 0, 300 );
+        update_option( 'sahel_otp_last_error', current_time( 'mysql' ) . ' [' . $p . '] ' . $err, false );
+    }
+    return array( $ok, $ok ? '' : 'ارسال پیامک ناموفق بود؛ کمی بعد دوباره امتحان کنید.' );
+}
+
+/* ---------- یافتن کاربر با شماره ---------- */
+function sahel_otp_find_user( $mobile ) {
+    $variants = array( $mobile, '98' . substr( $mobile, 1 ), '+98' . substr( $mobile, 1 ), substr( $mobile, 1 ) );
+    $u = get_users( array( 'meta_query' => array( 'relation' => 'OR', array( 'key' => 'sahel_mobile', 'value' => $mobile ), array( 'key' => 'billing_phone', 'value' => $variants, 'compare' => 'IN' ) ), 'number' => 2, 'fields' => 'ID' ) ); // phpcs:ignore
+    if ( $u ) { return (int) $u[0]; }
+    $byl = get_user_by( 'login', $mobile );
+    return $byl ? (int) $byl->ID : 0;
+}
+function sahel_otp_login( $uid ) {
+    $u = get_userdata( $uid );
+    if ( ! $u ) { return false; }
+    wp_clear_auth_cookie();
+    wp_set_current_user( $uid );
+    wp_set_auth_cookie( $uid, true, is_ssl() );
+    do_action( 'wp_login', $u->user_login, $u ); // phpcs:ignore -- رویداد استاندارد ورود وردپرس
+    return true;
+}
+function sahel_otp_redirect() {
+    $r = isset( $_POST['redirect'] ) ? esc_url_raw( wp_unslash( $_POST['redirect'] ) ) : ''; // phpcs:ignore
+    $r = wp_validate_redirect( $r, '' );
+    if ( '' === $r ) { $r = function_exists( 'wc_get_page_permalink' ) ? wc_get_page_permalink( 'myaccount' ) : home_url( '/' ); }
+    return $r;
+}
+function sahel_otp_fail( $msg, $extra = array() ) { wp_send_json( array( 'ok' => 0, 'msg' => $msg ) + $extra ); }
+
+/* ---------- ۱) ارسال کد ---------- */
+foreach ( array( 'wp_ajax_sahel_otp_send', 'wp_ajax_nopriv_sahel_otp_send' ) as $sahel_hk ) {
+    add_action( $sahel_hk, function () {
+        if ( ! sahel_otp_on() ) { sahel_otp_fail( 'ورود با موبایل فعال نیست.' ); }
+        if ( ! check_ajax_referer( 'sahel_otp', 'nonce', false ) ) { sahel_otp_fail( 'صفحه منقضی شده است؛ صفحه را دوباره بارگذاری کنید.' ); }
+        $m = sahel_otp_norm( isset( $_POST['mobile'] ) ? sanitize_text_field( wp_unslash( $_POST['mobile'] ) ) : '' );
+        if ( '' === $m ) { sahel_otp_fail( 'شماره موبایل درست نیست (مثلاً ۰۹۱۲۱۲۳۴۵۶۷).' ); }
+        $k = sahel_otp_key( $m );
+        $wait = max( 30, (int) sahel_otp_opt( 'resend', 60 ) );
+        $last = (int) get_transient( 'sahel_otp_t_' . $k );
+        if ( $last && time() - $last < $wait ) { sahel_otp_fail( 'لطفاً ' . sahel_fa( $wait - ( time() - $last ) ) . ' ثانیه‌ی دیگر دوباره درخواست کنید.', array( 'wait' => $wait - ( time() - $last ) ) ); }
+        $hour = (int) get_transient( 'sahel_otp_h_' . $k );
+        if ( $hour >= 5 || ( function_exists( 'sahel_rate_ok' ) && ! sahel_rate_ok( 'otp', 8, 60, HOUR_IN_SECONDS ) ) ) { sahel_otp_fail( 'درخواست کد بیش از حد مجاز بود؛ یک ساعت بعد دوباره امتحان کنید.' ); }
+        $len = max( 4, min( 6, (int) sahel_otp_opt( 'len', 5 ) ) );
+        $code = (string) random_int( (int) pow( 10, $len - 1 ), (int) pow( 10, $len ) - 1 );
+        list( $ok, $err ) = sahel_otp_send_sms( $m, $code );
+        if ( ! $ok ) { sahel_otp_fail( $err ); }
+        $ttl = max( 60, min( 600, (int) sahel_otp_opt( 'ttl', 180 ) ) );
+        set_transient( 'sahel_otp_' . $k, array( 'h' => sahel_otp_hash( $m, $code ), 'n' => 0 ), $ttl );
+        set_transient( 'sahel_otp_t_' . $k, time(), $wait );
+        set_transient( 'sahel_otp_h_' . $k, $hour + 1, HOUR_IN_SECONDS );
+        wp_send_json( array( 'ok' => 1, 'msg' => 'کد ' . sahel_fa( $len ) . ' رقمی به ' . sahel_fa( $m ) . ' پیامک شد.', 'wait' => $wait, 'len' => $len ) );
+    } );
+}
+/* ---------- ۲) بررسی کد ---------- */
+foreach ( array( 'wp_ajax_sahel_otp_verify', 'wp_ajax_nopriv_sahel_otp_verify' ) as $sahel_hk ) {
+    add_action( $sahel_hk, function () {
+        if ( ! sahel_otp_on() || ! check_ajax_referer( 'sahel_otp', 'nonce', false ) ) { sahel_otp_fail( 'صفحه منقضی شده است؛ دوباره بارگذاری کنید.' ); }
+        if ( function_exists( 'sahel_rate_ok' ) && ! sahel_rate_ok( 'otpv', 25, 150, HOUR_IN_SECONDS ) ) { sahel_otp_fail( 'تلاش‌ها بیش از حد مجاز بود؛ بعداً امتحان کنید.' ); }
+        $m = sahel_otp_norm( isset( $_POST['mobile'] ) ? sanitize_text_field( wp_unslash( $_POST['mobile'] ) ) : '' );
+        $code = isset( $_POST['code'] ) ? preg_replace( '/\D/', '', strtr( sanitize_text_field( wp_unslash( $_POST['code'] ) ), array( '۰' => '0', '۱' => '1', '۲' => '2', '۳' => '3', '۴' => '4', '۵' => '5', '۶' => '6', '۷' => '7', '۸' => '8', '۹' => '9' ) ) ) : '';
+        if ( '' === $m || '' === $code ) { sahel_otp_fail( 'شماره یا کد خالی است.' ); }
+        $k = sahel_otp_key( $m );
+        $st = get_transient( 'sahel_otp_' . $k );
+        if ( ! is_array( $st ) ) { sahel_otp_fail( 'کد منقضی شده است؛ دوباره درخواست کنید.', array( 'expired' => 1 ) ); }
+        if ( ! hash_equals( $st['h'], sahel_otp_hash( $m, $code ) ) ) {
+            $st['n']++;
+            if ( $st['n'] >= 5 ) { delete_transient( 'sahel_otp_' . $k ); sahel_otp_fail( 'کد ۵ بار اشتباه وارد شد و باطل شد؛ کد تازه بگیرید.', array( 'expired' => 1 ) ); }
+            set_transient( 'sahel_otp_' . $k, $st, max( 60, (int) sahel_otp_opt( 'ttl', 180 ) ) );
+            sahel_otp_fail( 'کد درست نیست.' );
+        }
+        delete_transient( 'sahel_otp_' . $k );
+        $uid = sahel_otp_find_user( $m );
+        if ( $uid ) {
+            if ( user_can( $uid, 'manage_options' ) && ! (int) sahel_otp_opt( 'admins', 0 ) ) { sahel_otp_fail( 'حساب مدیر با کد پیامکی وارد نمی‌شود؛ با نام کاربری و رمز وارد شوید.' ); }
+            if ( ! get_user_meta( $uid, 'sahel_mobile', true ) ) { update_user_meta( $uid, 'sahel_mobile', $m ); }
+            sahel_otp_login( $uid );
+            wp_send_json( array( 'ok' => 1, 'msg' => 'خوش آمدید!', 'go' => sahel_otp_redirect() ) );
+        }
+        /* کاربر تازه: اگر نام لازم است، یک بلیت کوتاه‌مدت برای تکمیل ثبت‌نام */
+        if ( (int) sahel_otp_opt( 'ask_name', 1 ) ) {
+            $t = wp_generate_password( 32, false );
+            set_transient( 'sahel_otp_r_' . $t, $m, 15 * MINUTE_IN_SECONDS );
+            wp_send_json( array( 'ok' => 1, 'need_name' => 1, 'token' => $t, 'msg' => 'شماره تأیید شد. نامتان را وارد کنید.' ) );
+        }
+        $uid = sahel_otp_create( $m, '', '' );
+        if ( ! $uid ) { sahel_otp_fail( 'ساخت حساب ممکن نشد.' ); }
+        sahel_otp_login( $uid );
+        wp_send_json( array( 'ok' => 1, 'msg' => 'حساب شما ساخته شد.', 'go' => sahel_otp_redirect() ) );
+    } );
+}
+/* ---------- ۳) تکمیل ثبت‌نام ---------- */
+function sahel_otp_create( $m, $first, $last ) {
+    if ( ! get_option( 'users_can_register' ) && ! (int) sahel_otp_opt( 'force_reg', 1 ) ) { return 0; }
+    $login = $m; if ( username_exists( $login ) ) { $login = $m . '_' . wp_rand( 100, 999 ); }
+    $uid = wp_insert_user( array( 'user_login' => $login, 'user_pass' => wp_generate_password( 24 ), 'user_email' => '', 'first_name' => $first, 'last_name' => $last, 'display_name' => trim( $first . ' ' . $last ) ? trim( $first . ' ' . $last ) : $m, 'role' => function_exists( 'WC' ) ? 'customer' : get_option( 'default_role', 'subscriber' ) ) );
+    if ( is_wp_error( $uid ) ) { return 0; }
+    update_user_meta( $uid, 'sahel_mobile', $m );
+    update_user_meta( $uid, 'billing_phone', $m );
+    if ( $first ) { update_user_meta( $uid, 'billing_first_name', $first ); }
+    if ( $last ) { update_user_meta( $uid, 'billing_last_name', $last ); }
+    do_action( 'sahel_otp_user_created', $uid, $m );
+    return (int) $uid;
+}
+foreach ( array( 'wp_ajax_sahel_otp_reg', 'wp_ajax_nopriv_sahel_otp_reg' ) as $sahel_hk ) {
+    add_action( $sahel_hk, function () {
+        if ( ! sahel_otp_on() || ! check_ajax_referer( 'sahel_otp', 'nonce', false ) ) { sahel_otp_fail( 'صفحه منقضی شده است.' ); }
+        $t = isset( $_POST['token'] ) ? preg_replace( '/[^A-Za-z0-9]/', '', (string) wp_unslash( $_POST['token'] ) ) : ''; // phpcs:ignore
+        $m = $t ? get_transient( 'sahel_otp_r_' . $t ) : '';
+        if ( ! $m ) { sahel_otp_fail( 'زمان ثبت‌نام تمام شد؛ دوباره شماره را وارد کنید.', array( 'expired' => 1 ) ); }
+        $first = isset( $_POST['first'] ) ? sanitize_text_field( wp_unslash( $_POST['first'] ) ) : '';
+        $last = isset( $_POST['last'] ) ? sanitize_text_field( wp_unslash( $_POST['last'] ) ) : '';
+        if ( '' === $first ) { sahel_otp_fail( 'نام را وارد کنید.' ); }
+        delete_transient( 'sahel_otp_r_' . $t );
+        $uid = sahel_otp_find_user( $m );
+        if ( ! $uid ) { $uid = sahel_otp_create( $m, mb_substr( $first, 0, 50 ), mb_substr( $last, 0, 50 ) ); }
+        if ( ! $uid ) { sahel_otp_fail( 'ساخت حساب ممکن نشد.' ); }
+        sahel_otp_login( $uid );
+        wp_send_json( array( 'ok' => 1, 'msg' => 'حساب شما ساخته شد. خوش آمدید!', 'go' => sahel_otp_redirect() ) );
+    } );
+}
+
+/* ---------- فرم ---------- */
+function sahel_otp_form() {
+    if ( ! sahel_otp_on() ) { return ''; }
+    if ( is_user_logged_in() ) { return ''; }
+    $GLOBALS['sahel_otp_used'] = 1;
+    $red = isset( $_GET['redirect_to'] ) ? esc_url_raw( wp_unslash( $_GET['redirect_to'] ) ) : ''; // phpcs:ignore
+    $h  = '<div class="otp-box" id="otpBox" data-nonce="' . esc_attr( wp_create_nonce( 'sahel_otp' ) ) . '" data-ajax="' . esc_url( admin_url( 'admin-ajax.php' ) ) . '" data-redirect="' . esc_attr( $red ) . '">';
+    $h .= '<h2 class="otp-t">' . esc_html( (string) sahel_otp_opt( 'title', 'ورود یا ثبت‌نام' ) ) . '</h2><p class="otp-sub">' . esc_html( (string) sahel_otp_opt( 'sub', 'شماره موبایل خود را وارد کنید؛ کد تأیید برایتان پیامک می‌شود.' ) ) . '</p>';
+    $h .= '<form class="otp-step otp-s1" novalidate><label for="otpMobile" class="otp-l">شماره موبایل</label><input id="otpMobile" type="tel" inputmode="numeric" autocomplete="tel" dir="ltr" placeholder="09121234567" maxlength="14" required><button type="submit" class="btn btn-primary otp-btn">دریافت کد</button></form>';
+    $h .= '<form class="otp-step otp-s2" hidden novalidate><label for="otpCode" class="otp-l">کد پیامک‌شده به <b class="otp-num" dir="ltr"></b></label><input id="otpCode" type="text" inputmode="numeric" autocomplete="one-time-code" dir="ltr" maxlength="6" required><button type="submit" class="btn btn-primary otp-btn">ورود</button><div class="otp-links"><button type="button" class="otp-resend" disabled>ارسال دوباره</button><button type="button" class="otp-edit">ویرایش شماره</button></div></form>';
+    $h .= '<form class="otp-step otp-s3" hidden novalidate><label class="otp-l" for="otpFirst">نام</label><input id="otpFirst" type="text" autocomplete="given-name" required maxlength="50"><label class="otp-l" for="otpLast">نام خانوادگی</label><input id="otpLast" type="text" autocomplete="family-name" maxlength="50"><button type="submit" class="btn btn-primary otp-btn">ساخت حساب</button></form>';
+    $h .= '<p class="otp-msg" role="status" aria-live="polite"></p>';
+    if ( 'replace' === sahel_otp_opt( 'mode', 'top' ) ) { $h .= '<p class="otp-alt"><button type="button" class="otp-classic">ورود با نام کاربری و رمز عبور</button></p>'; }
+    return $h . '</div>';
+}
+add_shortcode( 'peecha_mobile_login', 'sahel_otp_form' );
+add_action( 'woocommerce_before_customer_login_form', function () {
+    if ( sahel_otp_on() && 'shortcode' !== sahel_otp_opt( 'mode', 'top' ) ) { echo sahel_otp_form(); } // phpcs:ignore
+} );
+add_filter( 'sahel_body_extra_cls', function ( $c ) { return ( sahel_otp_on() && 'replace' === sahel_otp_opt( 'mode', 'top' ) ) ? $c . ' otp-only' : $c; } );
+add_action( 'wp_footer', function () {
+    if ( empty( $GLOBALS['sahel_otp_used'] ) ) { return; }
+    echo '<style id="sahel-v78-otp">.otp-box{max-width:420px;margin:0 auto 26px;padding:26px 24px;border:1px solid var(--line,#e6e1da);border-radius:22px;background:var(--card,var(--bg,#fff));box-shadow:0 18px 40px -26px rgba(0,0,0,.35)}'
+        . '.otp-t{margin:0 0 4px;font-size:1.3rem;font-weight:900}.otp-sub{margin:0 0 18px;color:var(--muted,#666);font-size:.88rem}.otp-l{display:block;font-weight:800;font-size:.85rem;margin:10px 0 6px}'
+        . '.otp-box input{width:100%;height:52px;border-radius:14px;border:1.5px solid var(--line,#ddd);padding:0 16px;font-size:1.15rem;letter-spacing:.06em;background:#fff;color:#222;box-sizing:border-box}.otp-box input:focus{border-color:var(--c1,#8a6a4f);outline:0;box-shadow:0 0 0 4px color-mix(in srgb,var(--c1,#8a6a4f) 18%,transparent)}'
+        . '#otpCode{text-align:center;letter-spacing:.5em;font-size:1.4rem;font-weight:800}.otp-btn{width:100%;height:50px;margin-top:14px;border-radius:14px;font-weight:900}.otp-btn[disabled]{opacity:.6}'
+        . '.otp-links{display:flex;justify-content:space-between;margin-top:10px}.otp-links button,.otp-classic{background:none;border:0;color:var(--c1,#8a6a4f);font:inherit;font-weight:800;font-size:.85rem;cursor:pointer;padding:4px 0}.otp-links button[disabled]{color:var(--muted,#999);cursor:default}'
+        . '.otp-msg{min-height:1.4em;margin:12px 0 0;font-size:.88rem;font-weight:700}.otp-msg.err{color:#c0392b}.otp-msg.ok{color:#1e8449}.otp-alt{text-align:center;margin:14px 0 0}'
+        . 'body.otp-only #customer_login,body.otp-only .woocommerce-form-login{display:none}body.otp-only.otp-classic-on #customer_login,body.otp-only.otp-classic-on .woocommerce-form-login{display:block}</style>';
+    echo '<script id="sahel-v78-otp-js">' . <<<'SHJS78'
+(function(){
+var b=document.getElementById('otpBox');if(!b)return;
+var q=function(s){return b.querySelector(s);},msg=q('.otp-msg'),s1=q('.otp-s1'),s2=q('.otp-s2'),s3=q('.otp-s3'),mob='',tok='',timer=0;
+var fa=function(n){return String(n).replace(/\d/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'[d];});};
+var en=function(v){return String(v||'').replace(/[۰-۹]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d);}).replace(/[٠-٩]/g,function(d){return '٠١٢٣٤٥٦٧٨٩'.indexOf(d);});};
+function say(t,ok){msg.textContent=t||'';msg.className='otp-msg '+(ok?'ok':'err');}
+function show(f){[s1,s2,s3].forEach(function(x){x.hidden=x!==f;});var i=f.querySelector('input');if(i)setTimeout(function(){i.focus();},50);}
+function post(a,d){var f=new FormData();f.append('action',a);f.append('nonce',b.getAttribute('data-nonce'));f.append('redirect',b.getAttribute('data-redirect')||location.href);Object.keys(d).forEach(function(k){f.append(k,d[k]);});
+  return fetch(b.getAttribute('data-ajax'),{method:'POST',body:f,credentials:'same-origin'}).then(function(r){return r.json();}).catch(function(){return {ok:0,msg:'ارتباط برقرار نشد؛ اینترنت را بررسی کنید.'};});}
+function busy(f,on){var x=f.querySelector('.otp-btn');x.disabled=on;}
+function count(s){var r=q('.otp-resend');clearInterval(timer);r.disabled=true;var left=s;r.textContent='ارسال دوباره ('+fa(left)+')';timer=setInterval(function(){left--;if(left<=0){clearInterval(timer);r.disabled=false;r.textContent='ارسال دوباره';}else{r.textContent='ارسال دوباره ('+fa(left)+')';}},1000);}
+function send(){busy(s1,true);say('در حال ارسال…',true);post('sahel_otp_send',{mobile:mob}).then(function(r){busy(s1,false);say(r.msg,r.ok);if(r.ok){q('.otp-num').textContent=mob;if(r.len)q('#otpCode').setAttribute('data-len',r.len);show(s2);count(r.wait||60);}else if(r.wait&&!s2.hidden){count(r.wait);}});}
+s1.addEventListener('submit',function(e){e.preventDefault();mob=en(q('#otpMobile').value).replace(/\D/g,'');if(!/^(0?9\d{9}|98?9\d{9})$/.test(mob)){say('شماره موبایل درست نیست.');return;}send();});
+s2.addEventListener('submit',function(e){e.preventDefault();var c=en(q('#otpCode').value).replace(/\D/g,'');if(c.length<4){say('کد را کامل وارد کنید.');return;}busy(s2,true);
+  post('sahel_otp_verify',{mobile:mob,code:c}).then(function(r){busy(s2,false);say(r.msg,r.ok);if(!r.ok){if(r.expired){q('#otpCode').value='';}return;}if(r.need_name){tok=r.token;show(s3);return;}location.href=r.go||location.href;});});
+q('#otpCode').addEventListener('input',function(){var v=en(this.value).replace(/\D/g,'');if(v!==this.value)this.value=v;var len=+(this.getAttribute('data-len')||5);if(v.length>=len&&!s2.querySelector('.otp-btn').disabled){s2.requestSubmit?s2.requestSubmit():s2.dispatchEvent(new Event('submit'));}});
+s3.addEventListener('submit',function(e){e.preventDefault();busy(s3,true);post('sahel_otp_reg',{token:tok,first:q('#otpFirst').value,last:q('#otpLast').value}).then(function(r){busy(s3,false);say(r.msg,r.ok);if(r.ok)location.href=r.go||location.href;else if(r.expired)show(s1);});});
+q('.otp-resend').addEventListener('click',send);
+q('.otp-edit').addEventListener('click',function(){clearInterval(timer);say('');show(s1);});
+var cl=q('.otp-classic');if(cl)cl.addEventListener('click',function(){document.body.classList.toggle('otp-classic-on');});
+/* خواندن خودکار کد پیامک در اندروید/کروم */
+if('OTPCredential' in window){try{navigator.credentials.get({otp:{transport:['sms']}}).then(function(o){if(o&&o.code){q('#otpCode').value=o.code;q('#otpCode').dispatchEvent(new Event('input'));}}).catch(function(){});}catch(e){}}
+})();
+SHJS78
+    . '</script>';
+}, 44 );
+
+/* شماره‌ی موبایل در پروفایل مدیر نمایش داده و قابل ویرایش باشد */
+foreach ( array( 'show_user_profile', 'edit_user_profile' ) as $sahel_hk ) {
+    add_action( $sahel_hk, function ( $u ) {
+        if ( ! sahel_otp_on() ) { return; }
+        echo '<h2>ورود با موبایل</h2><table class="form-table"><tr><th><label for="sahel_mobile">شماره موبایل</label></th><td><input type="tel" name="sahel_mobile" id="sahel_mobile" dir="ltr" class="regular-text" value="' . esc_attr( get_user_meta( $u->ID, 'sahel_mobile', true ) ) . '"></td></tr></table>';
+    } );
+}
+foreach ( array( 'personal_options_update', 'edit_user_profile_update' ) as $sahel_hk ) {
+    add_action( $sahel_hk, function ( $uid ) {
+        if ( ! current_user_can( 'edit_user', $uid ) || ! isset( $_POST['sahel_mobile'] ) ) { return; } // phpcs:ignore -- وردپرس nonce فرم پروفایل را پیش از این رویداد بررسی کرده است
+        $m = sahel_otp_norm( sanitize_text_field( wp_unslash( $_POST['sahel_mobile'] ) ) ); // phpcs:ignore
+        $other = $m ? sahel_otp_find_user( $m ) : 0;
+        if ( '' === $m || ! $other || $other === (int) $uid ) { update_user_meta( $uid, 'sahel_mobile', $m ); }
+    } );
+}
+
+/* ---------- تنظیمات ---------- */
+add_action( 'customize_register', function ( $w ) {
+    $s = 'sahel_x_otp';
+    $w->add_section( $s, array( 'title' => '📱 ورود و ثبت‌نام با موبایل', 'panel' => $w->get_panel( 'sahel_p_shop' ) ? 'sahel_p_shop' : '', 'priority' => 97, 'description' => 'فرم در صفحه‌ی «حساب کاربری» نمایش داده می‌شود؛ جای دیگر: کد کوتاه [peecha_mobile_login]. آخرین خطای سرویس پیامک: ' . esc_html( (string) get_option( 'sahel_otp_last_error', '—' ) ) ) );
+    $p = 1;
+    $add = function ( $id, $def, $san, $args ) use ( $w, $s, &$p ) { $w->add_setting( 'sahel_otp_' . $id, array( 'default' => $def, 'sanitize_callback' => $san ) ); $w->add_control( 'sahel_otp_' . $id, $args + array( 'section' => $s, 'priority' => $p++ ) ); };
+    $add( 'on', 0, 'absint', array( 'label' => 'فعال کردن ورود با موبایل', 'type' => 'checkbox' ) );
+    $add( 'mode', 'top', 'sanitize_key', array( 'label' => 'نمایش در صفحه‌ی حساب کاربری', 'type' => 'select', 'choices' => array( 'top' => 'بالای فرم ورود معمولی', 'replace' => 'به‌جای فرم معمولی (ورود با رمز با یک دکمه)', 'shortcode' => 'فقط با کد کوتاه' ) ) );
+    $add( 'provider', 'test', 'sanitize_key', array( 'label' => 'سرویس پیامک', 'type' => 'select', 'choices' => array( 'test' => 'آزمایشی (کد به ایمیل مدیر فرستاده می‌شود)', 'kavenegar' => 'کاوه‌نگار', 'smsir' => 'SMS.ir', 'melipayamak' => 'ملی‌پیامک', 'ippanel' => 'IPPanel / فراز اس‌ام‌اس', 'ghasedak' => 'قاصدک', 'custom' => 'نشانی دلخواه (وب‌سرویس دیگر)' ) ) );
+    $add( 'api_key', '', 'sanitize_text_field', array( 'label' => 'کلید API', 'type' => 'text', 'input_attrs' => array( 'autocomplete' => 'off' ) ) );
+    $add( 'template', '', 'sanitize_text_field', array( 'label' => 'نام / شناسه‌ی الگو (پترن) پیامک', 'type' => 'text', 'description' => 'کاوه‌نگار: نام الگو (توکن = کد). SMS.ir و ملی‌پیامک: شناسه‌ی عددی الگو. IPPanel: کد پترن. قاصدک: نام قالب.' ) );
+    $add( 'var', 'code', 'sanitize_key', array( 'label' => 'نام متغیر کد در الگو (SMS.ir و IPPanel)', 'type' => 'text' ) );
+    $add( 'sender', '', 'sanitize_text_field', array( 'label' => 'شماره‌ی فرستنده (فقط IPPanel)', 'type' => 'text' ) );
+    $add( 'custom_url', '', 'esc_url_raw', array( 'label' => 'نشانی وب‌سرویس دلخواه', 'type' => 'url', 'description' => 'جای‌گذاری‌ها: {mobile} {mobile98} {code} {key} {template}' ) );
+    $add( 'custom_method', 'get', 'sanitize_key', array( 'label' => 'روش درخواست وب‌سرویس دلخواه', 'type' => 'select', 'choices' => array( 'get' => 'GET', 'post' => 'POST' ) ) );
+    $add( 'len', 5, 'absint', array( 'label' => 'تعداد رقم کد (۴ تا ۶)', 'type' => 'number', 'input_attrs' => array( 'min' => 4, 'max' => 6 ) ) );
+    $add( 'ttl', 180, 'absint', array( 'label' => 'اعتبار کد (ثانیه)', 'type' => 'number', 'input_attrs' => array( 'min' => 60, 'max' => 600 ) ) );
+    $add( 'resend', 60, 'absint', array( 'label' => 'فاصله‌ی ارسال دوباره (ثانیه)', 'type' => 'number', 'input_attrs' => array( 'min' => 30, 'max' => 300 ) ) );
+    $add( 'ask_name', 1, 'absint', array( 'label' => 'در ثبت‌نام نام و نام خانوادگی پرسیده شود', 'type' => 'checkbox' ) );
+    $add( 'force_reg', 1, 'absint', array( 'label' => 'ثبت‌نام با موبایل حتی اگر «هر کسی می‌تواند ثبت‌نام کند» در تنظیمات وردپرس خاموش است', 'type' => 'checkbox' ) );
+    $add( 'admins', 0, 'absint', array( 'label' => 'مدیران هم با کد پیامکی وارد شوند (توصیه نمی‌شود)', 'type' => 'checkbox' ) );
+    $add( 'title', 'ورود یا ثبت‌نام', 'sanitize_text_field', array( 'label' => 'عنوان فرم', 'type' => 'text' ) );
+    $add( 'sub', 'شماره موبایل خود را وارد کنید؛ کد تأیید برایتان پیامک می‌شود.', 'sanitize_text_field', array( 'label' => 'متن زیر عنوان', 'type' => 'text' ) );
+}, 1011 );
+
+/* =====================================================================
+ * v7.8 — چت زنده
+ * سرعت: در صفحه‌ها فقط یک دکمه‌ی کوچک؛ برنامه‌ی چت با کلیک فعال می‌شود و فقط وقتی پنجره باز است
+ * پیام‌های تازه را می‌پرسد (هر ۴ ثانیه، بعد از یک دقیقه بی‌فعالیتی هر ۱۵ ثانیه، با بسته شدن یا پنهان شدن تب: هیچ).
+ * امنیت: هر گفتگو با یک کوکی تصادفی امن شناخته می‌شود، پیام‌ها محدود و پاک‌سازی می‌شوند، پاسخ مدیر با nonce و دسترسی.
+ * ===================================================================== */
+function sahel_chat_on() { return (int) get_theme_mod( 'sahel_chat_on', 0 ) > 0; }
+function sahel_chat_cap() { return function_exists( 'WC' ) ? 'manage_woocommerce' : 'moderate_comments'; }
+function sahel_chat_t( $t ) { global $wpdb; return $wpdb->prefix . ( 'm' === $t ? 'sahel_chat_msg' : 'sahel_chat_conv' ); }
+function sahel_chat_install() {
+    if ( '2' === get_option( 'sahel_chat_db' ) ) { return; }
+    global $wpdb;
+    require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+    $cs = $wpdb->get_charset_collate();
+    dbDelta( 'CREATE TABLE ' . sahel_chat_t( 'c' ) . " (
+  conv char(32) NOT NULL,
+  user_id bigint(20) unsigned NOT NULL DEFAULT 0,
+  name varchar(80) NOT NULL DEFAULT '',
+  phone varchar(30) NOT NULL DEFAULT '',
+  page varchar(255) NOT NULL DEFAULT '',
+  created int(10) unsigned NOT NULL DEFAULT 0,
+  updated int(10) unsigned NOT NULL DEFAULT 0,
+  unread_admin smallint(5) unsigned NOT NULL DEFAULT 0,
+  unread_visitor smallint(5) unsigned NOT NULL DEFAULT 0,
+  closed tinyint(1) NOT NULL DEFAULT 0,
+  PRIMARY KEY  (conv),
+  KEY updated (updated)
+) $cs;" );
+    dbDelta( 'CREATE TABLE ' . sahel_chat_t( 'm' ) . " (
+  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  conv char(32) NOT NULL,
+  dir tinyint(1) NOT NULL DEFAULT 0,
+  body text NOT NULL,
+  ts int(10) unsigned NOT NULL DEFAULT 0,
+  PRIMARY KEY  (id),
+  KEY conv_id (conv,id)
+) $cs;" );
+    update_option( 'sahel_chat_db', '2', true );
+}
+add_action( 'admin_init', function () { if ( sahel_chat_on() ) { sahel_chat_install(); } } );
+/* شناسه‌ی گفتگوی بازدیدکننده (کوکی امن، ۹۰ روز) */
+function sahel_chat_conv_id( $create = false ) {
+    $c = isset( $_COOKIE['sahel_chat'] ) ? preg_replace( '/[^a-f0-9]/', '', (string) $_COOKIE['sahel_chat'] ) : ''; // phpcs:ignore
+    if ( 32 === strlen( $c ) ) { return $c; }
+    if ( ! $create ) { return ''; }
+    $c = bin2hex( random_bytes( 16 ) );
+    $o = array( 'expires' => time() + 90 * DAY_IN_SECONDS, 'path' => COOKIEPATH ? COOKIEPATH : '/', 'domain' => COOKIE_DOMAIN, 'secure' => is_ssl(), 'samesite' => 'Lax' );
+    setcookie( 'sahel_chat', $c, $o + array( 'httponly' => true ) );
+    setcookie( 'sahel_chat_has', '1', $o + array( 'httponly' => false ) );
+    $_COOKIE['sahel_chat'] = $c;
+    return $c;
+}
+function sahel_chat_admin_online() { return (bool) get_transient( 'sahel_chat_online' ); }
+function sahel_chat_unread_total() {
+    $v = get_transient( 'sahel_chat_unread' );
+    if ( false === $v ) { global $wpdb; $v = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . sahel_chat_t( 'c' ) . ' WHERE unread_admin > 0 AND closed = 0' ); set_transient( 'sahel_chat_unread', $v, 5 * MINUTE_IN_SECONDS ); } // phpcs:ignore
+    return (int) $v;
+}
+function sahel_chat_clean( $s, $max = 1000 ) {
+    $s = trim( wp_strip_all_tags( (string) $s ) );
+    $s = preg_replace( "/\r\n?/", "\n", $s ); $s = preg_replace( "/\n{3,}/", "\n\n", $s );
+    return function_exists( 'mb_substr' ) ? mb_substr( $s, 0, $max ) : substr( $s, 0, $max );
+}
+function sahel_chat_msgs( $conv, $since, $limit = 100 ) {
+    global $wpdb;
+    $rows = $wpdb->get_results( $wpdb->prepare( 'SELECT id, dir, body, ts FROM ' . sahel_chat_t( 'm' ) . ' WHERE conv = %s AND id > %d ORDER BY id ASC LIMIT %d', $conv, (int) $since, (int) $limit ), ARRAY_A ); // phpcs:ignore
+    return array_map( function ( $r ) { return array( 'id' => (int) $r['id'], 'd' => (int) $r['dir'], 'b' => $r['body'], 't' => (int) $r['ts'] ); }, (array) $rows );
+}
+
+/* ---------- بازدیدکننده ---------- */
+foreach ( array( 'wp_ajax_sahel_chat_poll', 'wp_ajax_nopriv_sahel_chat_poll' ) as $sahel_hk ) {
+    add_action( $sahel_hk, function () {
+        if ( ! sahel_chat_on() ) { wp_send_json( array( 'ok' => 0 ) ); }
+        $conv = sahel_chat_conv_id();
+        $out = array( 'ok' => 1, 'online' => sahel_chat_admin_online(), 'm' => array() );
+        if ( $conv && '2' === get_option( 'sahel_chat_db' ) ) {
+            if ( function_exists( 'sahel_rate_ok' ) && ! sahel_rate_ok( 'chatp', 40, 2000, MINUTE_IN_SECONDS ) ) { wp_send_json( $out ); }
+            $out['m'] = sahel_chat_msgs( $conv, isset( $_POST['since'] ) ? absint( $_POST['since'] ) : 0 ); // phpcs:ignore
+            if ( ! empty( $_POST['open'] ) ) { global $wpdb; $wpdb->update( sahel_chat_t( 'c' ), array( 'unread_visitor' => 0 ), array( 'conv' => $conv ) ); } // phpcs:ignore
+        }
+        wp_send_json( $out );
+    } );
+}
+foreach ( array( 'wp_ajax_sahel_chat_send', 'wp_ajax_nopriv_sahel_chat_send' ) as $sahel_hk ) {
+    add_action( $sahel_hk, function () {
+        if ( ! sahel_chat_on() ) { wp_send_json( array( 'ok' => 0, 'msg' => 'چت فعال نیست.' ) ); }
+        sahel_chat_install();
+        $body = sahel_chat_clean( isset( $_POST['body'] ) ? wp_unslash( $_POST['body'] ) : '' ); // phpcs:ignore
+        if ( '' === $body ) { wp_send_json( array( 'ok' => 0, 'msg' => 'پیام خالی است.' ) ); }
+        if ( function_exists( 'sahel_rate_ok' ) && ! sahel_rate_ok( 'chats', 12, 300, MINUTE_IN_SECONDS ) ) { wp_send_json( array( 'ok' => 0, 'msg' => 'پیام‌ها خیلی سریع ارسال شد؛ کمی صبر کنید.' ) ); }
+        global $wpdb;
+        $conv = sahel_chat_conv_id( true ); $now = time();
+        $name = sahel_chat_clean( isset( $_POST['name'] ) ? wp_unslash( $_POST['name'] ) : '', 80 ); // phpcs:ignore
+        $phone = sahel_chat_clean( isset( $_POST['phone'] ) ? wp_unslash( $_POST['phone'] ) : '', 30 ); // phpcs:ignore
+        $page = esc_url_raw( isset( $_POST['page'] ) ? wp_unslash( $_POST['page'] ) : '' ); // phpcs:ignore
+        $uid = get_current_user_id();
+        if ( $uid && '' === $name ) { $u = wp_get_current_user(); $name = $u->display_name; }
+        $exists = $wpdb->get_var( $wpdb->prepare( 'SELECT conv FROM ' . sahel_chat_t( 'c' ) . ' WHERE conv = %s', $conv ) ); // phpcs:ignore
+        if ( ! $exists ) {
+            /* سقف ایمنی گفتگوهای تازه از یک دستگاه */
+            if ( function_exists( 'sahel_rate_ok' ) && ! sahel_rate_ok( 'chatnew', 5, 40, DAY_IN_SECONDS ) ) { wp_send_json( array( 'ok' => 0, 'msg' => 'امکان شروع گفتگوی تازه نیست؛ بعداً امتحان کنید.' ) ); }
+            $wpdb->insert( sahel_chat_t( 'c' ), array( 'conv' => $conv, 'user_id' => $uid, 'name' => $name, 'phone' => $phone, 'page' => substr( $page, 0, 250 ), 'created' => $now, 'updated' => $now, 'unread_admin' => 1 ) ); // phpcs:ignore
+            if ( (int) get_theme_mod( 'sahel_chat_mail', 1 ) && ! sahel_chat_admin_online() ) { wp_mail( get_option( 'admin_email' ), 'گفتگوی تازه در چت سایت', ( $name ? $name . ( $phone ? ' — ' . $phone : '' ) . "\n" : '' ) . $body . "\n\n" . admin_url( 'admin.php?page=sahel-chat' ) ); }
+        } else {
+            $set = array( 'updated' => $now, 'closed' => 0, 'page' => substr( $page, 0, 250 ) );
+            if ( '' !== $name ) { $set['name'] = $name; } if ( '' !== $phone ) { $set['phone'] = $phone; }
+            $wpdb->update( sahel_chat_t( 'c' ), $set, array( 'conv' => $conv ) ); // phpcs:ignore
+            $wpdb->query( $wpdb->prepare( 'UPDATE ' . sahel_chat_t( 'c' ) . ' SET unread_admin = unread_admin + 1 WHERE conv = %s', $conv ) ); // phpcs:ignore
+        }
+        $wpdb->insert( sahel_chat_t( 'm' ), array( 'conv' => $conv, 'dir' => 0, 'body' => $body, 'ts' => $now ) ); // phpcs:ignore
+        delete_transient( 'sahel_chat_unread' );
+        wp_send_json( array( 'ok' => 1, 'id' => (int) $wpdb->insert_id, 'online' => sahel_chat_admin_online() ) );
+    } );
+}
+
+/* ---------- ویجت ---------- */
+add_action( 'wp_footer', function () {
+    if ( ! sahel_chat_on() || is_admin() ) { return; }
+    $pos = 'bl' === get_theme_mod( 'sahel_chat_pos', 'br' ) ? 'bl' : 'br';
+    $col = sanitize_hex_color( (string) get_theme_mod( 'sahel_chat_color', '' ) );
+    $cfg = array(
+        'a' => admin_url( 'admin-ajax.php' ),
+        't' => (string) get_theme_mod( 'sahel_chat_title', 'پشتیبانی آنلاین' ),
+        'w' => (string) get_theme_mod( 'sahel_chat_welcome', 'سلام! 👋 چطور می‌توانیم کمکتان کنیم؟' ),
+        'off' => (string) get_theme_mod( 'sahel_chat_offline', 'الان آنلاین نیستیم؛ پیام بگذارید، به‌زودی همین‌جا پاسخ می‌دهیم.' ),
+        'ask' => (int) get_theme_mod( 'sahel_chat_ask', 1 ),
+        'u' => is_user_logged_in() ? 1 : 0,
+    );
+    echo '<div class="chat-launch pos-' . $pos . ( (int) get_theme_mod( 'sahel_chat_hide_m', 0 ) ? ' chat-hide-m' : '' ) . '" data-dock-order="' . (int) get_theme_mod( 'sahel_chat_order', 1 ) . '"' . ( $col ? ' style="--chat-c:' . esc_attr( $col ) . '"' : '' ) . '><button type="button" class="chat-btn" aria-label="' . esc_attr( $cfg['t'] ) . '" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><i class="chat-dot" hidden></i></button></div>';
+    echo '<script id="sahel-v78-chatcfg">var SAHEL_CHAT=' . wp_json_encode( $cfg ) . ';</script>';
+    echo '<script id="sahel-v78-chat-js">' . <<<'SHJS78C'
+(function(){
+var C=window.SAHEL_CHAT,L=document.querySelector('.chat-launch');if(!C||!L)return;
+var btn=L.querySelector('.chat-btn'),dot=L.querySelector('.chat-dot'),win=null,body,ta,last=0,timer=0,idle=0,online=false,open=false,sending=false;
+var LS=function(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v);}catch(e){}};
+var fa=function(n){return String(n).replace(/\d/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'[d];});};
+function post(a,d){var f=new FormData();f.append('action',a);Object.keys(d||{}).forEach(function(k){f.append(k,d[k]);});return fetch(C.a,{method:'POST',body:f,credentials:'same-origin'}).then(function(r){return r.json();}).catch(function(){return {ok:0};});}
+function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e;}
+function add(m){if(m.id&&m.id<=last)return;
+  /* پیامی که خود بازدیدکننده همین الان فرستاده و از قبل نمایش داده شده، دوباره اضافه نشود */
+  if(m.id&&!m.d){var pend=body.querySelector('.chat-m.me[data-pending]');if(pend&&pend.getAttribute('data-pending')===m.b){pend.removeAttribute('data-pending');last=m.id;return;}}
+  var e=el('div','chat-m '+(m.d?'them':'me'),m.b);if(!m.id&&!m.d)e.setAttribute('data-pending',m.b);var d=new Date((m.t||Date.now()/1000)*1000);e.appendChild(el('small','',fa(('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2))));body.appendChild(e);if(m.id)last=m.id;body.scrollTop=body.scrollHeight;}
+function status(){var s=win.querySelector('.chat-h small');s.textContent=online?'آنلاین هستیم':'آفلاین — پاسخ را همین‌جا می‌بینید';var id=win.querySelector('.chat-id');if(id)id.hidden=!(C.ask&&!C.u&&!online&&!LS('sahel_chat_named'));}
+function poll(){
+  if(!open||document.hidden)return;
+  post('sahel_chat_poll',{since:last,open:1}).then(function(r){if(r&&r.ok){online=!!r.online;(r.m||[]).forEach(add);LS('sahel_chat_seen',String(last));status();}
+    idle++;clearTimeout(timer);if(open)timer=setTimeout(poll,idle>15?15000:4000);});
+}
+function build(){
+  win=el('div','chat-win pos-'+(L.classList.contains('pos-bl')?'bl':'br'));win.setAttribute('role','dialog');win.setAttribute('aria-label',C.t);
+  var h=el('div','chat-h'),t=el('b','',C.t);t.appendChild(el('small','','…'));h.appendChild(t);var x=el('button','','×');x.type='button';x.setAttribute('aria-label','بستن');x.onclick=toggle;h.appendChild(x);win.appendChild(h);
+  body=el('div','chat-body');body.setAttribute('aria-live','polite');body.appendChild(el('div','chat-m them',C.w));win.appendChild(body);
+  if(C.ask&&!C.u){var id=el('div','chat-id');id.hidden=true;var n=el('input');n.placeholder='نام شما';n.className='chat-name';var p=el('input');p.placeholder='شماره تماس (برای پاسخ)';p.type='tel';p.className='chat-phone';p.dir='ltr';id.appendChild(n);id.appendChild(p);win.appendChild(id);}
+  var f=el('form','chat-f');ta=el('textarea');ta.placeholder='پیام خود را بنویسید…';ta.maxLength=1000;ta.setAttribute('aria-label','پیام');var s=el('button');s.type='submit';s.setAttribute('aria-label','ارسال');s.innerHTML='<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg>';
+  f.appendChild(ta);f.appendChild(s);win.appendChild(f);
+  ta.addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();f.requestSubmit?f.requestSubmit():send();}});
+  ta.addEventListener('input',function(){ta.style.height='44px';ta.style.height=Math.min(110,ta.scrollHeight)+'px';});
+  f.addEventListener('submit',function(e){e.preventDefault();send();});
+  document.body.appendChild(win);
+}
+function send(){
+  var v=ta.value.trim();if(!v||sending)return;sending=true;
+  var d={body:v,page:location.href},n=win.querySelector('.chat-name'),p=win.querySelector('.chat-phone');
+  if(n&&!win.querySelector('.chat-id').hidden){d.name=n.value;d.phone=p.value;}
+  add({d:0,b:v});ta.value='';ta.style.height='44px';idle=0;
+  post('sahel_chat_send',d).then(function(r){sending=false;
+    if(!r.ok){body.appendChild(el('div','chat-m sys',r.msg||'ارسال نشد؛ دوباره امتحان کنید.'));return;}
+    if(d.name)LS('sahel_chat_named','1');
+    online=!!r.online;if(!online&&!LS('sahel_chat_offmsg')){body.appendChild(el('div','chat-m sys',C.off));LS('sahel_chat_offmsg','1');}
+    status();clearTimeout(timer);timer=setTimeout(poll,1500);});
+}
+function toggle(){
+  open=!open;btn.setAttribute('aria-expanded',open?'true':'false');
+  if(open){if(!win)build();win.hidden=false;dot.hidden=true;idle=0;last=0;Array.prototype.slice.call(body.querySelectorAll('.chat-m')).slice(1).forEach(function(n){n.remove();});poll();setTimeout(function(){ta.focus();},100);}
+  else{win.hidden=true;clearTimeout(timer);}
+}
+btn.addEventListener('click',toggle);
+document.addEventListener('visibilitychange',function(){if(!document.hidden&&open){idle=0;poll();}});
+/* فقط برای کسی که قبلاً گفتگو داشته: هر صفحه حداکثر هر ۶۰ ثانیه یک بار پاسخ تازه بررسی می‌شود */
+if(/(^|; )sahel_chat_has=1/.test(document.cookie)){var k='sahel_chat_chk',now=Date.now(),lc=0;try{lc=+sessionStorage.getItem(k)||0;}catch(e){}
+  if(now-lc>60000){try{sessionStorage.setItem(k,String(now));}catch(e){}setTimeout(function(){post('sahel_chat_poll',{since:+(LS('sahel_chat_seen')||0)}).then(function(r){var n=(r&&r.m||[]).filter(function(m){return m.d===1;}).length;if(n&&!open){dot.textContent=fa(n);dot.hidden=false;}});},2500);}}
+})();
+SHJS78C
+    . '</script>';
+}, 55 );
+
+/* استایل چت در هد، تا در فایل CSS مشترک و کش‌شونده قرار بگیرد */
+add_action( 'wp_head', function () {
+    if ( ! sahel_chat_on() ) { return; }
+    echo '<style id="sahel-v78-chat">.chat-launch{position:fixed;z-index:86;bottom:24px}.chat-launch.pos-br{right:24px}.chat-launch.pos-bl{left:24px}'
+        . '.chat-btn{width:58px;height:58px;border-radius:50%;border:0;cursor:pointer;display:grid;place-items:center;background:var(--chat-c,var(--c1,#8a6a4f));color:#fff;box-shadow:0 14px 30px -12px var(--chat-c,var(--c1,#8a6a4f));position:relative;transition:transform .25s}.chat-btn:hover{transform:scale(1.07)}.chat-btn svg{width:26px;height:26px}'
+        . '.chat-dot{position:absolute;top:2px;right:2px;min-width:18px;height:18px;padding:0 4px;border-radius:99px;background:#e53935;color:#fff;font:700 11px/18px system-ui;font-style:normal;border:2px solid #fff}'
+        . '@media(max-width:920px){.chat-launch{bottom:calc(88px + env(safe-area-inset-bottom))}.chat-launch.chat-hide-m{display:none}}'
+        . '.chat-win{position:fixed;z-index:9990;bottom:96px;width:min(370px,calc(100vw - 24px));height:min(560px,calc(100vh - 130px));display:flex;flex-direction:column;background:var(--bg,#fff);color:var(--text,#222);border-radius:22px;box-shadow:0 30px 70px -20px rgba(0,0,0,.45);overflow:hidden;animation:chatIn .3s cubic-bezier(.2,.8,.2,1);direction:rtl}'
+        . '.chat-win.pos-br{right:16px}.chat-win.pos-bl{left:16px}@keyframes chatIn{from{opacity:0;transform:translateY(16px) scale(.97)}}'
+        . '.chat-h{display:flex;align-items:center;gap:10px;padding:14px 16px;background:var(--chat-c,var(--c1,#8a6a4f));color:#fff}.chat-h b{flex:1;font-size:.98rem}.chat-h small{display:block;font-size:.72rem;opacity:.9;font-weight:600}.chat-h button{background:rgba(255,255,255,.18);border:0;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px}'
+        . '.chat-body{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:8px;background:color-mix(in srgb,var(--chat-c,var(--c1,#8a6a4f)) 5%,var(--bg,#fff))}'
+        . '.chat-m{max-width:82%;padding:9px 13px;border-radius:16px;font-size:.88rem;line-height:1.75;white-space:pre-wrap;word-break:break-word}.chat-m small{display:block;font-size:.66rem;opacity:.6;margin-top:2px}'
+        . '.chat-m.me{align-self:flex-start;background:var(--chat-c,var(--c1,#8a6a4f));color:#fff;border-bottom-right-radius:4px}.chat-m.them{align-self:flex-end;background:#fff;color:#222;border:1px solid var(--line,#eee);border-bottom-left-radius:4px}.chat-m.sys{align-self:center;background:none;color:var(--muted,#777);font-size:.78rem;text-align:center}'
+        . '.chat-f{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line,#eee);background:var(--bg,#fff)}.chat-f textarea{flex:1;resize:none;height:44px;max-height:110px;border-radius:14px;border:1px solid var(--line,#ddd);padding:10px 12px;font:inherit;font-size:.9rem}.chat-f button{width:44px;height:44px;border-radius:50%;border:0;background:var(--chat-c,var(--c1,#8a6a4f));color:#fff;cursor:pointer;flex:0 0 auto}'
+        . '.chat-id{display:grid;gap:6px;padding:10px 12px;border-top:1px solid var(--line,#eee)}.chat-id input{height:38px;border-radius:10px;border:1px solid var(--line,#ddd);padding:0 10px;font:inherit;font-size:.85rem}'
+        . '@media(max-width:600px){.chat-win{inset:auto 8px calc(8px + env(safe-area-inset-bottom)) 8px;width:auto;height:min(78vh,620px);bottom:8px}}</style>';
+}, 212 );
+/* ---------- پیشخوان: صفحه‌ی گفتگوها ---------- */
+add_action( 'admin_menu', function () {
+    if ( ! sahel_chat_on() ) { return; }
+    $n = sahel_chat_unread_total();
+    add_menu_page( 'چت زنده', 'چت زنده' . ( $n ? ' <span class="awaiting-mod">' . (int) $n . '</span>' : '' ), sahel_chat_cap(), 'sahel-chat', 'sahel_chat_admin_page', 'dashicons-format-chat', 57 );
+} );
+add_action( 'admin_bar_menu', function ( $bar ) {
+    if ( ! sahel_chat_on() || ! current_user_can( sahel_chat_cap() ) ) { return; }
+    $n = sahel_chat_unread_total();
+    $bar->add_node( array( 'id' => 'sahel-chat', 'title' => '💬' . ( $n ? ' ' . (int) $n : '' ), 'href' => admin_url( 'admin.php?page=sahel-chat' ), 'meta' => array( 'title' => 'چت زنده' ) ) );
+}, 90 );
+function sahel_chat_admin_guard() {
+    if ( ! current_user_can( sahel_chat_cap() ) || ! check_ajax_referer( 'sahel_chat_admin', 'nonce', false ) ) { wp_send_json( array( 'ok' => 0, 'msg' => 'دسترسی ندارید.' ), 403 ); }
+    set_transient( 'sahel_chat_online', 1, 90 );
+}
+add_action( 'wp_ajax_sahel_chat_admin_list', function () {
+    sahel_chat_admin_guard();
+    global $wpdb;
+    $rows = $wpdb->get_results( 'SELECT c.*, (SELECT body FROM ' . sahel_chat_t( 'm' ) . ' m WHERE m.conv = c.conv ORDER BY m.id DESC LIMIT 1) AS lastmsg FROM ' . sahel_chat_t( 'c' ) . ' c ORDER BY c.closed ASC, c.updated DESC LIMIT 60', ARRAY_A ); // phpcs:ignore
+    $out = array();
+    foreach ( (array) $rows as $r ) {
+        $label = '' !== $r['name'] ? $r['name'] : ( (int) $r['user_id'] && ( $u = get_userdata( (int) $r['user_id'] ) ) ? $u->display_name : 'بازدیدکننده ' . strtoupper( substr( $r['conv'], 0, 4 ) ) );
+        $out[] = array( 'c' => $r['conv'], 'n' => $label, 'p' => $r['phone'], 'u' => (int) $r['unread_admin'], 't' => (int) $r['updated'], 'l' => sahel_chat_clean( (string) $r['lastmsg'], 80 ), 'x' => (int) $r['closed'], 'pg' => $r['page'] );
+    }
+    wp_send_json( array( 'ok' => 1, 'list' => $out ) );
+} );
+add_action( 'wp_ajax_sahel_chat_admin_thread', function () {
+    sahel_chat_admin_guard();
+    global $wpdb;
+    $conv = isset( $_POST['conv'] ) ? preg_replace( '/[^a-f0-9]/', '', (string) wp_unslash( $_POST['conv'] ) ) : ''; // phpcs:ignore
+    if ( 32 !== strlen( $conv ) ) { wp_send_json( array( 'ok' => 0 ) ); }
+    $m = sahel_chat_msgs( $conv, isset( $_POST['since'] ) ? absint( $_POST['since'] ) : 0, 300 ); // phpcs:ignore
+    $wpdb->update( sahel_chat_t( 'c' ), array( 'unread_admin' => 0 ), array( 'conv' => $conv ) ); // phpcs:ignore
+    delete_transient( 'sahel_chat_unread' );
+    wp_send_json( array( 'ok' => 1, 'm' => $m ) );
+} );
+add_action( 'wp_ajax_sahel_chat_admin_send', function () {
+    sahel_chat_admin_guard();
+    global $wpdb;
+    $conv = isset( $_POST['conv'] ) ? preg_replace( '/[^a-f0-9]/', '', (string) wp_unslash( $_POST['conv'] ) ) : ''; // phpcs:ignore
+    $body = sahel_chat_clean( isset( $_POST['body'] ) ? wp_unslash( $_POST['body'] ) : '', 2000 ); // phpcs:ignore
+    if ( 32 !== strlen( $conv ) || '' === $body ) { wp_send_json( array( 'ok' => 0 ) ); }
+    $wpdb->insert( sahel_chat_t( 'm' ), array( 'conv' => $conv, 'dir' => 1, 'body' => $body, 'ts' => time() ) ); // phpcs:ignore
+    $wpdb->query( $wpdb->prepare( 'UPDATE ' . sahel_chat_t( 'c' ) . ' SET unread_visitor = unread_visitor + 1, unread_admin = 0, updated = %d, closed = 0 WHERE conv = %s', time(), $conv ) ); // phpcs:ignore
+    delete_transient( 'sahel_chat_unread' );
+    wp_send_json( array( 'ok' => 1, 'id' => (int) $wpdb->insert_id ) );
+} );
+add_action( 'wp_ajax_sahel_chat_admin_close', function () {
+    sahel_chat_admin_guard();
+    global $wpdb;
+    $conv = isset( $_POST['conv'] ) ? preg_replace( '/[^a-f0-9]/', '', (string) wp_unslash( $_POST['conv'] ) ) : ''; // phpcs:ignore
+    if ( 32 === strlen( $conv ) ) {
+        if ( ! empty( $_POST['delete'] ) ) { $wpdb->delete( sahel_chat_t( 'm' ), array( 'conv' => $conv ) ); $wpdb->delete( sahel_chat_t( 'c' ), array( 'conv' => $conv ) ); } // phpcs:ignore
+        else { $wpdb->update( sahel_chat_t( 'c' ), array( 'closed' => 1, 'unread_admin' => 0 ), array( 'conv' => $conv ) ); } // phpcs:ignore
+    }
+    delete_transient( 'sahel_chat_unread' );
+    wp_send_json( array( 'ok' => 1 ) );
+} );
+function sahel_chat_admin_page() {
+    if ( ! current_user_can( sahel_chat_cap() ) ) { wp_die( 'دسترسی ندارید.', 403 ); }
+    sahel_chat_install();
+    set_transient( 'sahel_chat_online', 1, 90 );
+    $cfg = array( 'a' => admin_url( 'admin-ajax.php' ), 'n' => wp_create_nonce( 'sahel_chat_admin' ) );
+    echo '<div class="wrap sc-wrap" dir="rtl"><h1>💬 چت زنده <small>تا وقتی این صفحه باز است، بازدیدکننده‌ها شما را «آنلاین» می‌بینند.</small></h1><div class="sc"><aside class="sc-list" aria-label="گفتگوها"><p class="sc-empty">در حال بارگذاری…</p></aside><section class="sc-thread"><div class="sc-head"><b>یک گفتگو را انتخاب کنید</b><span class="sc-meta"></span><span class="sc-acts" hidden><button type="button" class="button sc-close">بستن گفتگو</button> <button type="button" class="button-link-delete sc-del">حذف</button></span></div><div class="sc-body"></div><form class="sc-form" hidden><textarea rows="2" placeholder="پاسخ… (Enter = ارسال، Shift+Enter = خط تازه)"></textarea><button class="button button-primary">ارسال</button></form></section></div></div>';
+    echo '<style>.sc-wrap h1 small{font-size:13px;color:#666;font-weight:400;margin-inline-start:8px}.sc{display:grid;grid-template-columns:300px 1fr;gap:14px;height:calc(100vh - 170px);min-height:420px}.sc-list,.sc-thread{background:#fff;border:1px solid #dcdcde;border-radius:12px;overflow:hidden}.sc-list{overflow-y:auto}'
+        . '.sc-item{display:block;width:100%;text-align:right;border:0;border-bottom:1px solid #f0f0f1;background:#fff;padding:12px 14px;cursor:pointer;font:inherit}.sc-item:hover,.sc-item.on{background:#f0f6fc}.sc-item b{display:flex;justify-content:space-between;gap:6px}.sc-item small{display:block;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sc-item .u{background:#d63638;color:#fff;border-radius:99px;padding:0 7px;font-size:11px}.sc-item.x{opacity:.55}'
+        . '.sc-thread{display:flex;flex-direction:column}.sc-head{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid #f0f0f1}.sc-head b{flex:1}.sc-meta{color:#666;font-size:12px}.sc-body{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px;background:#f6f7f7}'
+        . '.sc-m{max-width:70%;padding:8px 12px;border-radius:14px;white-space:pre-wrap;word-break:break-word;line-height:1.8}.sc-m small{display:block;font-size:11px;opacity:.6}.sc-m.v{align-self:flex-start;background:#fff;border:1px solid #e0e0e0}.sc-m.a{align-self:flex-end;background:#2271b1;color:#fff}'
+        . '.sc-form{display:flex;gap:8px;padding:10px;border-top:1px solid #f0f0f1}.sc-form textarea{flex:1}.sc-empty{padding:16px;color:#666}@media(max-width:782px){.sc{grid-template-columns:1fr;height:auto}.sc-list{max-height:240px}.sc-thread{height:70vh}}</style>';
+    echo '<script>var SC=' . wp_json_encode( $cfg ) . ';' . <<<'SHJS78A'
+(function(){
+var L=document.querySelector('.sc-list'),B=document.querySelector('.sc-body'),F=document.querySelector('.sc-form'),T=F.querySelector('textarea'),cur='',last=0,t1=0,t2=0;
+function post(a,d){var f=new FormData();f.append('action',a);f.append('nonce',SC.n);Object.keys(d||{}).forEach(function(k){f.append(k,d[k]);});return fetch(SC.a,{method:'POST',body:f,credentials:'same-origin'}).then(function(r){return r.json();}).catch(function(){return {ok:0};});}
+function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e;}
+function tm(s){var d=new Date(s*1000);return d.toLocaleString('fa-IR',{hour:'2-digit',minute:'2-digit',month:'short',day:'numeric'});}
+var prevUnread=-1;
+function list(){post('sahel_chat_admin_list').then(function(r){if(!r.ok)return;L.textContent='';if(!r.list.length){L.appendChild(el('p','sc-empty','هنوز گفتگویی نیست.'));}
+  var unread=0;r.list.forEach(function(c){unread+=c.u;var b=el('button','sc-item'+(c.c===cur?' on':'')+(c.x?' x':''));b.type='button';var h=el('b','',c.n);if(c.u){h.appendChild(el('span','u',String(c.u)));}b.appendChild(h);b.appendChild(el('small','',c.l));b.appendChild(el('small','',tm(c.t)+(c.p?' · '+c.p:'')));b.onclick=function(){openC(c);};L.appendChild(b);});
+  if(prevUnread>=0&&unread>prevUnread){try{new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=').play();}catch(e){}document.title='('+unread+') '+document.title.replace(/^\(\d+\)\s/,'');}
+  if(!unread)document.title=document.title.replace(/^\(\d+\)\s/,'');prevUnread=unread;});
+  clearTimeout(t1);t1=setTimeout(list,document.hidden?20000:6000);}
+function add(m){var e=el('div','sc-m '+(m.d?'a':'v'),m.b);e.appendChild(el('small','',tm(m.t)));B.appendChild(e);last=Math.max(last,m.id);B.scrollTop=B.scrollHeight;}
+function thread(){if(!cur)return;post('sahel_chat_admin_thread',{conv:cur,since:last}).then(function(r){if(r.ok)(r.m||[]).forEach(add);});clearTimeout(t2);t2=setTimeout(thread,document.hidden?15000:4000);}
+function openC(c){cur=c.c;last=0;B.textContent='';F.hidden=false;document.querySelector('.sc-acts').hidden=false;document.querySelector('.sc-head b').textContent=c.n;document.querySelector('.sc-meta').textContent=(c.p?c.p+' · ':'')+(c.pg?c.pg.replace(/^https?:\/\/[^/]+/,''):'');thread();list();setTimeout(function(){T.focus();},50);}
+F.addEventListener('submit',function(e){e.preventDefault();var v=T.value.trim();if(!v||!cur)return;T.value='';post('sahel_chat_admin_send',{conv:cur,body:v}).then(function(){thread();});});
+T.addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();F.requestSubmit?F.requestSubmit():F.dispatchEvent(new Event('submit'));}});
+document.querySelector('.sc-close').onclick=function(){if(cur)post('sahel_chat_admin_close',{conv:cur}).then(list);};
+document.querySelector('.sc-del').onclick=function(){if(cur&&confirm('این گفتگو کامل حذف شود؟'))post('sahel_chat_admin_close',{conv:cur,'delete':1}).then(function(){cur='';B.textContent='';F.hidden=true;list();});};
+list();
+})();
+SHJS78A
+    . '</script>';
+}
+
+/* ---------- تنظیمات ---------- */
+add_action( 'customize_register', function ( $w ) {
+    $s = 'sahel_x_chat';
+    $w->add_section( $s, array( 'title' => '💬 چت زنده', 'panel' => $w->get_panel( 'sahel_p_mobile' ) ? 'sahel_p_mobile' : '', 'priority' => 13, 'description' => 'پاسخ‌گویی: پیشخوان ← 💬 چت زنده. تا وقتی آن صفحه باز است، بازدیدکننده‌ها شما را «آنلاین» می‌بینند.' ) );
+    $p = 1;
+    $add = function ( $id, $def, $san, $args ) use ( $w, $s, &$p ) { $w->add_setting( 'sahel_chat_' . $id, array( 'default' => $def, 'sanitize_callback' => $san ) ); $w->add_control( 'sahel_chat_' . $id, $args + array( 'section' => $s, 'priority' => $p++ ) ); };
+    $add( 'on', 0, 'absint', array( 'label' => 'فعال کردن چت زنده', 'type' => 'checkbox' ) );
+    $add( 'title', 'پشتیبانی آنلاین', 'sanitize_text_field', array( 'label' => 'عنوان پنجره', 'type' => 'text' ) );
+    $add( 'welcome', 'سلام! 👋 چطور می‌توانیم کمکتان کنیم؟', 'sanitize_text_field', array( 'label' => 'پیام خوش‌آمد', 'type' => 'text' ) );
+    $add( 'offline', 'الان آنلاین نیستیم؛ پیام بگذارید، به‌زودی همین‌جا پاسخ می‌دهیم.', 'sanitize_text_field', array( 'label' => 'پیام وقتی آنلاین نیستید', 'type' => 'text' ) );
+    $add( 'ask', 1, 'absint', array( 'label' => 'وقتی آفلاین هستید نام و شماره پرسیده شود', 'type' => 'checkbox' ) );
+    $add( 'mail', 1, 'absint', array( 'label' => 'گفتگوی تازه وقتی آفلاین هستید به ایمیل مدیر خبر داده شود', 'type' => 'checkbox' ) );
+    $add( 'pos', 'br', 'sanitize_key', array( 'label' => 'محل دکمه', 'type' => 'select', 'choices' => array( 'br' => 'پایین راست', 'bl' => 'پایین چپ' ) ) );
+    $add( 'order', 1, 'absint', array( 'label' => '🔢 ترتیب نمایش در کنار دکمه‌های شناور دیگر', 'type' => 'number', 'input_attrs' => array( 'min' => 0, 'max' => 60 ) ) );
+    $add( 'hide_m', 0, 'absint', array( 'label' => 'در موبایل نمایش داده نشود', 'type' => 'checkbox' ) );
+    $w->add_setting( 'sahel_chat_color', array( 'default' => '', 'sanitize_callback' => 'sanitize_hex_color' ) );
+    $w->add_control( new WP_Customize_Color_Control( $w, 'sahel_chat_color', array( 'label' => 'رنگ (خالی = رنگ اصلی سایت)', 'section' => $s, 'priority' => $p++ ) ) );
+}, 1012 );

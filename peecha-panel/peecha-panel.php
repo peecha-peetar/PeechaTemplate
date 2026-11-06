@@ -3,7 +3,7 @@
  * Plugin Name:       پنل پیچا — مدیریت ساده‌ی فروشگاه
  * Plugin URI:        https://peecha.ir
  * Description:       پنل فارسی، ساده و سریع برای مدیریت فروشگاه ووکامرس: داشبورد فروش، سفارش‌ها با تاریخ شمسی و کد رهگیری، ویرایش سریع قیمت و موجودی، افزودن محصول و لیست مشتریان. داخل پیشخوان وردپرس و با همان ورود امن وردپرس.
- * Version:           1.1.0
+ * Version:           1.2.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Requires Plugins:  woocommerce
@@ -15,10 +15,11 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'PP_VER', '1.1.0' );
+define( 'PP_VER', '1.2.0' );
 define( 'PP_FILE', __FILE__ );
 define( 'PP_URL', plugin_dir_url( __FILE__ ) );
 define( 'PP_SLUG', 'peecha-panel' );
+require_once __DIR__ . '/includes/prices.php';
 
 /* سازگاری با جدول‌های جدید سفارش ووکامرس (HPOS) */
 add_action( 'before_woocommerce_init', function () {
@@ -274,9 +275,12 @@ final class Peecha_Panel {
 		$tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'dashboard'; // phpcs:ignore
 		if ( 'edit' === $tab ) { wp_enqueue_media(); }
 		wp_enqueue_script( 'pp-panel', PP_URL . 'assets/panel.js', array(), PP_VER, true );
+		if ( 'prices' === $tab ) { wp_enqueue_script( 'pp-prices', PP_URL . 'assets/prices.js', array( 'pp-panel' ), PP_VER, true ); }
 		wp_localize_script( 'pp-panel', 'PP', array(
 			'ajax'  => admin_url( 'admin-ajax.php' ),
 			'nonce' => wp_create_nonce( 'pp_quick' ),
+			'pnonce' => wp_create_nonce( 'pp_price' ),
+			'cur'   => html_entity_decode( get_woocommerce_currency_symbol() ),
 		) );
 	}
 
@@ -367,6 +371,7 @@ final class Peecha_Panel {
 			'dashboard' => array( 'داشبورد', 'dashicons-chart-area' ),
 			'orders'    => array( 'سفارش‌ها', 'dashicons-cart' ),
 			'products'  => array( 'محصولات', 'dashicons-products' ),
+			'prices'    => array( 'تغییر قیمت', 'dashicons-tag' ),
 			'edit'      => array( 'افزودن محصول', 'dashicons-plus-alt' ),
 			'customers' => array( 'مشتریان', 'dashicons-groups' ),
 		);
@@ -387,6 +392,7 @@ final class Peecha_Panel {
 			case 'orders':    self::page_orders(); break;
 			case 'order':     self::page_order(); break;
 			case 'products':  self::page_products(); break;
+			case 'prices':    class_exists( 'PP_Prices' ) ? PP_Prices::page() : self::page_products(); break;
 			case 'edit':      self::page_edit(); break;
 			case 'customers': self::page_customers(); break;
 			case 'settings':  current_user_can( 'manage_options' ) ? self::page_settings() : self::page_dashboard(); break;
