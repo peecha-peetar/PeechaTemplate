@@ -61,6 +61,7 @@
 			if (op === 'clear_sale') { s.value = ''; }
 			else if (op === 'sale_pct') { var base = en(r.value); if (base !== '' && !isNaN(base)) { s.value = round(+base * (1 - val / 100)); } }
 			else if (op === 'set' && field === 'sale') { s.value = round(val); }
+			else if (op === 'set' && field === 'both') { r.value = round(val); if (en(s.value) !== '' && +en(s.value) >= +en(r.value)) { s.value = ''; } }
 			else {
 				if (field === 'regular' || field === 'both') { calc(r); }
 				if (field === 'sale' || field === 'both') { calc(s); }
@@ -85,7 +86,13 @@
 		var items = rows.map(function (row) { return { id: +row.getAttribute('data-id'), regular: en(row.querySelector('.ppP[data-f=regular]').value), sale: en(row.querySelector('.ppP[data-f=sale]').value) }; });
 		var btn = document.getElementById('ppSaveAll'); saving = true; btn.disabled = true; btn.textContent = 'در حال ذخیره…';
 		var fd = new FormData(); fd.append('action', 'pp_price_batch'); fd.append('nonce', PP.pnonce); fd.append('items', JSON.stringify(items));
-		fetch(PP.ajax, { method: 'POST', body: fd, credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (res) {
+		fetch(PP.ajax, { method: 'POST', body: fd, credentials: 'same-origin' }).then(function (r) { return r.text().then(function (t) {
+			/* پاسخ غیر JSON (نشست منقضی، هشدار PHP قبل از JSON، فایروال) پیام روشن بدهد */
+			var tt = String(t).trim();
+			if (tt === '-1' || tt === '0' || (r.status === 403 && tt.indexOf('{') < 0)) { throw new Error('نشست منقضی شده است؛ صفحه را تازه کنید.'); }
+			var a = tt.indexOf('{"success"'); if (a < 0) { a = tt.indexOf('{'); }
+			try { return JSON.parse(a > 0 ? tt.slice(a) : tt); } catch (x) { throw new Error('پاسخ نامعتبر از سرور (کد ' + r.status + ')'); }
+		}); }).then(function (res) {
 			if (!res || !res.success) { throw new Error(res && res.data && res.data.msg ? res.data.msg : 'خطا'); }
 			rows.forEach(function (row) {
 				var d = res.data.items[row.getAttribute('data-id')], m = row.querySelector('.pp-rmsg');
@@ -99,5 +106,6 @@
 		}).catch(function (e) { alert('ذخیره نشد: ' + e.message); }).then(function () { saving = false; btn.disabled = false; btn.textContent = 'ذخیره‌ی همه'; refresh(); });
 	}
 	document.getElementById('ppSaveAll').addEventListener('click', save);
+	document.getElementById('ppbVal').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); document.getElementById('ppbApply').click(); } });
 	window.addEventListener('beforeunload', function (e) { if ($$('tr.pp-dirty', root).length) { e.preventDefault(); e.returnValue = ''; } });
 })();

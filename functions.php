@@ -2863,7 +2863,8 @@ var cio=new IntersectionObserver(function(es){es.forEach(function(en){
 if(!en.isIntersecting)return;cio.unobserve(en.target);
 var el=en.target,to=+el.getAttribute('data-to'),pre=el.getAttribute('data-prefix')||'',suf=el.getAttribute('data-suffix')||'',st=null;
 function step(ts){if(!st)st=ts;var p=Math.min((ts-st)/1400,1);var e2=1-Math.pow(1-p,3);var v=Math.round(to*e2);
-try{ el.textContent=pre+v.toLocaleString('fa-IR')+suf; }catch(err){ el.textContent=pre+faD(v)+suf; }
+if(v===el._lv&&p<1){requestAnimationFrame(step);return;}el._lv=v;
+try{ el.textContent=pre+(window.SAHEL_NF||(window.SAHEL_NF=new Intl.NumberFormat('fa-IR'))).format(v)+suf; }catch(err){ el.textContent=pre+faD(v)+suf; }
 if(p<1)requestAnimationFrame(step);}
 requestAnimationFrame(step);
 });},{threshold:.4});
@@ -7966,6 +7967,7 @@ add_action( 'customize_register', function ( $w ) {
  * ===================================================================== */
 function sahel_css_file_url( $prefix, $css, $ext = 'css' ) {
     $ext = 'js' === $ext ? 'js' : 'css';
+    if ( 'css' === $ext && function_exists( 'sahel_css_min' ) ) { $css = sahel_css_min( $css ); } /* v8.0: فایل CSS کوچک‌تر */
     $up = wp_upload_dir();
     if ( ! empty( $up['error'] ) ) { return ''; }
     $dir  = trailingslashit( $up['basedir'] ) . 'sahel-css';
@@ -11934,3 +11936,66 @@ add_action( 'customize_register', function ( $w ) {
     $add( 'cap_day', 500, 'absint', array( 'label' => '🤖 سقف کل پاسخ‌های دستیار در روز (کنترل هزینه)', 'type' => 'number', 'input_attrs' => array( 'min' => 1, 'max' => 100000 ) ) );
     $add( 'fail_text', 'الان نمی‌توانم پاسخ بدهم؛ همکاران ما به‌زودی همین‌جا جواب می‌دهند. 🙏', 'sanitize_text_field', array( 'label' => '🤖 متن وقتی سرویس در دسترس نیست', 'type' => 'text' ) );
 }, 1013 );
+
+/* =====================================================================
+ * v8.0 — کارایی موبایل و سئوی موبایل
+ *  ۱) کوچک‌سازی (minify) فایل‌های CSS قالب هنگام ساخت فایل کش
+ *  ۲) رندر نکردن بخش‌های پایین صفحه تا وقتی کاربر به آن‌ها برسد (content-visibility) در موبایل و تبلت
+ *  ۳) اندازه‌ی خوانای متن در موبایل (حداقل ۱۲ پیکسل؛ معیار «Legible font sizes» گوگل)
+ *  ۴) لوگوی سربرگ و فوتر از نسخه‌ی کوچک‌تر همان تصویر (نه فایل اصلی چند صد کیلوبایتی)
+ *  ۵) احترام به تنظیم «کاهش حرکت» سیستم‌عامل
+ *  همه با گزینه در «سفارشی‌سازی ← تنظیمات کلی ← امنیت و سرعت» قابل خاموش کردن هستند.
+ * ===================================================================== */
+function sahel_css_min( $css ) {
+    if ( ! (int) get_theme_mod( 'sahel_perf_min', 1 ) || '' === $css ) { return $css; }
+    $out = preg_replace( '#/\*[^*]*\*+(?:[^/*][^*]*\*+)*/#', '', $css ); /* توضیحات */
+    if ( null === $out ) { return $css; }
+    $out = preg_replace( '/\s+/', ' ', $out );                          /* فاصله‌ها و خط‌های اضافه */
+    $out = preg_replace( '/\s*([{};,])\s*/', '$1', $out );             /* فقط اطراف { } ; , (نه : یا + که معنی دارند) */
+    $out = str_replace( ';}', '}', (string) $out );
+    return ( null === $out || '' === trim( $out ) ) ? $css : trim( $out );
+}
+add_action( 'wp_head', function () {
+    if ( is_admin() ) { return; }
+    $css = '';
+    if ( (int) get_theme_mod( 'sahel_perf_cv', 1 ) ) {
+        /* بخش‌های خارج از دید تا نزدیک شدن کاربر چیده و نقاشی نمی‌شوند؛ اندازه‌ی تقریبی جا نگه داشته می‌شود تا صفحه نپرد */
+        $css .= '@media(max-width:1024px){body>section:not(:has(dialog,[class*="modal"],[class*="popup"],[class*="lightbox"],[style*="fixed"])),body>footer{content-visibility:auto;contain-intrinsic-size:auto 700px}}';
+    }
+    if ( (int) get_theme_mod( 'sahel_seo_legible', 1 ) ) {
+        $css .= '@media(max-width:600px){.prod-card .prod-desc,.prod-card .prod-name,.prod-card .prod-name a,.prod-card .prod-price,.prod-card .prod-price .amount,.prod-card .prod-cat a,.prod-card .pv-add,.prod-vsel .pv-row>span,.cat-card .txt p,.post-card .pdate,.sec-head p,.foot-bottom,.foot-bottom a,.pd-trust span,.mini_cart_item .quantity,.mini_cart_item>a,.cart-foot-link{font-size:12px!important}}';
+    }
+    if ( (int) get_theme_mod( 'sahel_perf_motion', 1 ) ) {
+        $css .= '@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}';
+    }
+    if ( '' !== $css ) { echo '<style id="sahel-v80-perf">' . $css . '</style>' . "\n"; } // phpcs:ignore -- CSS ثابت
+}, 99 );
+/* لوگوی سربرگ/فوتر از اندازه‌ی «متوسط بزرگ» (۷۶۸ پیکسل) همان تصویر؛ برای صفحه‌ی ۳بعدی لندینگ همان فایل اصلی می‌ماند */
+add_filter( 'sahel_final_html', function ( $html ) {
+    if ( ! (int) get_theme_mod( 'sahel_perf_logo', 1 ) || ! function_exists( 'has_custom_logo' ) || ! has_custom_logo() ) { return $html; }
+    $id   = (int) get_theme_mod( 'custom_logo' );
+    $full = wp_get_attachment_image_url( $id, 'full' );
+    $s    = wp_get_attachment_image_src( $id, 'medium_large' );
+    if ( ! $full || ! is_array( $s ) || empty( $s[3] ) || $s[0] === $full ) { return $html; } /* SVG یا لوگوی کوچک: دست نمی‌خورد */
+    $f = esc_url( $full ); $m = esc_url( $s[0] );
+    return str_replace(
+        array( '<span class="brand-logo"><img src="' . $f . '"', '<div class="foot-brand"><img src="' . $f . '"' ),
+        array( '<span class="brand-logo"><img src="' . $m . '"', '<div class="foot-brand"><img src="' . $m . '"' ),
+        $html
+    );
+}, 40 );
+add_action( 'customize_register', function ( $w ) {
+    $s = $w->get_section( 'sahel_x_security' ) ? 'sahel_x_security' : 'title_tagline';
+    $items = array(
+        'sahel_perf_min'    => array( '⚡ کوچک‌سازی فایل‌های CSS', 'توضیحات و فاصله‌های اضافه از فایل CSS حذف می‌شود (حدود ۱۵٪ کم‌حجم‌تر).' ),
+        'sahel_perf_cv'     => array( '⚡ موبایل: بخش‌های پایین صفحه بعداً رندر شوند', 'بخش‌هایی که هنوز دیده نمی‌شوند تا نزدیک شدن کاربر چیده نمی‌شوند؛ بارگذاری اولیه در گوشی سریع‌تر می‌شود. اگر بخشی در موبایل بریده دیده شد خاموش کنید.' ),
+        'sahel_seo_legible' => array( '🔎 موبایل: حداقل اندازه‌ی متن ۱۲ پیکسل', 'معیار «اندازه‌ی خوانای متن» گوگل در موبایل. توضیح، نام و قیمت کارت محصول و چند متن ریز دیگر در گوشی ۱۲ پیکسل می‌شوند.' ),
+        'sahel_perf_logo'   => array( '⚡ لوگوی سربرگ از نسخه‌ی کوچک‌تر تصویر', 'به‌جای فایل اصلی لوگو، اندازه‌ی ۷۶۸ پیکسلی همان تصویر بارگذاری می‌شود.' ),
+        'sahel_perf_motion' => array( '⚡ احترام به «کاهش حرکت» گوشی', 'اگر کاربر در تنظیمات گوشی «کاهش حرکت» را روشن کرده باشد، انیمیشن‌ها برایش خاموش می‌شوند.' ),
+    );
+    $p = 30;
+    foreach ( $items as $id => $t ) {
+        $w->add_setting( $id, array( 'default' => 1, 'sanitize_callback' => 'absint' ) );
+        $w->add_control( $id, array( 'label' => $t[0], 'description' => $t[1], 'section' => $s, 'type' => 'checkbox', 'priority' => $p++ ) );
+    }
+}, 1014 );

@@ -29,7 +29,9 @@ final class PP_Prices {
 		echo '<select name="per">'; foreach ( array( 20, 40, 80, 150 ) as $n ) { echo '<option value="' . $n . '"' . selected( $per, $n, false ) . '>' . esc_html( Peecha_Panel::fa( $n ) ) . ' در صفحه</option>'; } echo '</select>';
 		echo '<label class="pp-chk"><input type="checkbox" name="onsale" value="1"' . checked( $sale, true, false ) . '> فقط حراجی‌ها</label><button class="pp-btn ghost">فیلتر</button></form>';
 
-		$args = array( 'limit' => $per, 'page' => $page, 'paginate' => true, 'status' => array( 'publish', 'draft', 'pending', 'private' ), 'orderby' => 'title', 'order' => 'ASC', 'type' => in_array( $type, array( 'simple', 'variable' ), true ) ? array( $type ) : array( 'simple', 'variable', 'external' ) );
+		$args = array( 'limit' => $per, 'page' => $page, 'paginate' => true, 'status' => array( 'publish', 'draft', 'pending', 'private' ), 'orderby' => 'title', 'order' => 'ASC', 'return' => 'objects' );
+		/* v1.2.1: فقط وقتی نوع انتخاب شده فیلتر شود؛ محصولاتی که برچسب نوع ندارند (مثلاً درون‌ریزی‌شده‌ها) هم نمایش داده شوند */
+		if ( in_array( $type, array( 'simple', 'variable' ), true ) ) { $args['type'] = array( $type ); }
 		if ( '' !== $s ) {
 			$by_sku = wc_get_product_id_by_sku( $s );
 			if ( $by_sku ) { $pp = wc_get_product( $by_sku ); $args['include'] = array( $pp && $pp->get_parent_id() ? $pp->get_parent_id() : $by_sku ); } else { $args['s'] = $s; }
@@ -52,6 +54,8 @@ final class PP_Prices {
 			if ( $p->is_type( 'variable' ) ) {
 				echo '<tr class="pp-pgroup"><td class="cb"><input type="checkbox" class="ppGroup" data-group="' . (int) $p->get_id() . '" aria-label="انتخاب همه‌ی حالت‌ها"></td><td class="pp-thumb">' . wp_kses_post( $p->get_image( array( 40, 40 ) ) ) . '</td><td colspan="4"><b>' . esc_html( $p->get_name() ) . '</b><small>محصول متغیر — ' . esc_html( Peecha_Panel::fa( count( $p->get_children() ) ) ) . ' حالت</small></td></tr>';
 				foreach ( array_slice( $p->get_children(), 0, 100 ) as $vid ) { $v = wc_get_product( $vid ); if ( $v ) { self::row( $v, $p ); } }
+			} elseif ( $p->is_type( 'grouped' ) ) {
+				continue; /* محصول گروهی قیمت جداگانه ندارد */
 			} else {
 				self::row( $p, null );
 			}
@@ -93,7 +97,7 @@ final class PP_Prices {
 		foreach ( $items as $it ) {
 			$id = isset( $it['id'] ) ? absint( $it['id'] ) : 0;
 			$p = $id ? wc_get_product( $id ) : false;
-			if ( ! $p || ! in_array( $p->get_type(), array( 'simple', 'variation', 'external' ), true ) ) { $out[ $id ] = array( 'ok' => false, 'msg' => 'پیدا نشد' ); continue; }
+			if ( ! $p || $p->is_type( 'variable' ) || $p->is_type( 'grouped' ) ) { $out[ $id ] = array( 'ok' => false, 'msg' => 'پیدا نشد' ); continue; }
 			$check = $p->get_parent_id() ? $p->get_parent_id() : $id;
 			if ( ! current_user_can( 'edit_product', $check ) ) { $out[ $id ] = array( 'ok' => false, 'msg' => 'دسترسی ندارید' ); continue; }
 			$reg = array_key_exists( 'regular', $it ) ? $num( $it['regular'] ) : $p->get_regular_price( 'edit' );
@@ -103,9 +107,12 @@ final class PP_Prices {
 			$p->set_regular_price( $reg );
 			$p->set_sale_price( $sale );
 			if ( '' === $sale ) { $p->set_date_on_sale_from( '' ); $p->set_date_on_sale_to( '' ); }
+			/* زمان‌بندی حراجِ تمام‌شده باعث می‌شد قیمت ویژه‌ی جدید روی سایت دیده نشود */
+			elseif ( $p->get_date_on_sale_to( 'edit' ) && $p->get_date_on_sale_to( 'edit' )->getTimestamp() < time() ) { $p->set_date_on_sale_from( '' ); $p->set_date_on_sale_to( '' ); }
 			$p->save();
 			if ( $p->get_parent_id() ) { $parents[ $p->get_parent_id() ] = 1; }
 			$saved++;
+			if ( ! $p->get_parent_id() ) { wc_delete_product_transients( $id ); }
 			$out[ $id ] = array( 'ok' => true, 'regular' => $p->get_regular_price( 'edit' ), 'sale' => $p->get_sale_price( 'edit' ) );
 		}
 		foreach ( array_keys( $parents ) as $pid ) { if ( class_exists( 'WC_Product_Variable' ) ) { WC_Product_Variable::sync( $pid ); } wc_delete_product_transients( $pid ); }

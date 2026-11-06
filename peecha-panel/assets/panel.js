@@ -16,10 +16,14 @@
 	document.addEventListener('submit', function (e) {
 		var f = e.target;
 		if (e.defaultPrevented || !f.closest('.pp')) { return; }
+		if ((f.getAttribute('method') || 'get').toLowerCase() === 'get') { return; } /* فرم‌های جستجو/فیلتر قفل نشوند */
 		if (f.dataset.sent) { e.preventDefault(); return; }
 		f.dataset.sent = '1';
 		$$('button', f).forEach(function (b) { b.disabled = true; });
 	});
+
+	/* بازگشت با دکمه‌ی Back: دکمه‌های قفل‌شده آزاد شوند */
+	window.addEventListener('pageshow', function () { $$('.pp form[data-sent]').forEach(function (f) { delete f.dataset.sent; $$('button', f).forEach(function (b) { b.disabled = false; }); }); });
 
 	/* انتخاب همه‌ی سفارش‌ها */
 	var all = $('.pp-check-all');
