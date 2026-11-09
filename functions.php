@@ -5102,13 +5102,15 @@ function colorOf(){for(var a=0;a<arguments.length;a++){var s=String(arguments[a]
 var isColorName=function(t){return /color|colour|رنگ/i.test(t||'');};
 /* دکمه/نمونه رنگ برای ویژگی‌های محصول متغیر */
 var VMODE=(document.body.className.match(/pdvar-(\w+)/)||[])[1]||'buttons';
+/* v8.2: تصویر بندانگشتی هر رنگ/طرح (از تصویر خود متغیر)؛ نقشه از سرور در #sahelVarImgs */
+var VIMG=null;function sahelVimg(n){if(VIMG===null){try{VIMG=JSON.parse((document.getElementById('sahelVarImgs')||{}).textContent||'{}')||{};}catch(e){VIMG={};}}return n&&VIMG[n]?VIMG[n]:null;}
 if(VMODE!=='select'){
 $('.variations_form').each(function(){var form=this;
  $(form).find('table.variations select').each(function(){var $s=$(this);if($s.data('sw'))return;$s.data('sw',1);
-  var label=($s.attr('name')||'')+' '+$s.closest('tr').find('th,label').first().text();var color=VMODE==='swatches'&&isColorName(label);
-  var $w=$('<div class="pd-sw'+(color?' is-color':'')+'" role="radiogroup"></div>');$s.after($w).addClass('pd-sw-hidden');
+  var label=($s.attr('name')||'')+' '+$s.closest('tr').find('th,label').first().text();var color=VMODE==='swatches'&&isColorName(label);var VI=sahelVimg($s.attr('name'));
+  var $w=$('<div class="pd-sw'+(color?' is-color':'')+(VI?' has-imgs':'')+'" role="radiogroup"></div>');$s.after($w).addClass('pd-sw-hidden');
   function build(){$w.empty();$s.find('option').each(function(){var v=this.value;if(!v)return;var t=$(this).text();var $b=$('<button type="button" class="pd-sw-b" role="radio"></button>').attr('data-v',v).attr('title',t);
-   if(color){var c=colorOf(v,t);if(c){$b.addClass('has-c').css('--swc',c).append('<i></i>');}$b.append($('<span></span>').text(t));}else{$b.text(t);}
+   if(VI){$b.addClass('has-img').attr('aria-label',t);var im=VI[v];if(im){$b.append($('<img alt="" loading="lazy" decoding="async">').attr('src',im));}else{var c2=colorOf(v,t);var $i=$('<i class="vt"></i>');if(c2){$i.css('--swc',c2);}else{$b.addClass('no-c');$i.text(String(t).charAt(0));}$b.append($i);}$b.append($('<span></span>').text(t));}else if(color){var c=colorOf(v,t);if(c){$b.addClass('has-c').css('--swc',c).append('<i></i>');}$b.append($('<span></span>').text(t));}else{$b.text(t);}
    if($s.val()===v){$b.addClass('on').attr('aria-checked','true');}if(this.disabled){$b.addClass('off');}$w.append($b);});}
   build();
   $s.on('change',function(){$w.find('.pd-sw-b').removeClass('on').attr('aria-checked','false').filter(function(){return $(this).attr('data-v')===$s.val();}).addClass('on').attr('aria-checked','true');});
@@ -12959,3 +12961,80 @@ add_action( 'customize_register', function ( $w ) {
     $chk( 'sahel_pdx_adv_online', 1, '— نقطه‌ی سبز «آنلاین» کنار عکس', $s, '', 61 );
     $txt( 'sahel_pdx_cc', '98', '— کد کشور برای واتساپ', $s, '', 62 );
 }, 1015 );
+
+/* =====================================================================
+ * v8.2 — تصویر بندانگشتی برای رنگ/طرح متغیرها
+ * چون رنگ‌ها نسبی‌اند، به‌جای دایره‌ی رنگ، تصویر خود هر متغیر نمایش داده می‌شود و با کلیک انتخاب می‌شود
+ * (تصویر اصلی گالری هم مثل همیشه عوض می‌شود). اگر متغیری تصویر نداشت، کادر با همان رنگ پر می‌شود.
+ * کادر و گردی گوشه‌ها از تنظیمات کلی قالب (--rad، --line، --c1) پیروی می‌کند.
+ * ===================================================================== */
+function sahel_vimg_map( $p ) {
+    if ( ! $p || ! is_object( $p ) || ! $p->is_type( 'variable' ) ) { return array(); }
+    $mode = (string) get_theme_mod( 'sahel_pd_var_img', 'color' );
+    if ( 'off' === $mode ) { return array(); }
+    $ck  = 'sahel_vimg_' . $p->get_id() . '_' . ( function_exists( 'sahel_cv_ver' ) ? sahel_cv_ver() : 1 ) . '_' . $mode;
+    $map = get_transient( $ck );
+    if ( is_array( $map ) ) { return $map; }
+    $map = array(); $ids = array();
+    foreach ( array_slice( (array) $p->get_children(), 0, 150 ) as $vid ) {
+        $v = wc_get_product( $vid );
+        if ( ! $v ) { continue; }
+        $iid = (int) $v->get_image_id( 'edit' );
+        if ( ! $iid ) { continue; }
+        foreach ( (array) $v->get_attributes() as $k => $val ) {
+            if ( '' === (string) $val ) { continue; }
+            $key = 'attribute_' . $k;
+            if ( isset( $map[ $key ][ $val ] ) ) { continue; }
+            $u = wp_get_attachment_image_url( $iid, 'woocommerce_gallery_thumbnail' );
+            if ( ! $u ) { continue; }
+            $map[ $key ][ (string) $val ] = $u;
+            $ids[ $key ][ $iid ] = 1;
+        }
+    }
+    foreach ( array_keys( $map ) as $key ) {
+        /* همه‌ی گزینه‌ها یک تصویر مشترک دارند → تصویر کمکی نمی‌کند */
+        if ( count( $map[ $key ] ) > 1 && count( $ids[ $key ] ) < 2 ) { unset( $map[ $key ] ); continue; }
+        if ( 'color' === $mode ) {
+            $tax = substr( $key, 10 );
+            $lbl = function_exists( 'wc_attribute_label' ) ? wc_attribute_label( $tax, $p ) : $tax;
+            if ( ! preg_match( '/color|colour|رنگ|طرح|نقش|pattern|design|print/iu', rawurldecode( $tax ) . ' ' . $lbl ) ) { unset( $map[ $key ] ); }
+        }
+    }
+    set_transient( $ck, $map, DAY_IN_SECONDS );
+    return $map;
+}
+add_action( 'wp_footer', function () {
+    if ( ! function_exists( 'is_product' ) || ! is_product() || 'select' === get_theme_mod( 'sahel_pd_var_style', 'swatches' ) ) { return; }
+    $p = wc_get_product( get_queried_object_id() );
+    $map = sahel_vimg_map( $p );
+    if ( ! $map ) { return; }
+    foreach ( $map as $k => $vals ) { foreach ( $vals as $v => $u ) { $map[ $k ][ $v ] = esc_url_raw( $u ); } }
+    echo '<script type="application/json" id="sahelVarImgs">' . wp_json_encode( $map, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) . '</script>' . "\n";
+}, 5 );
+add_action( 'wp_head', function () {
+    if ( ! function_exists( 'is_product' ) || ! is_product() ) { return; }
+    $sz = max( 36, min( 120, (int) get_theme_mod( 'sahel_pd_var_img_size', 58 ) ) );
+    $c  = '.pd-sw.has-imgs{gap:10px;--vimg:' . $sz . 'px}'
+        . '.pd-sw-b.has-img{flex-direction:column;align-items:center;gap:5px;padding:4px!important;min-height:0;border-radius:calc(var(--rad,16px) * .75)!important;background:var(--cardbg,#fff);border:1.5px solid var(--line);width:calc(var(--vimg) + 11px);text-align:center;line-height:1.3}'
+        . '.pd-sw-b.has-img img,.pd-sw-b.has-img .vt{display:block;width:var(--vimg);height:var(--vimg);border-radius:calc(var(--rad,16px) * .55);object-fit:cover;flex-shrink:0;margin:0}'
+        . '.pd-sw-b.has-img .vt{background:var(--swc,color-mix(in srgb,var(--ink) 6%,var(--cardbg,#fff)));border:1px solid rgba(0,0,0,.08);display:grid;place-items:center;font-style:normal;font-weight:900;font-size:calc(var(--vimg) * .32);color:var(--muted)}'
+        . '.pd-sw-b.has-img span{font-size:11px;font-weight:700;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 2px 2px}'
+        . '.pd-sw-b.has-img:hover{border-color:var(--c1);transform:translateY(-2px)}'
+        . '.pd-sw-b.has-img{transition:transform .2s,border-color .2s,box-shadow .2s}'
+        . '.pd-sw-b.has-img.on{border-color:var(--c1);box-shadow:0 0 0 3px color-mix(in srgb,var(--c1) 22%,transparent);background:var(--cardbg,#fff)}'
+        . '.pd-sw-b.has-img.off{opacity:.4;text-decoration:none}.pd-sw-b.has-img.off img,.pd-sw-b.has-img.off .vt{filter:grayscale(1)}';
+    if ( ! (int) get_theme_mod( 'sahel_pd_var_img_label', 1 ) ) { $c .= '.pd-sw-b.has-img span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}'; }
+    echo '<style id="sahel-v82-vimg">' . $c . '</style>' . "\n"; // phpcs:ignore -- CSS ثابت + عدد
+}, 98 );
+add_filter( 'sahel_css_page_blocks', function ( $a ) { $a[] = 'sahel-v82-vimg'; return $a; } );
+add_action( 'customize_register', function ( $w ) {
+    $s = $w->get_section( 'sahel_product' ) ? 'sahel_product' : ( $w->get_section( 'sahel_x_pdx' ) ? 'sahel_x_pdx' : '' );
+    if ( ! $s ) { return; }
+    $ch = array( 'color' => 'برای ویژگی رنگ و طرح (پیشنهادی)', 'all' => 'برای هر ویژگی‌ای که متغیرهایش تصویر جدا دارند', 'off' => 'خاموش (فقط دکمه و دایره‌ی رنگ)' );
+    $w->add_setting( 'sahel_pd_var_img', array( 'default' => 'color', 'sanitize_callback' => function ( $v ) use ( $ch ) { return isset( $ch[ $v ] ) ? $v : 'color'; } ) );
+    $w->add_control( 'sahel_pd_var_img', array( 'label' => '🖼 تصویر بندانگشتی به‌جای نمونه‌ی رنگ', 'description' => 'تصویر هر متغیر (ویرایش محصول ← متغیرها ← تصویر) کنار هم نمایش داده می‌شود و با کلیک روی آن، همان رنگ/طرح انتخاب می‌شود. متغیر بدون تصویر با کادر همان رنگ نشان داده می‌شود.', 'section' => $s, 'type' => 'select', 'choices' => $ch, 'priority' => 41 ) );
+    $w->add_setting( 'sahel_pd_var_img_size', array( 'default' => 58, 'sanitize_callback' => 'absint' ) );
+    $w->add_control( 'sahel_pd_var_img_size', array( 'label' => '— اندازه‌ی تصویر بندانگشتی (پیکسل)', 'section' => $s, 'type' => 'number', 'input_attrs' => array( 'min' => 36, 'max' => 120 ), 'priority' => 42 ) );
+    $w->add_setting( 'sahel_pd_var_img_label', array( 'default' => 1, 'sanitize_callback' => 'absint' ) );
+    $w->add_control( 'sahel_pd_var_img_label', array( 'label' => '— نام رنگ/طرح زیر تصویر', 'section' => $s, 'type' => 'checkbox', 'priority' => 43 ) );
+}, 1016 );
