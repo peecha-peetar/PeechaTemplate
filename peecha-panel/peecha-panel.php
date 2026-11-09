@@ -3,7 +3,7 @@
  * Plugin Name:       پنل پیچا — مدیریت ساده‌ی فروشگاه
  * Plugin URI:        https://peecha.ir
  * Description:       پنل فارسی، ساده و سریع برای مدیریت فروشگاه ووکامرس: داشبورد فروش، سفارش‌ها با تاریخ شمسی و کد رهگیری، ویرایش سریع قیمت و موجودی، افزودن محصول و لیست مشتریان. داخل پیشخوان وردپرس و با همان ورود امن وردپرس.
- * Version:           1.2.1
+ * Version:           1.3.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Requires Plugins:  woocommerce
@@ -15,7 +15,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'PP_VER', '1.2.1' );
+define( 'PP_VER', '1.3.0' );
 define( 'PP_FILE', __FILE__ );
 define( 'PP_URL', plugin_dir_url( __FILE__ ) );
 define( 'PP_SLUG', 'peecha-panel' );
@@ -1036,6 +1036,7 @@ final class Peecha_Panel {
 		self::cat_checks( 0, $cats, 0 );
 		echo '</div></section>';
 		echo '<section class="pp-box pp-form"><div class="pp-box-h"><h2>برچسب‌ها</h2></div><label>با ویرگول جدا کنید<input type="text" name="tags" value="' . esc_attr( implode( '، ', (array) $tags ) ) . '" placeholder="تابستانه، نخی، پرفروش"></label></section>';
+		do_action( 'pp_edit_side_boxes', $p ); /* v1.3: جعبه‌های اضافه (مثلاً ویژگی‌ها و مشاور از قالب) */
 		echo '</aside></div></form>';
 	}
 	private static function cat_checks( $parent, $sel, $depth ) {
@@ -1151,6 +1152,7 @@ final class Peecha_Panel {
 		}
 		$p->set_attributes( $attrs );
 		$new_id = $p->save();
+		do_action( 'pp_save_product_after', $new_id );
 
 		/* تنوع‌ها */
 		if ( 'variable' === $type ) {
