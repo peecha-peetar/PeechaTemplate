@@ -3,7 +3,7 @@
  * Plugin Name:       پنل پیچا — مدیریت ساده‌ی فروشگاه
  * Plugin URI:        https://peecha.ir
  * Description:       پنل فارسی، ساده و سریع برای مدیریت فروشگاه ووکامرس: داشبورد فروش، سفارش‌ها با تاریخ شمسی و کد رهگیری، ویرایش سریع قیمت و موجودی، افزودن محصول و لیست مشتریان. داخل پیشخوان وردپرس و با همان ورود امن وردپرس.
- * Version:           1.3.0
+ * Version:           1.3.1
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Requires Plugins:  woocommerce
@@ -15,7 +15,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'PP_VER', '1.3.0' );
+define( 'PP_VER', '1.3.1' );
 define( 'PP_FILE', __FILE__ );
 define( 'PP_URL', plugin_dir_url( __FILE__ ) );
 define( 'PP_SLUG', 'peecha-panel' );
@@ -922,7 +922,9 @@ final class Peecha_Panel {
 		$vals = $v ? $v->get_attributes() : array();
 		$img  = $v ? (int) $v->get_image_id() : 0;
 		$n    = 'var[' . esc_attr( $k ) . ']';
-		echo '<tr class="pp-vrow' . ( $v && 'private' === $v->get_status() ? ' off' : '' ) . '"><td class="pp-vimg-c"><input type="hidden" name="' . $n . '[id]" value="' . (int) ( $v ? $v->get_id() : 0 ) . '"><input type="hidden" name="' . $n . '[image]" value="' . (int) $img . '"><button type="button" class="pp-vimg" title="تصویر این تنوع">' . ( $img ? wp_get_attachment_image( $img, array( 48, 48 ) ) : '<span>+🖼</span>' ) . '</button></td>'; // phpcs:ignore
+		echo '<tr class="pp-vrow' . ( $v && 'private' === $v->get_status() ? ' off' : '' ) . '"><td class="pp-vimg-c"><input type="hidden" name="' . $n . '[id]" value="' . (int) ( $v ? $v->get_id() : 0 ) . '"><input type="hidden" name="' . $n . '[image]" value="' . (int) $img . '"><button type="button" class="pp-vimg" title="تصویر این تنوع">' . ( $img ? wp_get_attachment_image( $img, array( 48, 48 ) ) : '<span>+🖼</span>' ) . '</button>'; // phpcs:ignore
+		do_action( 'pp_var_row_image', $n, $v ); /* v1.3.1: تصاویر بیشتر هر تنوع (از قالب) */
+		echo '</td>';
 		echo '<td class="pp-vattrs" data-l="حالت">';
 		foreach ( $vattrs as $a ) {
 			$cur = isset( $vals[ $a['key'] ] ) ? $vals[ $a['key'] ] : '';
@@ -1196,6 +1198,7 @@ final class Peecha_Panel {
 				$vv->set_image_id( $vimg && wp_attachment_is_image( $vimg ) ? $vimg : '' );
 				$vv->set_status( empty( $row['on'] ) ? 'private' : 'publish' );
 				$vv->save();
+				do_action( 'pp_save_variation_after', $vv->get_id(), $row ); /* v1.3.1 */
 				$existing[] = wp_json_encode( $va );
 			}
 			foreach ( $kids as $kid ) { /* حالت‌هایی که در فرم نبودند (مثلاً بیش از ۱۵۰) */

@@ -5104,10 +5104,12 @@ var isColorName=function(t){return /color|colour|رنگ/i.test(t||'');};
 var VMODE=(document.body.className.match(/pdvar-(\w+)/)||[])[1]||'buttons';
 /* v8.2: تصویر بندانگشتی هر رنگ/طرح (از تصویر خود متغیر)؛ نقشه از سرور در #sahelVarImgs */
 var VIMG=null;function sahelVimg(n){if(VIMG===null){try{VIMG=JSON.parse((document.getElementById('sahelVarImgs')||{}).textContent||'{}')||{};}catch(e){VIMG={};}}return n&&VIMG[n]?VIMG[n]:null;}
-if(VMODE!=='select'){
+/* v8.4: حالت نمایش جدا برای هر ویژگی (sw = دکمه/تصویر/رنگ، select = کومبوباکس)؛ از سرور در #sahelVarModes */
+var VMO=null;function sahelVmode(n){if(VMO===null){try{VMO=JSON.parse((document.getElementById('sahelVarModes')||{}).textContent||'{}')||{};}catch(e){VMO={};}}return n&&VMO[n]?VMO[n]:'';}
+if(VMODE!=='select'||document.getElementById('sahelVarModes')){
 $('.variations_form').each(function(){var form=this;
- $(form).find('table.variations select').each(function(){var $s=$(this);if($s.data('sw'))return;$s.data('sw',1);
-  var label=($s.attr('name')||'')+' '+$s.closest('tr').find('th,label').first().text();var color=VMODE==='swatches'&&isColorName(label);var VI=sahelVimg($s.attr('name'));
+ $(form).find('table.variations select').each(function(){var $s=$(this);var OV=sahelVmode($s.attr('name'));if(OV==='select'||(VMODE==='select'&&OV!=='sw'))return;if($s.data('sw'))return;$s.data('sw',1);
+  var label=($s.attr('name')||'')+' '+$s.closest('tr').find('th,label').first().text();var color=(VMODE==='swatches'||VMODE==='select')&&isColorName(label);var VI=sahelVimg($s.attr('name'));
   var $w=$('<div class="pd-sw'+(color?' is-color':'')+(VI?' has-imgs':'')+'" role="radiogroup"></div>');$s.after($w).addClass('pd-sw-hidden');
   function build(){$w.empty();$s.find('option').each(function(){var v=this.value;if(!v)return;var t=$(this).text();var $b=$('<button type="button" class="pd-sw-b" role="radio"></button>').attr('data-v',v).attr('title',t);
    if(VI){$b.addClass('has-img').attr('aria-label',t);var im=VI[v];if(im){$b.append($('<img alt="" loading="lazy" decoding="async">').attr('src',im));}else{var c2=colorOf(v,t);var $i=$('<i class="vt"></i>');if(c2){$i.css('--swc',c2);}else{$b.addClass('no-c');$i.text(String(t).charAt(0));}$b.append($i);}$b.append($('<span></span>').text(t));}else if(color){var c=colorOf(v,t);if(c){$b.addClass('has-c').css('--swc',c).append('<i></i>');}$b.append($('<span></span>').text(t));}else{$b.text(t);}
@@ -13007,9 +13009,10 @@ function sahel_vimg_map( $p ) {
     return $map;
 }
 add_action( 'wp_footer', function () {
-    if ( ! function_exists( 'is_product' ) || ! is_product() || 'select' === get_theme_mod( 'sahel_pd_var_style', 'swatches' ) ) { return; }
+    if ( ! function_exists( 'is_product' ) || ! is_product() ) { return; }
     $p = wc_get_product( get_queried_object_id() );
-    $map = sahel_vimg_map( $p );
+    if ( ! function_exists( 'sahel_pd_var_any_sw' ) || ! sahel_pd_var_any_sw( $p ) ) { return; }
+    $map = sahel_pd_var_strip_select( sahel_vimg_map( $p ), $p ); /* v8.4: ویژگی‌های کومبوباکس تصویر نمی‌گیرند */
     if ( ! $map ) { return; }
     foreach ( $map as $k => $vals ) { foreach ( $vals as $v => $u ) { $map[ $k ][ $v ] = esc_url_raw( $u ); } }
     echo '<script type="application/json" id="sahelVarImgs">' . wp_json_encode( $map, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) . '</script>' . "\n";
@@ -13076,7 +13079,7 @@ function sahel_vimg_why( $p ) {
     if ( ! $p || ! is_object( $p ) || ! $p->is_type( 'variable' ) ) { return ''; }
     $mode = (string) get_theme_mod( 'sahel_pd_var_img', 'color' );
     if ( 'off' === $mode ) { return 'گزینه‌ی «تصویر بندانگشتی متغیرها» در سفارشی‌سازی ← صفحه محصول خاموش است.'; }
-    if ( 'select' === get_theme_mod( 'sahel_pd_var_style', 'swatches' ) ) { return '«نمایش ویژگی‌های محصول متغیر» روی «کومبوباکس» است؛ آن را روی «دکمه + نمونه رنگ» بگذارید.'; }
+    if ( 'select' === get_theme_mod( 'sahel_pd_var_style', 'swatches' ) && ! ( function_exists( 'sahel_pd_var_any_sw' ) && sahel_pd_var_any_sw( $p ) ) ) { return '«نمایش ویژگی‌های محصول متغیر» روی «کومبوباکس» است؛ آن را روی «دکمه + نمونه رنگ» بگذارید.'; }
     $kids = (array) $p->get_children();
     if ( ! $kids ) { return 'این محصول هنوز هیچ متغیر منتشرشده‌ای ندارد (ویرایش محصول ← متغیرها ← ساخت متغیرها).'; }
     $with = 0; $anyv = 0; $imgs = array();
@@ -13094,8 +13097,229 @@ function sahel_vimg_why( $p ) {
 }
 add_filter( 'sahel_pd_after_cart', function ( $h, $p = null ) {
     if ( ! is_object( $p ) || ! $p->is_type( 'variable' ) || ! current_user_can( 'manage_woocommerce' ) ) { return $h; }
-    if ( function_exists( 'sahel_vimg_map' ) && 'select' !== get_theme_mod( 'sahel_pd_var_style', 'swatches' ) && sahel_vimg_map( $p ) ) { return $h; }
+    if ( function_exists( 'sahel_vimg_map' ) && function_exists( 'sahel_pd_var_any_sw' ) && sahel_pd_var_any_sw( $p ) && sahel_pd_var_strip_select( sahel_vimg_map( $p ), $p ) ) { return $h; }
     $why = sahel_vimg_why( $p );
     if ( '' === $why ) { return $h; }
     return '<div class="sahel-vimg-note" style="margin:10px 0;padding:10px 12px;border:1px dashed var(--line,#ccc);border-radius:calc(var(--rad,16px) * .6);font-size:12px;line-height:1.9;color:var(--muted,#666)">🔧 <b>فقط مدیر این را می‌بیند:</b> تصویر بندانگشتی رنگ‌ها نمایش داده نمی‌شود چون ' . esc_html( $why ) . '</div>' . $h;
 }, 5, 2 );
+
+/* =====================================================================
+ * v8.4 — متغیرها: (۱) نوع نمایش جدا برای هر ویژگی  (۲) چند تصویر برای هر رنگ/متغیر
+ *         (۳) با کلیک روی رنگ، تصویر اصلی عوض می‌شود (بدون نیاز به انتخاب سایز)
+ * ===================================================================== */
+function sahel_pd_var_lc( $x ) { $x = trim( (string) $x ); return function_exists( 'mb_strtolower' ) ? mb_strtolower( $x, 'UTF-8' ) : strtolower( $x ); }
+function sahel_pd_var_names( $k ) {
+    $o = array();
+    foreach ( (array) preg_split( '/[,،;\n]+/u', (string) get_theme_mod( $k, '' ) ) as $x ) { $x = sahel_pd_var_lc( $x ); if ( '' !== $x ) { $o[] = $x; } }
+    return $o;
+}
+/* نقشه‌ی «نام select» → sw یا select (فقط ویژگی‌هایی که تنظیم جدا دارند) */
+function sahel_pd_var_modes( $p ) {
+    static $c = array();
+    if ( ! $p || ! is_object( $p ) || ! $p->is_type( 'variable' ) ) { return array(); }
+    $id = $p->get_id();
+    if ( isset( $c[ $id ] ) ) { return $c[ $id ]; }
+    $sw = sahel_pd_var_names( 'sahel_pd_var_names_sw' ); $se = sahel_pd_var_names( 'sahel_pd_var_names_select' );
+    $out = array();
+    foreach ( (array) $p->get_variation_attributes() as $name => $opts ) {
+        $m = '';
+        if ( 0 === strpos( (string) $name, 'pa_' ) && function_exists( 'wc_attribute_taxonomy_id_by_name' ) ) {
+            $aid = (int) wc_attribute_taxonomy_id_by_name( $name );
+            if ( $aid ) { $v = (string) get_theme_mod( 'sahel_pd_var_a_' . $aid, '' ); if ( 'sw' === $v || 'select' === $v ) { $m = $v; } }
+        }
+        $raw   = sahel_pd_var_lc( rawurldecode( (string) $name ) );
+        $cands = array( $raw, preg_replace( '/^pa_/', '', $raw ), sahel_pd_var_lc( function_exists( 'wc_attribute_label' ) ? wc_attribute_label( $name, $p ) : $name ) );
+        if ( array_intersect( $cands, $sw ) ) { $m = 'sw'; } elseif ( array_intersect( $cands, $se ) ) { $m = 'select'; }
+        if ( '' !== $m ) { $out[ 'attribute_' . sanitize_title( $name ) ] = $m; }
+    }
+    return $c[ $id ] = $out;
+}
+/* آیا دست‌کم یک ویژگی به شکل دکمه/تصویر نمایش داده می‌شود؟ */
+function sahel_pd_var_any_sw( $p ) {
+    if ( 'select' !== get_theme_mod( 'sahel_pd_var_style', 'swatches' ) ) { return true; }
+    return in_array( 'sw', sahel_pd_var_modes( $p ), true );
+}
+function sahel_pd_var_strip_select( $map, $p ) {
+    if ( ! $map || ! is_array( $map ) ) { return array(); }
+    $modes = sahel_pd_var_modes( $p ); $gsel = 'select' === get_theme_mod( 'sahel_pd_var_style', 'swatches' );
+    foreach ( array_keys( $map ) as $k ) {
+        $m = isset( $modes[ $k ] ) ? $modes[ $k ] : '';
+        if ( 'select' === $m || ( $gsel && 'sw' !== $m ) ) { unset( $map[ $k ] ); }
+    }
+    return $map;
+}
+add_action( 'wp_footer', function () {
+    if ( ! function_exists( 'is_product' ) || ! is_product() ) { return; }
+    $modes = sahel_pd_var_modes( wc_get_product( get_queried_object_id() ) );
+    if ( ! $modes ) { return; }
+    echo '<script type="application/json" id="sahelVarModes">' . wp_json_encode( $modes, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT ) . '</script>' . "\n";
+}, 4 );
+
+/* ---------- چند تصویر برای هر متغیر ---------- */
+function sahel_vgal_clean( $raw ) {
+    $o = array();
+    foreach ( wp_parse_id_list( is_array( $raw ) ? $raw : explode( ',', (string) $raw ) ) as $id ) {
+        if ( $id && wp_attachment_is_image( $id ) ) { $o[] = (int) $id; }
+        if ( count( $o ) >= 10 ) { break; }
+    }
+    return $o;
+}
+function sahel_vgal_meta( $vid ) { return sahel_vgal_clean( get_post_meta( (int) $vid, '_sahel_var_gallery', true ) ); }
+function sahel_vgal_save( $vid, $raw ) {
+    $vid = (int) $vid;
+    if ( ! $vid || 'product_variation' !== get_post_type( $vid ) || ! current_user_can( 'edit_post', $vid ) ) { return; }
+    $ids = sahel_vgal_clean( wp_unslash( $raw ) );
+    if ( $ids ) { update_post_meta( $vid, '_sahel_var_gallery', implode( ',', $ids ) ); } else { delete_post_meta( $vid, '_sahel_var_gallery' ); }
+    if ( function_exists( 'sahel_cv_bump' ) ) { sahel_cv_bump(); }
+}
+function sahel_vgal_field_html( $name, $ids, $compact = false ) {
+    $th = '';
+    foreach ( $ids as $id ) { $u = wp_get_attachment_image_url( $id, 'thumbnail' ); if ( $u ) { $th .= '<img src="' . esc_url( $u ) . '" data-id="' . (int) $id . '" width="40" height="40" title="برای حذف کلیک کنید" alt="">'; } }
+    return '<span class="sahel-vgal-f' . ( $compact ? ' is-compact' : '' ) . '"><input type="hidden" class="sahel-vgal-in" name="' . $name . '" value="' . esc_attr( implode( ',', $ids ) ) . '"><span class="sahel-vgal-list">' . $th . '</span>'
+        . '<button type="button" class="' . ( $compact ? 'sahel-vgal-add' : 'button sahel-vgal-add' ) . '" title="تصاویر بیشتر برای این متغیر">' . ( $compact ? '+' : 'افزودن تصویر' ) . '</button></span>';
+}
+function sahel_vgal_admin_js() {
+    static $done = false; if ( $done ) { return; } $done = true;
+    echo '<style>.sahel-vgal-f{display:inline-flex;flex-wrap:wrap;gap:6px;align-items:center}.sahel-vgal-list{display:inline-flex;flex-wrap:wrap;gap:4px}.sahel-vgal-list img{width:40px;height:40px;object-fit:cover;border-radius:6px;border:1px solid #ccd0d4;cursor:pointer}.sahel-vgal-list img:hover{opacity:.55;outline:2px solid #d63638}.sahel-vgal-f.is-compact{margin-top:4px}.sahel-vgal-f.is-compact .sahel-vgal-list img{width:26px;height:26px}.sahel-vgal-f.is-compact .sahel-vgal-add{width:26px;height:26px;border-radius:6px;border:1px dashed #9aa0a6;background:none;cursor:pointer;font-weight:700;line-height:1;padding:0}</style>';
+    echo '<script id="sahel-v84-vgal-admin">' . <<<'SHJS84A'
+(function(run){if(document.readyState==='complete'){run();}else{window.addEventListener('load',run);}})(function(){if(!window.jQuery){return;}var $=window.jQuery;
+function ids($f){return ($f.find('.sahel-vgal-in').val()||'').split(',').filter(Boolean);}
+function put($f,a){$f.find('.sahel-vgal-in').val(a.join(',')).trigger('change');var $v=$f.closest('.woocommerce_variation');if($v.length){$v.addClass('variation-needs-update');$('button.cancel-variation-changes,button.save-variation-changes').prop('disabled',false);$('#variable_product_options').trigger('woocommerce_variations_input_changed');}}
+$(document).on('click','.sahel-vgal-add',function(e){e.preventDefault();e.stopPropagation();if(!window.wp||!wp.media){return;}var $f=$(this).closest('.sahel-vgal-f');
+ var fr=wp.media({title:'تصاویر بیشتر این متغیر',multiple:true,library:{type:'image'},button:{text:'افزودن'}});
+ fr.on('select',function(){var a=ids($f);fr.state().get('selection').each(function(m){m=m.toJSON();var id=String(m.id);if(a.indexOf(id)>-1||a.length>=10){return;}a.push(id);var u=(m.sizes&&m.sizes.thumbnail)?m.sizes.thumbnail.url:m.url;$f.find('.sahel-vgal-list').append($('<img alt="" width="40" height="40" title="برای حذف کلیک کنید">').attr('src',u).attr('data-id',id));});put($f,a);});
+ fr.open();});
+$(document).on('click','.sahel-vgal-list img',function(e){e.preventDefault();e.stopPropagation();var $f=$(this).closest('.sahel-vgal-f'),id=String($(this).attr('data-id'));$(this).remove();put($f,ids($f).filter(function(x){return x!==id;}));});
+});
+SHJS84A
+    . '</script>' . "\n";
+}
+/* ویرایش محصول ووکامرس ← متغیرها */
+add_action( 'woocommerce_product_after_variable_attributes', function ( $loop, $data, $variation ) {
+    $vid = is_object( $variation ) ? (int) $variation->ID : 0;
+    echo '<div class="form-row form-row-full"><label>🖼 تصاویر بیشتر این متغیر (پیچا)</label><br>' . sahel_vgal_field_html( 'sahel_var_gallery[' . (int) $loop . ']', $vid ? sahel_vgal_meta( $vid ) : array() ) // phpcs:ignore
+        . '<p class="description">با انتخاب این رنگ در صفحه‌ی محصول، تصویر متغیر به‌همراه این تصاویر به‌صورت بندانگشتی نمایش داده می‌شود. برای حذف، روی تصویر کلیک کنید.</p></div>';
+}, 10, 3 );
+add_action( 'woocommerce_save_product_variation', function ( $vid, $i ) {
+    if ( isset( $_POST['sahel_var_gallery'][ $i ] ) ) { sahel_vgal_save( $vid, $_POST['sahel_var_gallery'][ $i ] ); } // phpcs:ignore -- nonce را ووکامرس بررسی کرده
+}, 10, 2 );
+add_action( 'admin_footer', function () {
+    $sc = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+    if ( $sc && 'product' === $sc->id ) { sahel_vgal_admin_js(); }
+} );
+/* پنل پیچا (نسخه‌ی ۱.۳.۱ به بعد) */
+add_action( 'pp_var_row_image', function ( $n, $v ) {
+    echo sahel_vgal_field_html( $n . '[gallery]', ( $v && is_object( $v ) ) ? sahel_vgal_meta( $v->get_id() ) : array(), true ); // phpcs:ignore
+}, 10, 2 );
+add_action( 'pp_save_variation_after', function ( $vid, $row ) {
+    if ( is_array( $row ) && isset( $row['gallery'] ) ) { sahel_vgal_save( $vid, $row['gallery'] ); }
+}, 10, 2 );
+add_action( 'pp_edit_side_boxes', function () { sahel_vgal_admin_js(); }, 99 );
+
+/* نقشه‌ی «ویژگی → مقدار → فهرست تصاویر» برای صفحه‌ی محصول */
+function sahel_vgal_map( $p ) {
+    if ( ! function_exists( 'sahel_vimg_map' ) || ! function_exists( 'wc_get_product_attachment_props' ) ) { return array(); }
+    $im = sahel_pd_var_strip_select( sahel_vimg_map( $p ), $p );
+    if ( ! $im ) { return array(); }
+    $ck  = 'sahel_vgal_' . $p->get_id() . '_' . ( function_exists( 'sahel_cv_ver' ) ? sahel_cv_ver() : 1 ) . '_' . substr( md5( implode( '|', array_keys( $im ) ) ), 0, 8 );
+    $map = get_transient( $ck );
+    if ( is_array( $map ) ) { return $map; }
+    $ids = array();
+    foreach ( array_slice( (array) $p->get_children(), 0, 150 ) as $vid ) {
+        $v = wc_get_product( $vid );
+        if ( ! $v ) { continue; }
+        $own  = (int) $v->get_image_id( 'edit' );
+        $list = array_merge( $own ? array( $own ) : array(), sahel_vgal_meta( $vid ) );
+        if ( ! $list ) { continue; }
+        foreach ( (array) $v->get_attributes() as $k => $val ) {
+            $key = 'attribute_' . $k;
+            if ( '' === (string) $val || ! isset( $im[ $key ] ) ) { continue; }
+            foreach ( $list as $iid ) { $ids[ $key ][ (string) $val ][ (int) $iid ] = 1; }
+        }
+    }
+    $map = array(); $pc = array();
+    foreach ( $ids as $key => $vals ) {
+        foreach ( $vals as $val => $set ) {
+            foreach ( array_slice( array_keys( $set ), 0, 10 ) as $iid ) {
+                if ( ! isset( $pc[ $iid ] ) ) {
+                    $a = wc_get_product_attachment_props( $iid );
+                    $pc[ $iid ] = empty( $a['src'] ) ? false : array(
+                        'id' => (int) $iid, 'src' => (string) $a['src'], 'src_w' => (int) $a['src_w'], 'src_h' => (int) $a['src_h'],
+                        'srcset' => (string) $a['srcset'], 'sizes' => (string) $a['sizes'],
+                        'full_src' => (string) $a['full_src'], 'full_src_w' => (int) $a['full_src_w'], 'full_src_h' => (int) $a['full_src_h'],
+                        'gallery_thumbnail_src' => (string) $a['gallery_thumbnail_src'], 'alt' => (string) $a['alt'], 'title' => (string) $a['title'], 'caption' => '',
+                    );
+                }
+                if ( $pc[ $iid ] ) { $map[ $key ][ (string) $val ][] = $pc[ $iid ]; }
+            }
+        }
+    }
+    set_transient( $ck, $map, $map ? DAY_IN_SECONDS : 2 * MINUTE_IN_SECONDS );
+    return $map;
+}
+add_action( 'wp_footer', function () {
+    if ( ! function_exists( 'is_product' ) || ! is_product() || ! (int) get_theme_mod( 'sahel_pd_var_gal', 1 ) ) { return; }
+    $p = wc_get_product( get_queried_object_id() );
+    if ( ! $p || ! $p->is_type( 'variable' ) || ! sahel_pd_var_any_sw( $p ) ) { return; }
+    $map = sahel_vgal_map( $p );
+    if ( ! $map ) { return; }
+    echo '<script type="application/json" id="sahelVarGal">' . wp_json_encode( $map, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) . '</script>' . "\n";
+    echo '<script id="sahel-v84-vgal">' . <<<'SHJS84'
+jQuery(function($){
+var G;try{G=JSON.parse((document.getElementById('sahelVarGal')||{}).textContent||'{}')||{};}catch(e){G={};}
+var $form=$('.variations_form').first(),$pg=$('.pd-gallery').first();if(!$form.length||!$pg.length){return;}
+var $strip=$('<div class="pd-vgal" hidden role="group" aria-label="تصاویر این رنگ"></div>').appendTo($pg),cur=null,orig=null;
+function gridImg(){var $a=$pg.find('.pd-grid-gal a').first();return $a.length?{a:$a,i:$a.find('img').first()}:null;}
+function setMain(im){var g=gridImg();
+ if(g&&g.i.length){if(!orig){orig=1;}g.i.attr('src',im.src);if(im.srcset){g.i.attr('srcset',im.srcset);}else{g.i.removeAttr('srcset');}if(im.sizes){g.i.attr('sizes',im.sizes);}g.a.attr('href',im.full_src||im.src);return;}
+ if($.fn.wc_variations_image_update){$form.wc_variations_image_update({image:im});}}
+function mainSrc(){return $pg.find('.woocommerce-product-gallery__image img,.pd-grid-gal img').first().attr('src')||'';}
+function chosen(){var l=null;$form.find('table.variations select').each(function(){var m=G[this.name];if(m&&this.value&&m[this.value]&&m[this.value].length){l=m[this.value];return false;}});return l;}
+function draw(l,act){$strip.empty();cur=l;if(!l||l.length<2){$strip.prop('hidden',true);$pg.removeClass('has-vgal');return;}
+ $.each(l,function(k,im){$strip.append($('<button type="button" class="pd-vgal-b"></button>').attr('data-k',k).toggleClass('on',im===act).append($('<img alt="" loading="lazy" decoding="async">').attr('src',im.gallery_thumbnail_src||im.src)));});
+ $strip.prop('hidden',false);$pg.addClass('has-vgal');}
+function sync(v,soft){var l=chosen();if(!l){draw(null,null);return;}var act=null,k;
+ if(v&&v.image_id){for(k=0;k<l.length;k++){if(String(l[k].id)===String(v.image_id)){act=l[k];break;}}}
+ if(!act&&soft){var ms=mainSrc();for(k=0;k<l.length;k++){if(l[k].src===ms){act=l[k];break;}}}
+ if(!act){act=l[0];setMain(act);}
+ draw(l,act);}
+$form.on('found_variation',function(e,v){setTimeout(function(){sync(v,false);},0);}).on('reset_data',function(){setTimeout(function(){sync(null,false);},0);});
+$strip.on('click','.pd-vgal-b',function(){var im=cur&&cur[+$(this).attr('data-k')];if(!im){return;}setMain(im);$strip.find('.pd-vgal-b').removeClass('on');$(this).addClass('on');});
+setTimeout(function(){if(chosen()){sync(null,true);}},60);
+});
+SHJS84
+    . '</script>' . "\n";
+}, 61 );
+add_action( 'wp_head', function () {
+    if ( ! function_exists( 'is_product' ) || ! is_product() ) { return; }
+    $c = '.pd-vgal{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}.pd-vgal[hidden]{display:none}'
+       . '.pd-vgal-b{width:74px;height:74px;padding:0;border:2px solid var(--line);border-radius:calc(var(--rad,16px) * .6);overflow:hidden;background:var(--cardbg,#fff);cursor:pointer;transition:border-color .2s,transform .2s}'
+       . '.pd-vgal-b img{display:block;width:100%;height:100%;object-fit:cover}'
+       . '.pd-vgal-b:hover{border-color:var(--c1);transform:translateY(-2px)}.pd-vgal-b.on{border-color:var(--c1);box-shadow:0 0 0 3px color-mix(in srgb,var(--c1) 22%,transparent)}'
+       . '.pd-gallery.has-vgal .flex-control-thumbs{display:none!important}'
+       . '@media(max-width:600px){.pd-vgal{gap:8px}.pd-vgal-b{width:58px;height:58px}}';
+    echo '<style id="sahel-v84-vgal-css">' . $c . '</style>' . "\n"; // phpcs:ignore -- CSS ثابت
+}, 98 );
+add_filter( 'sahel_css_page_blocks', function ( $a ) { $a[] = 'sahel-v84-vgal-css'; return $a; } );
+
+/* تنظیمات */
+add_action( 'customize_register', function ( $w ) {
+    $s = $w->get_section( 'sahel_product' ) ? 'sahel_product' : ( $w->get_section( 'sahel_x_pdx' ) ? 'sahel_x_pdx' : '' );
+    if ( ! $s ) { return; }
+    $w->add_setting( 'sahel_pd_var_gal', array( 'default' => 1, 'sanitize_callback' => 'absint' ) );
+    $w->add_control( 'sahel_pd_var_gal', array( 'label' => '🖼 با انتخاب رنگ، تصویر اصلی و تصاویر همان رنگ نمایش داده شود', 'description' => 'بدون نیاز به انتخاب سایز. تصاویر بیشتر هر متغیر را در ویرایش محصول ← متغیرها ← «تصاویر بیشتر این متغیر» بگذارید.', 'section' => $s, 'type' => 'checkbox', 'priority' => 44 ) );
+    $ch  = array( '' => 'پیش‌فرض (طبق تنظیم کلی بالا)', 'sw' => 'دکمه / تصویر / نمونه رنگ', 'select' => 'کومبوباکس' );
+    $san = function ( $v ) { return in_array( $v, array( 'sw', 'select' ), true ) ? $v : ''; };
+    $pr  = 45;
+    if ( function_exists( 'wc_get_attribute_taxonomies' ) ) {
+        foreach ( array_slice( (array) wc_get_attribute_taxonomies(), 0, 40 ) as $t ) {
+            $k = 'sahel_pd_var_a_' . (int) $t->attribute_id;
+            $w->add_setting( $k, array( 'default' => '', 'sanitize_callback' => $san ) );
+            $w->add_control( $k, array( 'label' => '🎛 نمایش ویژگی «' . $t->attribute_label . '»', 'section' => $s, 'type' => 'select', 'choices' => $ch, 'priority' => $pr ) );
+        }
+    }
+    $w->add_setting( 'sahel_pd_var_names_sw', array( 'default' => '', 'sanitize_callback' => 'sanitize_text_field' ) );
+    $w->add_control( 'sahel_pd_var_names_sw', array( 'label' => '— ویژگی‌هایی که همیشه دکمه/تصویر باشند', 'description' => 'نام ویژگی‌ها با ویرگول، مثلاً: رنگ، طرح (برای ویژگی‌های سفارشی که در فهرست بالا نیستند).', 'section' => $s, 'type' => 'text', 'priority' => 46 ) );
+    $w->add_setting( 'sahel_pd_var_names_select', array( 'default' => '', 'sanitize_callback' => 'sanitize_text_field' ) );
+    $w->add_control( 'sahel_pd_var_names_select', array( 'label' => '— ویژگی‌هایی که همیشه کومبوباکس باشند', 'description' => 'مثلاً: سایز، وزن', 'section' => $s, 'type' => 'text', 'priority' => 46 ) );
+}, 1017 );
