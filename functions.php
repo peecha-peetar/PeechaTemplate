@@ -12972,10 +12972,10 @@ function sahel_vimg_map( $p ) {
     if ( ! $p || ! is_object( $p ) || ! $p->is_type( 'variable' ) ) { return array(); }
     $mode = (string) get_theme_mod( 'sahel_pd_var_img', 'color' );
     if ( 'off' === $mode ) { return array(); }
-    $ck  = 'sahel_vimg_' . $p->get_id() . '_' . ( function_exists( 'sahel_cv_ver' ) ? sahel_cv_ver() : 1 ) . '_' . $mode;
+    $ck  = 'sahel_vimg_' . $p->get_id() . '_' . ( function_exists( 'sahel_cv_ver' ) ? sahel_cv_ver() : 1 ) . '_' . $mode . '_b';
     $map = get_transient( $ck );
     if ( is_array( $map ) ) { return $map; }
-    $map = array(); $ids = array();
+    $map = array(); $ids = array(); $alt = array();
     foreach ( array_slice( (array) $p->get_children(), 0, 150 ) as $vid ) {
         $v = wc_get_product( $vid );
         if ( ! $v ) { continue; }
@@ -12997,10 +12997,13 @@ function sahel_vimg_map( $p ) {
         if ( 'color' === $mode ) {
             $tax = substr( $key, 10 );
             $lbl = function_exists( 'wc_attribute_label' ) ? wc_attribute_label( $tax, $p ) : $tax;
-            if ( ! preg_match( '/color|colour|رنگ|طرح|نقش|pattern|design|print/iu', rawurldecode( $tax ) . ' ' . $lbl ) ) { unset( $map[ $key ] ); }
+            if ( ! preg_match( '/color|colour|رنگ|طرح|نقش|pattern|design|print/iu', rawurldecode( $tax ) . ' ' . $lbl ) ) { $alt[ $key ] = $map[ $key ]; unset( $map[ $key ] ); }
         }
     }
-    set_transient( $ck, $map, DAY_IN_SECONDS );
+    /* v8.3: محصول فقط یک ویژگی متغیر دارد و نامش «رنگ/طرح» نیست، ولی متغیرها تصویر جدا دارند → همان نمایش داده شود */
+    if ( ! $map && 1 === count( $alt ) && 1 === count( (array) $p->get_variation_attributes() ) ) { $map = $alt; }
+    /* v8.3: نتیجه‌ی خالی فقط کوتاه نگه داشته می‌شود تا بعد از گذاشتن تصویر، سریع دیده شود */
+    set_transient( $ck, $map, $map ? DAY_IN_SECONDS : 2 * MINUTE_IN_SECONDS );
     return $map;
 }
 add_action( 'wp_footer', function () {
@@ -13038,3 +13041,61 @@ add_action( 'customize_register', function ( $w ) {
     $w->add_setting( 'sahel_pd_var_img_label', array( 'default' => 1, 'sanitize_callback' => 'absint' ) );
     $w->add_control( 'sahel_pd_var_img_label', array( 'label' => '— نام رنگ/طرح زیر تصویر', 'section' => $s, 'type' => 'checkbox', 'priority' => 43 ) );
 }, 1016 );
+
+/* =====================================================================
+ * v8.3 — تصویر بندانگشتی متغیرها: تازه‌سازی مطمئن کش، تعویض تصویر در گالری شبکه‌ای، راهنمای مدیر
+ * ===================================================================== */
+/* با هر ذخیره‌ی متغیر یا تغییر تصویر متغیر، کش نقشه‌ی تصاویر تازه می‌شود */
+foreach ( array( 'woocommerce_save_product_variation', 'woocommerce_ajax_save_product_variations' ) as $sahel_hk ) {
+    if ( function_exists( 'sahel_cv_bump' ) ) { add_action( $sahel_hk, 'sahel_cv_bump' ); }
+}
+function sahel_vimg_meta_bump( $mid, $oid, $key ) {
+    if ( '_thumbnail_id' !== $key || ! function_exists( 'sahel_cv_bump' ) || 'product_variation' !== get_post_type( $oid ) ) { return; }
+    static $done = false; if ( $done ) { return; } $done = true;
+    sahel_cv_bump();
+}
+add_action( 'added_post_meta', 'sahel_vimg_meta_bump', 10, 3 );
+add_action( 'updated_post_meta', 'sahel_vimg_meta_bump', 10, 3 );
+add_action( 'deleted_post_meta', 'sahel_vimg_meta_bump', 10, 3 );
+
+/* گالری شبکه‌ای (مدل‌های ۴، ۹، ۱۰، ۱۳): با انتخاب متغیر، تصویر اول گالری به تصویر همان متغیر عوض می‌شود */
+add_action( 'wp_footer', function () {
+    if ( ! function_exists( 'is_product' ) || ! is_product() || ! function_exists( 'sahel_pd_grid_gallery_on' ) || ! sahel_pd_grid_gallery_on() ) { return; }
+    echo '<script id="sahel-v83-vgal">' . <<<'SHJS83'
+jQuery(function($){var $g=$('.pd-grid-gal');if(!$g.length)return;var $a=$g.find('a').first(),$i=$a.find('img').first();if(!$i.length)return;
+var o={src:$i.attr('src'),srcset:$i.attr('srcset')||'',sizes:$i.attr('sizes')||'',href:$a.attr('href')};
+function put(src,ss,sz,href){$i.attr('src',src);if(ss){$i.attr('srcset',ss);}else{$i.removeAttr('srcset');}if(sz){$i.attr('sizes',sz);}$a.attr('href',href||src);}
+$('.variations_form').on('found_variation',function(e,v){if(v&&v.image&&v.image.src){put(v.image.src,v.image.srcset||'',v.image.sizes||'',v.image.full_src||v.image.src);}else{put(o.src,o.srcset,o.sizes,o.href);}})
+.on('reset_data',function(){put(o.src,o.srcset,o.sizes,o.href);});});
+SHJS83
+    . '</script>' . "\n";
+}, 60 );
+
+/* راهنما فقط برای مدیر فروشگاه: اگر تصویر بندانگشتی نمایش داده نمی‌شود، دلیلش زیر انتخاب‌گر نوشته می‌شود */
+function sahel_vimg_why( $p ) {
+    if ( ! $p || ! is_object( $p ) || ! $p->is_type( 'variable' ) ) { return ''; }
+    $mode = (string) get_theme_mod( 'sahel_pd_var_img', 'color' );
+    if ( 'off' === $mode ) { return 'گزینه‌ی «تصویر بندانگشتی متغیرها» در سفارشی‌سازی ← صفحه محصول خاموش است.'; }
+    if ( 'select' === get_theme_mod( 'sahel_pd_var_style', 'swatches' ) ) { return '«نمایش ویژگی‌های محصول متغیر» روی «کومبوباکس» است؛ آن را روی «دکمه + نمونه رنگ» بگذارید.'; }
+    $kids = (array) $p->get_children();
+    if ( ! $kids ) { return 'این محصول هنوز هیچ متغیر منتشرشده‌ای ندارد (ویرایش محصول ← متغیرها ← ساخت متغیرها).'; }
+    $with = 0; $anyv = 0; $imgs = array();
+    foreach ( array_slice( $kids, 0, 150 ) as $vid ) {
+        $v = wc_get_product( $vid ); if ( ! $v ) { continue; }
+        $iid = (int) $v->get_image_id( 'edit' ); if ( ! $iid ) { continue; }
+        $with++; $imgs[ $iid ] = 1;
+        if ( ! array_filter( (array) $v->get_attributes(), 'strlen' ) ) { $anyv++; }
+    }
+    if ( ! $with ) { return 'برای هیچ‌کدام از متغیرها تصویر جدا ثبت نشده است. در ویرایش محصول ← زبانه‌ی «متغیرها»، هر متغیر را باز کنید، روی کادر تصویرِ همان متغیر کلیک و عکس را انتخاب کنید، بعد «ذخیره تغییرات» و «به‌روزرسانی» را بزنید. (تصویر شاخص محصول یا گالری محصول کافی نیست.)'; }
+    if ( $anyv === $with ) { return 'تصویر روی متغیرهایی گذاشته شده که رنگشان «هر رنگ» است. برای هر رنگ یک متغیر جدا با مقدار مشخص بسازید و تصویر را روی آن بگذارید.'; }
+    if ( count( $imgs ) < 2 && $with > 1 ) { return 'همه‌ی متغیرها یک تصویر مشترک دارند؛ برای هر رنگ تصویر متفاوت بگذارید.'; }
+    if ( 'color' === $mode ) { return 'نام ویژگی این محصول «رنگ» یا «طرح» نیست. یا نام ویژگی را «رنگ» بگذارید، یا در سفارشی‌سازی ← صفحه محصول ← «تصویر بندانگشتی متغیرها» گزینه‌ی «برای هر ویژگی‌ای که متغیرهایش تصویر جدا دارند» را انتخاب کنید.'; }
+    return '';
+}
+add_filter( 'sahel_pd_after_cart', function ( $h, $p = null ) {
+    if ( ! is_object( $p ) || ! $p->is_type( 'variable' ) || ! current_user_can( 'manage_woocommerce' ) ) { return $h; }
+    if ( function_exists( 'sahel_vimg_map' ) && 'select' !== get_theme_mod( 'sahel_pd_var_style', 'swatches' ) && sahel_vimg_map( $p ) ) { return $h; }
+    $why = sahel_vimg_why( $p );
+    if ( '' === $why ) { return $h; }
+    return '<div class="sahel-vimg-note" style="margin:10px 0;padding:10px 12px;border:1px dashed var(--line,#ccc);border-radius:calc(var(--rad,16px) * .6);font-size:12px;line-height:1.9;color:var(--muted,#666)">🔧 <b>فقط مدیر این را می‌بیند:</b> تصویر بندانگشتی رنگ‌ها نمایش داده نمی‌شود چون ' . esc_html( $why ) . '</div>' . $h;
+}, 5, 2 );
