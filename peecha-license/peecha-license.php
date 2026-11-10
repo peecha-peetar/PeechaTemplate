@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name:       Peecha License Server
- * Description:       سرور لایسنس و به‌روزرسانی قالب پیچا — فقط روی سایت فروشنده (peecha.ir) نصب شود. فهرست سایت‌هایی که قالب رویشان نصب است، کلیدهای لایسنس و انتشار نسخه‌ها.
- * Version:           1.0.0
+ * Description:       فهرست سایت‌هایی که قالب پیچا رویشان نصب شده (با تأیید یا رد هر سایت) و انتشار نسخه‌های جدید قالب — فقط روی peecha.ir نصب شود.
+ * Version:           1.1.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            Peecha Studio
@@ -11,7 +11,7 @@
  */
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
-define( 'PEECHA_LIC_SERVER', '1.0.0' );
+define( 'PEECHA_LIC_SERVER', '1.1.0' );
 
 final class Peecha_License_Server {
 
@@ -93,7 +93,7 @@ final class Peecha_License_Server {
 		return hash_hmac( 'sha256', $domain . '|' . $version . '|' . (int) $exp, base64_decode( $k['hm'] ) );
 	}
 	public static function opts() {
-		return wp_parse_args( (array) get_option( self::OPT, array() ), array( 'grace' => 7, 'notify' => 1, 'email' => get_option( 'admin_email' ), 'info_url' => home_url( '/' ) ) );
+		return wp_parse_args( (array) get_option( self::OPT, array() ), array( 'grace' => 7, 'notify' => 1, 'email' => get_option( 'admin_email' ), 'info_url' => home_url( '/' ), 'keys' => 0 ) );
 	}
 
 	/* ---------------- ابزار ---------------- */
@@ -150,6 +150,7 @@ final class Peecha_License_Server {
 	/* ---------------- REST ---------------- */
 	public static function routes() {
 		register_rest_route( 'peecha/v1', '/check', array( 'methods' => 'POST', 'callback' => array( __CLASS__, 'rest_check' ), 'permission_callback' => '__return_true' ) );
+		register_rest_route( 'peecha/v1', '/key', array( 'methods' => 'GET', 'permission_callback' => '__return_true', 'callback' => function () { $k = self::keys(); return new WP_REST_Response( array( 'pub' => $k['pk'] ), 200 ); } ) );
 		register_rest_route( 'peecha/v1', '/download', array( 'methods' => 'GET', 'callback' => array( __CLASS__, 'rest_download' ), 'permission_callback' => '__return_true' ) );
 	}
 	public static function rest_check( WP_REST_Request $req ) {
@@ -213,8 +214,8 @@ final class Peecha_License_Server {
 			if ( $is_new && (int) $site->verified && 'active' !== $status ) { self::notify_new( $domain, $ver ); }
 		}
 
-		$payload = array( 'd' => $domain, 'n' => $nonce, 't' => $now, 'u' => $now + 30 * DAY_IN_SECONDS, 's' => $status, 'r' => $reason, 'g' => (int) $grace, 'v' => '', 'c' => 0, 'l' => '', 'p' => '', 'i' => esc_url_raw( (string) $o['info_url'] ) );
-		if ( 'active' === $status ) {
+		$payload = array( 'd' => $domain, 'n' => $nonce, 't' => $now, 'u' => $now + 30 * DAY_IN_SECONDS, 's' => $status, 'r' => $reason, 'g' => (int) $grace, 'v' => '', 'c' => 0, 'l' => '', 'p' => '', 'i' => esc_url_raw( (string) $o['info_url'] ), 'k' => empty( $o['keys'] ) ? 0 : 1 );
+		if ( 'active' === $status || ( 'pending' === $status && $grace > $now ) ) {
 			$rel = self::latest_for( $domain, $beta );
 			if ( $rel ) {
 				$exp = $now + 7 * DAY_IN_SECONDS;
@@ -246,7 +247,7 @@ final class Peecha_License_Server {
 		$cnt = (int) get_transient( 'peecha_lic_mailcnt' );
 		if ( $cnt >= 20 ) { return; }
 		set_transient( 'peecha_lic_mailcnt', $cnt + 1, DAY_IN_SECONDS );
-		wp_mail( $o['email'], 'قالب پیچا روی یک سایت جدید نصب شد: ' . $domain, "قالب پیچا (نسخه‌ی $ver) روی این سایت نصب شده و هنوز لایسنس معتبر ندارد:\n\n$domain\n\nبرای مجاز کردن یا مسدود کردن:\n" . admin_url( 'admin.php?page=peecha-license' ) . "\n\nاگر کاری نکنید، بعد از " . (int) $o['grace'] . " روز تنظیمات و به‌روزرسانی قالب در آن سایت بسته می‌شود (خود سایت کار می‌کند)." );
+		wp_mail( $o['email'], 'قالب پیچا روی یک سایت جدید نصب شد: ' . $domain, "قالب پیچا (نسخه‌ی $ver) روی این سایت نصب شد:\n\n$domain\n\nبرای تأیید یا رد:\n" . admin_url( 'admin.php?page=peecha-license' ) . "\n\nاگر تأیید نکنید، بعد از " . (int) $o['grace'] . " روز تنظیمات و به‌روزرسانی قالب در آن سایت بسته می‌شود (خود سایت کار می‌کند)." );
 	}
 	public static function rest_download( WP_REST_Request $req ) {
 		global $wpdb;
@@ -306,7 +307,7 @@ final class Peecha_License_Server {
 
 	/* ---------------- مدیریت ---------------- */
 	public static function menu() {
-		add_menu_page( 'لایسنس پیچا', 'لایسنس پیچا', 'manage_options', 'peecha-license', array( __CLASS__, 'page' ), 'dashicons-admin-network', 58 );
+		add_menu_page( 'نصب‌های قالب پیچا', 'نصب‌های پیچا', 'manage_options', 'peecha-license', array( __CLASS__, 'page' ), 'dashicons-admin-network', 58 );
 	}
 	public static function pending_notice() {
 		global $wpdb;
@@ -314,7 +315,7 @@ final class Peecha_License_Server {
 		list( , $ts ) = self::tables();
 		$n = (int) $wpdb->get_var( "SELECT COUNT(*) FROM $ts WHERE status = 'pending' AND lic_id = 0 AND verified = 1" ); // phpcs:ignore
 		if ( $n && ( empty( $_GET['page'] ) || 'peecha-license' !== $_GET['page'] ) ) { // phpcs:ignore
-			echo '<div class="notice notice-warning"><p>قالب پیچا روی <b>' . (int) $n . '</b> سایتِ بدون لایسنس نصب شده است. <a href="' . esc_url( admin_url( 'admin.php?page=peecha-license' ) ) . '">بررسی کنید</a></p></div>';
+			echo '<div class="notice notice-warning"><p>قالب پیچا روی <b>' . (int) $n . '</b> سایتِ جدید نصب شده و منتظر تأیید شماست. <a href="' . esc_url( admin_url( 'admin.php?page=peecha-license' ) ) . '">بررسی کنید</a></p></div>';
 		}
 	}
 	private static function back( $tab, $msg = '' ) {
@@ -329,8 +330,8 @@ final class Peecha_License_Server {
 		$do = isset( $_POST['do'] ) ? sanitize_key( $_POST['do'] ) : '';
 		$id = isset( $_POST['id'] ) ? absint( $_POST['id'] ) : 0;
 		switch ( $do ) {
-			case 'site_allow': $wpdb->update( $ts, array( 'status' => 'allowed' ), array( 'id' => $id ) ); self::back( 'sites', 'سایت مجاز شد.' );
-			case 'site_block': $wpdb->update( $ts, array( 'status' => 'blocked' ), array( 'id' => $id ) ); self::back( 'sites', 'سایت مسدود شد.' );
+			case 'site_allow': $wpdb->update( $ts, array( 'status' => 'allowed' ), array( 'id' => $id ) ); self::back( 'sites', 'سایت تأیید شد.' );
+			case 'site_block': $wpdb->update( $ts, array( 'status' => 'blocked' ), array( 'id' => $id ) ); self::back( 'sites', 'سایت رد شد.' );
 			case 'site_reset': $wpdb->update( $ts, array( 'status' => 'pending' ), array( 'id' => $id ) ); self::back( 'sites', 'وضعیت سایت به «در انتظار» برگشت.' );
 			case 'site_unlink': $wpdb->update( $ts, array( 'lic_id' => 0 ), array( 'id' => $id ) ); self::back( 'sites', 'سایت از لایسنس جدا شد.' );
 			case 'site_delete': $wpdb->delete( $ts, array( 'id' => $id ) ); self::back( 'sites', 'سایت از فهرست حذف شد.' );
@@ -363,11 +364,11 @@ final class Peecha_License_Server {
 					'version' => $r['version'], 'file' => $r['file'], 'size' => $r['size'], 'sha' => $r['sha'],
 					'changelog' => isset( $_POST['changelog'] ) ? sanitize_textarea_field( wp_unslash( $_POST['changelog'] ) ) : '',
 					'channel' => ( isset( $_POST['channel'] ) && 'beta' === $_POST['channel'] ) ? 'beta' : 'stable',
-					'published' => 0, 'rollout' => 100, 'critical' => empty( $_POST['critical'] ) ? 0 : 1, 'date' => gmdate( 'Y-m-d H:i:s' ),
+					'published' => empty( $_POST['published'] ) ? 0 : 1, 'rollout' => 100, 'critical' => empty( $_POST['critical'] ) ? 0 : 1, 'date' => gmdate( 'Y-m-d H:i:s' ),
 				);
 				uksort( $rels, function ( $a, $b ) { return version_compare( $b, $a ); } );
 				update_option( self::REL, $rels, false );
-				self::back( 'rels', 'نسخه‌ی ' . $r['version'] . ' بارگذاری شد (هنوز منتشر نشده).' );
+				self::back( 'rels', 'نسخه‌ی ' . $r['version'] . ( empty( $_POST['published'] ) ? ' بارگذاری شد (هنوز منتشر نشده).' : ' بارگذاری و منتشر شد.' ) );
 			case 'rel_update': case 'rel_delete': case 'rel_get':
 				$v = isset( $_POST['version'] ) ? preg_replace( '/[^0-9A-Za-z\.\-]/', '', (string) wp_unslash( $_POST['version'] ) ) : '';
 				$rels = self::releases();
@@ -395,6 +396,7 @@ final class Peecha_License_Server {
 					'notify'   => empty( $_POST['notify'] ) ? 0 : 1,
 					'email'    => is_email( $em ) ? $em : get_option( 'admin_email' ),
 					'info_url' => isset( $_POST['info_url'] ) ? esc_url_raw( wp_unslash( $_POST['info_url'] ) ) : home_url( '/' ),
+					'keys'     => empty( $_POST['keys'] ) ? 0 : 1,
 				), false );
 				self::back( 'opts', 'تنظیمات ذخیره شد.' );
 		}
@@ -413,37 +415,38 @@ final class Peecha_License_Server {
 		if ( ! current_user_can( 'manage_options' ) ) { return; }
 		list( $tl, $ts ) = self::tables();
 		$tab  = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'sites'; // phpcs:ignore
-		$tabs = array( 'sites' => 'سایت‌ها', 'lics' => 'لایسنس‌ها', 'rels' => 'نسخه‌ها و به‌روزرسانی', 'opts' => 'تنظیمات' );
+		$o    = self::opts();
+		$tabs = array( 'sites' => 'سایت‌ها', 'rels' => 'نسخه‌های قالب', 'lics' => 'کلیدها', 'opts' => 'تنظیمات' );
+		if ( empty( $o['keys'] ) ) { unset( $tabs['lics'] ); }
 		if ( ! isset( $tabs[ $tab ] ) ) { $tab = 'sites'; }
-		echo '<div class="wrap"><h1>لایسنس و به‌روزرسانی قالب پیچا</h1>';
+		echo '<div class="wrap"><h1>نصب‌ها و نسخه‌های قالب پیچا</h1>';
 		if ( ! empty( $_GET['msg'] ) ) { echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( sanitize_text_field( rawurldecode( wp_unslash( $_GET['msg'] ) ) ) ) . '</p></div>'; } // phpcs:ignore
 		echo '<h2 class="nav-tab-wrapper">';
 		foreach ( $tabs as $k => $l ) { echo '<a class="nav-tab' . ( $k === $tab ? ' nav-tab-active' : '' ) . '" href="' . esc_url( admin_url( 'admin.php?page=peecha-license&tab=' . $k ) ) . '">' . esc_html( $l ) . '</a>'; }
 		echo '</h2><div style="margin-top:14px">';
-		$o = self::opts();
 
 		if ( 'sites' === $tab ) {
 			$rows = $wpdb->get_results( "SELECT s.*, l.lic_key, l.customer, l.status AS lic_status, l.expires FROM $ts s LEFT JOIN $tl l ON l.id = s.lic_id ORDER BY (s.status = 'pending' AND s.lic_id = 0) DESC, s.last_seen DESC LIMIT 500" ); // phpcs:ignore
-			echo '<p>هر سایتی که قالب رویش فعال شود اینجا ثبت می‌شود. سایتِ بدون لایسنس ' . (int) $o['grace'] . ' روز مهلت دارد؛ بعد از آن فقط تنظیمات و به‌روزرسانی قالب در آن بسته می‌شود.</p>';
-			echo '<table class="widefat striped"><thead><tr><th>دامنه</th><th>وضعیت</th><th>لایسنس</th><th>نسخه‌ی قالب</th><th>اولین بار</th><th>آخرین تماس</th><th>کارها</th></tr></thead><tbody>';
+			echo '<p>هر سایتی که قالب پیچا رویش فعال شود خودکار اینجا ثبت می‌شود. اگر سایتی را <b>تأیید</b> کنید، برای همیشه کامل کار می‌کند. سایتی که تأیید نشود بعد از ' . (int) $o['grace'] . ' روز فقط تنظیمات و به‌روزرسانی قالبش بسته می‌شود (خود سایت کار می‌کند).</p>';
+			echo '<table class="widefat striped"><thead><tr><th>دامنه</th><th>وضعیت</th>' . ( empty( $o['keys'] ) ? '' : '<th>کلید</th>' ) . '<th>نسخه‌ی قالب</th><th>اولین بار</th><th>آخرین تماس</th><th>کارها</th></tr></thead><tbody>';
 			if ( ! $rows ) { echo '<tr><td colspan="7">هنوز سایتی ثبت نشده است.</td></tr>'; }
 			foreach ( (array) $rows as $r ) {
 				$lic_ok = $r->lic_id && 'active' === $r->lic_status && ( empty( $r->expires ) || strtotime( $r->expires . ' UTC' ) > time() );
-				if ( 'blocked' === $r->status ) { $st = '<span style="color:#b32d2e">⛔ مسدود</span>'; }
-				elseif ( 'allowed' === $r->status ) { $st = '<span style="color:#00a32a">✔ مجاز (دستی)</span>'; }
-				elseif ( $lic_ok ) { $st = '<span style="color:#00a32a">✔ لایسنس معتبر</span>'; }
+				if ( 'blocked' === $r->status ) { $st = '<span style="color:#b32d2e">⛔ رد شده</span>'; }
+				elseif ( 'allowed' === $r->status ) { $st = '<span style="color:#00a32a">✔ تأیید شده</span>'; }
+				elseif ( $lic_ok ) { $st = '<span style="color:#00a32a">✔ کلید معتبر</span>'; }
 				else {
 					$left = (int) ceil( ( strtotime( $r->first_seen . ' UTC' ) + (int) $o['grace'] * DAY_IN_SECONDS - time() ) / DAY_IN_SECONDS );
-					$st = '<span style="color:#996800">⏳ بدون لایسنس — ' . ( $left > 0 ? (int) $left . ' روز مهلت' : 'محدود شده' ) . '</span>';
+					$st = '<span style="color:#996800">⏳ منتظر تأیید — ' . ( $left > 0 ? (int) $left . ' روز مهلت' : 'محدود شده' ) . '</span>';
 				}
 				if ( ! (int) $r->verified ) { $st .= '<br><small style="color:#646970">دامنه تأیید نشده</small>'; }
 				echo '<tr><td><a href="' . esc_url( 'https://' . $r->domain ) . '" target="_blank" rel="noopener noreferrer"><b>' . esc_html( $r->domain ) . '</b></a></td><td>' . $st . '</td>'; // phpcs:ignore
-				echo '<td>' . ( $r->lic_id ? '<code>' . esc_html( $r->lic_key ) . '</code><br><small>' . esc_html( $r->customer ) . '</small>' : '—' ) . '</td>';
+				if ( ! empty( $o['keys'] ) ) { echo '<td>' . ( $r->lic_id ? '<code>' . esc_html( $r->lic_key ) . '</code><br><small>' . esc_html( $r->customer ) . '</small>' : '—' ) . '</td>'; }
 				echo '<td>' . esc_html( $r->theme_ver ) . '<br><small>WP ' . esc_html( $r->wp_ver ) . ' · PHP ' . esc_html( $r->php_ver ) . '</small></td><td>' . esc_html( get_date_from_gmt( $r->first_seen, 'Y/m/d' ) ) . '</td><td>' . esc_html( get_date_from_gmt( $r->last_seen, 'Y/m/d H:i' ) ) . '</td><td>';
-				if ( 'allowed' !== $r->status ) { echo self::btn( 'site_allow', '✔ مجاز است', array( 'id' => $r->id ), 'button button-small button-primary' ); } // phpcs:ignore
-				if ( 'blocked' !== $r->status ) { echo self::btn( 'site_block', 'مسدود', array( 'id' => $r->id ), 'button button-small', 'تنظیمات و به‌روزرسانی قالب در این سایت بسته می‌شود. ادامه؟' ); } // phpcs:ignore
-				if ( 'pending' !== $r->status ) { echo self::btn( 'site_reset', 'برگشت به حالت عادی', array( 'id' => $r->id ) ); } // phpcs:ignore
-				if ( $r->lic_id ) { echo self::btn( 'site_unlink', 'جدا از لایسنس', array( 'id' => $r->id ) ); } // phpcs:ignore
+				if ( 'allowed' !== $r->status ) { echo self::btn( 'site_allow', '✔ تأیید', array( 'id' => $r->id ), 'button button-small button-primary' ); } // phpcs:ignore
+				if ( 'blocked' !== $r->status ) { echo self::btn( 'site_block', 'رد', array( 'id' => $r->id ), 'button button-small', 'تنظیمات و به‌روزرسانی قالب در این سایت بسته می‌شود. ادامه؟' ); } // phpcs:ignore
+				if ( 'pending' !== $r->status ) { echo self::btn( 'site_reset', 'لغو تصمیم', array( 'id' => $r->id ) ); } // phpcs:ignore
+				if ( $r->lic_id && ! empty( $o['keys'] ) ) { echo self::btn( 'site_unlink', 'جدا از کلید', array( 'id' => $r->id ) ); } // phpcs:ignore
 				echo self::btn( 'site_delete', 'حذف', array( 'id' => $r->id ), 'button button-small button-link-delete', 'این سایت از فهرست حذف شود؟' ); // phpcs:ignore
 				echo '</td></tr>';
 			}
@@ -469,22 +472,21 @@ final class Peecha_License_Server {
 			}
 			echo '</tbody></table>';
 		} elseif ( 'rels' === $tab ) {
-			echo '<h2>بارگذاری نسخه‌ی جدید</h2><p>فایل zip قالب را بارگذاری کنید. شماره‌ی نسخه از سطر <code>Version</code> در <code>style.css</code> خوانده می‌شود و کلید عمومی و نشانی همین سرور خودکار داخل بسته گذاشته می‌شود. <b>برای فروش هم همین بسته‌ی ساخته‌شده را به مشتری بدهید</b> (دکمه‌ی «دریافت بسته»).</p>';
+			echo '<h2>گذاشتن نسخه‌ی جدید</h2><p>فایل zip قالب را بارگذاری و «منتشر» کنید؛ همه‌ی سایت‌هایی که قالب را دارند (تأییدشده‌ها و آن‌هایی که هنوز در مهلت‌اند) نسخه‌ی جدید را در «پیشخوان ← به‌روزرسانی‌ها» می‌بینند و هر کدام خواست به‌روزرسانی می‌کند. شماره‌ی نسخه از سطر <code>Version</code> در <code>style.css</code> خوانده می‌شود.</p>';
 			echo self::form_open( 'rel_add', true ) . '<table class="form-table"><tr><th>فایل قالب (zip)</th><td><input type="file" name="zip" accept=".zip" required></td></tr>' // phpcs:ignore
 				. '<tr><th>تغییرات این نسخه</th><td><textarea name="changelog" rows="4" class="large-text" placeholder="هر خط یک تغییر"></textarea></td></tr>'
-				. '<tr><th>کانال</th><td><select name="channel"><option value="stable">پایدار (همه)</option><option value="beta">آزمایشی (فقط لایسنس‌های آزمایشی)</option></select></td></tr>'
-				. '<tr><th>به‌روزرسانی مهم</th><td><label><input type="checkbox" name="critical" value="1"> امنیتی یا ضروری (در سایت مشتری برجسته نمایش داده می‌شود)</label></td></tr></table><p><button class="button button-primary">بارگذاری</button></p></form>';
+				. '<tr><th>انتشار</th><td><label><input type="checkbox" name="published" value="1" checked> بلافاصله منتشر شود</label><br><label><input type="checkbox" name="critical" value="1"> به‌روزرسانی مهم (در سایت‌ها برجسته نمایش داده می‌شود)</label></td></tr></table><p><button class="button button-primary">بارگذاری</button></p></form>';
 			$rels = self::releases();
-			echo '<h2>نسخه‌ها</h2><p>سایت‌های مجاز تازه‌ترین نسخه‌ی «منتشرشده» را می‌بینند. برای برگرداندن یک نسخه‌ی مشکل‌دار، تیک «منتشر شده» را بردارید تا نسخه‌ی قبلی دوباره آخرین نسخه شود. با «انتشار تدریجی» نسخه اول فقط به درصدی از سایت‌ها می‌رسد.</p>';
+			echo '<h2>نسخه‌ها</h2><p>سایت‌ها تازه‌ترین نسخه‌ی «منتشرشده» را می‌بینند. اگر نسخه‌ای مشکل داشت، تیک «منتشر شده» را بردارید تا نسخه‌ی قبلی دوباره آخرین نسخه شود.</p>';
 			echo '<table class="widefat striped"><thead><tr><th>نسخه</th><th>تاریخ</th><th>تنظیم انتشار</th><th>تغییرات</th><th></th></tr></thead><tbody>';
 			if ( ! $rels ) { echo '<tr><td colspan="5">هنوز نسخه‌ای بارگذاری نشده است.</td></tr>'; }
 			foreach ( $rels as $v => $r ) {
 				echo '<tr><td><b>' . esc_html( $v ) . '</b><br><small>' . esc_html( size_format( (int) $r['size'] ) ) . '</small></td><td>' . esc_html( get_date_from_gmt( $r['date'], 'Y/m/d' ) ) . '</td><td>'
 					. self::form_open( 'rel_update' ) . '<input type="hidden" name="version" value="' . esc_attr( $v ) . '">' // phpcs:ignore
 					. '<label><input type="checkbox" name="published" value="1"' . checked( ! empty( $r['published'] ), true, false ) . '> منتشر شده</label><br>'
-					. '<label>انتشار تدریجی <input type="number" name="rollout" value="' . (int) $r['rollout'] . '" min="1" max="100" class="small-text">٪</label><br>'
-					. '<select name="channel"><option value="stable"' . selected( $r['channel'], 'stable', false ) . '>پایدار</option><option value="beta"' . selected( $r['channel'], 'beta', false ) . '>آزمایشی</option></select> '
-					. '<label><input type="checkbox" name="critical" value="1"' . checked( ! empty( $r['critical'] ), true, false ) . '> مهم</label></td>'
+					. '<label><input type="checkbox" name="critical" value="1"' . checked( ! empty( $r['critical'] ), true, false ) . '> به‌روزرسانی مهم</label>'
+					. '<details style="margin-top:6px"><summary>پیشرفته</summary><label>انتشار تدریجی <input type="number" name="rollout" value="' . (int) $r['rollout'] . '" min="1" max="100" class="small-text">٪ سایت‌ها</label><br>'
+					. '<select name="channel"><option value="stable"' . selected( $r['channel'], 'stable', false ) . '>همه‌ی سایت‌ها</option><option value="beta"' . selected( $r['channel'], 'beta', false ) . '>فقط آزمایشی (کلیدهای آزمایشی)</option></select></details></td>'
 					. '<td><textarea name="changelog" rows="3" style="width:100%">' . esc_textarea( $r['changelog'] ) . '</textarea><br><button class="button button-small button-primary">ذخیره</button></form></td><td>'
 					. self::btn( 'rel_get', '⬇ دریافت بسته', array( 'version' => $v ) ) . self::btn( 'rel_delete', 'حذف', array( 'version' => $v ), 'button button-small button-link-delete', 'این نسخه حذف شود؟' ) . '</td></tr>'; // phpcs:ignore
 			}
@@ -492,12 +494,13 @@ final class Peecha_License_Server {
 		} else {
 			$k = self::keys();
 			echo self::form_open( 'opts' ) . '<table class="form-table">' // phpcs:ignore
-				. '<tr><th>مهلت سایتِ بدون لایسنس (روز)</th><td><input type="number" name="grace" value="' . (int) $o['grace'] . '" min="0" max="90" class="small-text"> <span class="description">بعد از این مدت، تنظیمات و به‌روزرسانی قالب در آن سایت بسته می‌شود؛ خود سایت و خرید مشتریانش کار می‌کند.</span></td></tr>'
-				. '<tr><th>پیام نصب جدید</th><td><label><input type="checkbox" name="notify" value="1"' . checked( ! empty( $o['notify'] ), true, false ) . '> با نصب قالب روی سایت جدیدِ بدون لایسنس ایمیل بیاید</label><br><input type="email" name="email" value="' . esc_attr( $o['email'] ) . '" class="regular-text" dir="ltr"></td></tr>'
-				. '<tr><th>نشانی صفحه‌ی خرید لایسنس</th><td><input type="url" name="info_url" value="' . esc_attr( $o['info_url'] ) . '" class="regular-text" dir="ltr"> <span class="description">در سایت مشتری به‌عنوان «خرید لایسنس» و «جزئیات نسخه» لینک می‌شود.</span></td></tr>'
+				. '<tr><th>مهلت سایتِ تأییدنشده (روز)</th><td><input type="number" name="grace" value="' . (int) $o['grace'] . '" min="0" max="90" class="small-text"> <span class="description">بعد از این مدت، تنظیمات و به‌روزرسانی قالب در آن سایت بسته می‌شود؛ خود سایت و خرید مشتریانش کار می‌کند.</span></td></tr>'
+				. '<tr><th>پیام نصب جدید</th><td><label><input type="checkbox" name="notify" value="1"' . checked( ! empty( $o['notify'] ), true, false ) . '> با نصب قالب روی هر سایت جدید ایمیل بیاید</label><br><input type="email" name="email" value="' . esc_attr( $o['email'] ) . '" class="regular-text" dir="ltr"></td></tr>'
+				. '<tr><th>نشانی صفحه‌ی تماس با شما</th><td><input type="url" name="info_url" value="' . esc_attr( $o['info_url'] ) . '" class="regular-text" dir="ltr"> <span class="description">در سایتِ تأییدنشده به‌عنوان «تماس با پیچا» لینک می‌شود.</span></td></tr>'
+				. '<tr><th>کلید (اختیاری)</th><td><label><input type="checkbox" name="keys" value="1"' . checked( ! empty( $o['keys'] ), true, false ) . '> بخش «کلیدها» فعال شود</label> <span class="description">فقط اگر بخواهید به بعضی مشتری‌ها کلید بدهید تا سایتشان بدون تأیید دستی شما فعال شود. در حالت عادی لازم نیست.</span></td></tr>'
 				. '</table><p><button class="button button-primary">ذخیره</button></p></form>';
 			echo '<h2>کلید عمومی امضا</h2><p>پاسخ‌های این سرور با کلید خصوصی امضا می‌شوند و قالب با این کلید عمومی درستی‌شان را می‌سنجد. این کلید خودکار داخل بسته‌ی هر نسخه گذاشته می‌شود و لازم نیست دستی کاری بکنید. <b>از پایگاه‌داده‌ی این سایت نسخه‌ی پشتیبان بگیرید</b>؛ اگر کلید خصوصی از بین برود، سایت‌های نصب‌شده دیگر پاسخ سرور را نمی‌پذیرند.</p><p><code style="user-select:all" dir="ltr">' . esc_html( $k['pk'] ) . '</code></p>';
-			echo '<p>نشانی بررسی لایسنس: <code dir="ltr">' . esc_html( rest_url( 'peecha/v1/check' ) ) . '</code></p>';
+			echo '<p>نشانی ثبت نصب‌ها: <code dir="ltr">' . esc_html( rest_url( 'peecha/v1/check' ) ) . '</code></p>';
 		}
 		echo '</div></div>';
 	}

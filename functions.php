@@ -14260,19 +14260,43 @@ SHJS87
  *  • اگر سرور در دسترس نباشد، هیچ محدودیتی اعمال نمی‌شود (آخرین وضعیتِ امضاشده معتبر می‌ماند).
  *  • پاسخ سرور با Ed25519 امضا شده و با کلید عمومی داخل قالب سنجیده می‌شود.
  * ===================================================================== */
-function sahel_lic_cfg() {
+function sahel_lic_cfg( $reset = false ) {
     static $c = null;
-    if ( null !== $c ) { return $c; }
+    if ( null !== $c && ! $reset ) { return $c; }
     $c = array();
     if ( defined( 'PEECHA_LIC_SERVER' ) || ! function_exists( 'sodium_crypto_sign_verify_detached' ) ) { return $c; }
-    $f = get_template_directory() . '/license-key.php';
-    if ( ! is_file( $f ) ) { return $c; }
-    $a = include $f;
-    if ( ! is_array( $a ) || empty( $a['server'] ) || empty( $a['pub'] ) ) { return $c; }
-    $pub = base64_decode( (string) $a['pub'], true );
-    $srv = esc_url_raw( (string) $a['server'] );
-    if ( false === $pub || 32 !== strlen( $pub ) || ! preg_match( '#^https?://#', $srv ) ) { return $c; }
-    return $c = array( 'server' => untrailingslashit( $srv ), 'pub' => $pub );
+    /* v8.9: نشانی سرور داخل خود قالب است تا هر نسخه‌ای از قالب، هر جا نصب شد، در فهرست فروشنده ثبت شود */
+    $srv = defined( 'SAHEL_LIC_SERVER_URL' ) ? (string) SAHEL_LIC_SERVER_URL : 'https://peecha.ir';
+    $pub = '';
+    $f   = get_template_directory() . '/license-key.php';
+    if ( is_file( $f ) ) {
+        $a = include $f;
+        if ( is_array( $a ) && ! empty( $a['server'] ) && ! empty( $a['pub'] ) ) { $srv = (string) $a['server']; $pub = (string) $a['pub']; }
+    }
+    $srv = untrailingslashit( esc_url_raw( $srv ) );
+    if ( ! preg_match( '#^https?://#', $srv ) ) { return $c; }
+    /* خود سایت فروشنده گزارش نمی‌دهد */
+    $sh = preg_replace( '#^www\.#', '', strtolower( (string) wp_parse_url( $srv, PHP_URL_HOST ) ) );
+    if ( '' === $sh || $sh === sahel_lic_domain() ) { return $c; }
+    if ( '' === $pub ) { $pin = get_option( 'sahel_lic_pub', '' ); if ( is_string( $pin ) ) { $pub = $pin; } }
+    $bin = '' !== $pub ? base64_decode( $pub, true ) : '';
+    if ( false === $bin || ( '' !== $bin && 32 !== strlen( $bin ) ) ) { $bin = ''; }
+    return $c = array( 'server' => $srv, 'pub' => $bin );
+}
+/* کلید عمومی سرور در اولین تماس (فقط روی https) گرفته و برای همیشه ثابت می‌شود */
+function sahel_lic_pin() {
+    $cfg = sahel_lic_cfg();
+    if ( ! $cfg || '' !== $cfg['pub'] ) { return (bool) $cfg; }
+    if ( 0 !== strpos( $cfg['server'], 'https://' ) ) { return false; }
+    $r = wp_remote_get( add_query_arg( 'rest_route', '/peecha/v1/key', $cfg['server'] . '/' ), array( 'timeout' => 12, 'redirection' => 2, 'limit_response_size' => 2048 ) );
+    if ( is_wp_error( $r ) || 200 !== (int) wp_remote_retrieve_response_code( $r ) ) { return false; }
+    $b   = json_decode( wp_remote_retrieve_body( $r ), true );
+    $pub = ( is_array( $b ) && isset( $b['pub'] ) ) ? (string) $b['pub'] : '';
+    $bin = base64_decode( $pub, true );
+    if ( false === $bin || 32 !== strlen( $bin ) ) { return false; }
+    update_option( 'sahel_lic_pub', $pub, false );
+    sahel_lic_cfg( true );
+    return true;
 }
 function sahel_lic_domain() {
     $h = strtolower( (string) wp_parse_url( home_url(), PHP_URL_HOST ) );
@@ -14286,7 +14310,7 @@ function sahel_lic_state() {
     $st  = null;
     $cfg = sahel_lic_cfg();
     $o   = sahel_lic_opt();
-    if ( ! $cfg || empty( $o['payload'] ) || empty( $o['sig'] ) ) { return $st; }
+    if ( ! $cfg || '' === $cfg['pub'] || empty( $o['payload'] ) || empty( $o['sig'] ) ) { return $st; }
     $sig = base64_decode( (string) $o['sig'], true );
     if ( false === $sig || 64 !== strlen( $sig ) ) { return $st; }
     try { $ok = sodium_crypto_sign_verify_detached( $sig, (string) $o['payload'], $cfg['pub'] ); } catch ( Exception $e ) { $ok = false; }
@@ -14309,6 +14333,10 @@ function sahel_lic_check( $force = false ) {
     if ( ! $force && ! empty( $o['last_try'] ) && time() - (int) $o['last_try'] < 300 ) { return false; }
     $o['last_try'] = time();
     update_option( 'sahel_lic', $o, false );
+    if ( '' === $cfg['pub'] ) {
+        if ( ! sahel_lic_pin() ) { $o['err'] = 'ارتباط با سرور پیچا برقرار نشد.'; update_option( 'sahel_lic', $o, false ); return false; }
+        $cfg = sahel_lic_cfg();
+    }
     $nonce = bin2hex( random_bytes( 16 ) );
     set_transient( 'sahel_lic_n', $nonce, 10 * MINUTE_IN_SECONDS );
     $t = wp_get_theme( get_template() );
@@ -14317,15 +14345,15 @@ function sahel_lic_check( $force = false ) {
         'body'    => array( 'domain' => sahel_lic_domain(), 'home' => home_url( '/' ), 'key' => isset( $o['key'] ) ? (string) $o['key'] : '', 'version' => (string) $t->get( 'Version' ), 'wp' => get_bloginfo( 'version' ), 'php' => PHP_VERSION, 'nonce' => $nonce ),
     ) );
     $err = '';
-    if ( is_wp_error( $r ) ) { $err = 'ارتباط با سرور لایسنس برقرار نشد.'; }
-    elseif ( 200 !== (int) wp_remote_retrieve_response_code( $r ) ) { $err = 'سرور لایسنس پاسخ نامعتبر داد (' . (int) wp_remote_retrieve_response_code( $r ) . ').'; }
+    if ( is_wp_error( $r ) ) { $err = 'ارتباط با سرور پیچا برقرار نشد.'; }
+    elseif ( 200 !== (int) wp_remote_retrieve_response_code( $r ) ) { $err = 'سرور پیچا پاسخ نامعتبر داد (' . (int) wp_remote_retrieve_response_code( $r ) . ').'; }
     else {
         $b = json_decode( wp_remote_retrieve_body( $r ), true );
         $sig = ( is_array( $b ) && isset( $b['sig'], $b['payload'] ) ) ? base64_decode( (string) $b['sig'], true ) : false;
         $ok = false;
         if ( false !== $sig && 64 === strlen( $sig ) ) { try { $ok = sodium_crypto_sign_verify_detached( $sig, (string) $b['payload'], $cfg['pub'] ); } catch ( Exception $e ) { $ok = false; } }
         $p = $ok ? json_decode( (string) $b['payload'], true ) : null;
-        if ( ! is_array( $p ) || ! isset( $p['n'], $p['d'], $p['t'] ) || ! hash_equals( $nonce, (string) $p['n'] ) || $p['d'] !== sahel_lic_domain() || abs( time() - (int) $p['t'] ) > DAY_IN_SECONDS ) { $err = 'پاسخ سرور لایسنس تأیید نشد.'; }
+        if ( ! is_array( $p ) || ! isset( $p['n'], $p['d'], $p['t'] ) || ! hash_equals( $nonce, (string) $p['n'] ) || $p['d'] !== sahel_lic_domain() || abs( time() - (int) $p['t'] ) > DAY_IN_SECONDS ) { $err = 'پاسخ سرور پیچا تأیید نشد.'; }
         else { $o['payload'] = (string) $b['payload']; $o['sig'] = (string) $b['sig']; $o['last_ok'] = time(); }
     }
     $o['err'] = $err;
@@ -14359,7 +14387,7 @@ add_filter( 'site_transient_update_themes', function ( $t ) {
     $p = sahel_lic_state();
     $slug = get_template();
     $cur  = (string) wp_get_theme( $slug )->get( 'Version' );
-    if ( ! $p || 'active' !== $p['s'] || empty( $p['v'] ) || empty( $p['p'] ) || ! version_compare( (string) $p['v'], $cur, '>' ) || 0 !== strpos( (string) $p['p'], sahel_lic_cfg()['server'] ) ) { return $t; }
+    if ( ! $p || sahel_lic_restricted() || empty( $p['v'] ) || empty( $p['p'] ) || ! version_compare( (string) $p['v'], $cur, '>' ) || 0 !== strpos( (string) $p['p'], sahel_lic_cfg()['server'] ) ) { return $t; }
     if ( ! isset( $t->response ) || ! is_array( $t->response ) ) { $t->response = array(); }
     $t->response[ $slug ] = array( 'theme' => $slug, 'new_version' => (string) $p['v'], 'url' => ! empty( $p['i'] ) ? esc_url_raw( (string) $p['i'] ) : sahel_lic_cfg()['server'], 'package' => esc_url_raw( (string) $p['p'] ), 'requires' => '', 'requires_php' => '' );
     return $t;
@@ -14368,7 +14396,7 @@ add_action( 'load-update-core.php', function () { if ( isset( $_GET['force-check
 /* صفحه‌ی لایسنس */
 add_action( 'admin_menu', function () {
     if ( ! sahel_lic_cfg() ) { return; }
-    add_theme_page( 'لایسنس قالب پیچا', 'لایسنس پیچا', 'manage_options', 'sahel-license', 'sahel_lic_page' );
+    add_theme_page( 'وضعیت قالب پیچا', 'وضعیت قالب پیچا', 'manage_options', 'sahel-license', 'sahel_lic_page' );
 } );
 add_action( 'admin_post_sahel_lic_save', function () {
     if ( ! current_user_can( 'manage_options' ) ) { wp_die( 'دسترسی ندارید.' ); }
@@ -14382,34 +14410,38 @@ add_action( 'admin_post_sahel_lic_save', function () {
     exit;
 } );
 function sahel_lic_status_text( $p ) {
-    $why = array( 'badkey' => 'کلید لایسنس نادرست است.', 'revoked' => 'این لایسنس لغو شده است.', 'expired' => 'مدت این لایسنس تمام شده است.', 'limit' => 'این لایسنس روی حداکثر تعداد سایتِ مجاز استفاده شده است.', 'blocked' => 'این سایت از طرف فروشنده مسدود شده است.' );
-    if ( ! $p ) { return array( 'info', 'هنوز وضعیت لایسنس از سرور دریافت نشده است.' ); }
-    if ( 'active' === $p['s'] ) { return array( 'success', 'manual' === $p['r'] ? 'این سایت از طرف فروشنده مجاز شده است.' : ( 'dev' === $p['r'] ? 'سایت آزمایشی (لوکال)؛ نیازی به لایسنس نیست.' : 'لایسنس معتبر است.' ) ); }
+    $why = array( 'badkey' => 'کلید واردشده نادرست است.', 'revoked' => 'این کلید لغو شده است.', 'expired' => 'مدت این کلید تمام شده است.', 'limit' => 'این کلید روی حداکثر تعداد سایت استفاده شده است.', 'blocked' => 'پیچا استفاده از قالب را برای این سایت تأیید نکرده است.' );
+    if ( ! $p ) { return array( 'info', 'هنوز وضعیت این سایت از سرور پیچا دریافت نشده است.' ); }
+    if ( 'active' === $p['s'] ) { return array( 'success', 'dev' === $p['r'] ? 'سایت آزمایشی (لوکال)؛ نیازی به تأیید نیست.' : 'این سایت از طرف پیچا تأیید شده است.' ); }
     $r = isset( $why[ $p['r'] ] ) ? ' ' . $why[ $p['r'] ] : '';
     if ( 'blocked' === $p['s'] ) { return array( 'error', 'سفارشی‌سازی و به‌روزرسانی قالب بسته است.' . $r ); }
     $left = ! empty( $p['g'] ) ? (int) ceil( ( (int) $p['g'] - time() ) / DAY_IN_SECONDS ) : 0;
-    if ( $left > 0 ) { return array( 'warning', 'این سایت لایسنس معتبر ندارد.' . $r . ' ' . ( function_exists( 'sahel_fa' ) ? sahel_fa( $left ) : $left ) . ' روز دیگر سفارشی‌سازی و به‌روزرسانی قالب بسته می‌شود (خود سایت همچنان کار می‌کند).' ); }
-    return array( 'error', 'این سایت لایسنس معتبر ندارد؛ سفارشی‌سازی و به‌روزرسانی قالب بسته شده است.' . $r . ' خود سایت همچنان کار می‌کند.' );
+    if ( $left > 0 ) { return array( 'warning', 'این سایت هنوز از طرف پیچا تأیید نشده است.' . $r . ' اگر تا ' . ( function_exists( 'sahel_fa' ) ? sahel_fa( $left ) : $left ) . ' روز دیگر تأیید نشود، سفارشی‌سازی و به‌روزرسانی قالب بسته می‌شود (خود سایت همچنان کار می‌کند).' ); }
+    return array( 'error', 'این سایت از طرف پیچا تأیید نشده است؛ سفارشی‌سازی و به‌روزرسانی قالب بسته شده است.' . $r . ' خود سایت همچنان کار می‌کند.' );
 }
 function sahel_lic_page() {
     if ( ! current_user_can( 'manage_options' ) ) { return; }
     $cfg = sahel_lic_cfg(); $o = sahel_lic_opt(); $p = sahel_lic_state();
     list( $cls, $txt ) = sahel_lic_status_text( $p );
     $t = wp_get_theme( get_template() );
-    echo '<div class="wrap"><h1>لایسنس قالب پیچا</h1>';
+    echo '<div class="wrap"><h1>وضعیت قالب پیچا</h1>';
     echo '<div class="notice notice-' . esc_attr( $cls ) . ' inline"><p><b>' . esc_html( $txt ) . '</b></p></div>';
     if ( ! empty( $o['err'] ) ) { echo '<div class="notice notice-info inline"><p>' . esc_html( $o['err'] ) . ' تا برقراری ارتباط، آخرین وضعیت معتبر می‌ماند و چیزی بسته نمی‌شود.</p></div>'; }
     echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">' . wp_nonce_field( 'sahel_lic_save', '_wpnonce', true, false ) . '<input type="hidden" name="action" value="sahel_lic_save">';
-    echo '<table class="form-table"><tr><th><label for="sahel-lic-key">کلید لایسنس</label></th><td><input type="text" id="sahel-lic-key" name="key" class="regular-text" dir="ltr" autocomplete="off" value="' . esc_attr( isset( $o['key'] ) ? $o['key'] : '' ) . '" placeholder="PCH-XXXXX-XXXXX-XXXXX-XXXXX"> <button class="button button-primary">ذخیره و بررسی</button>';
-    if ( $p && ! empty( $p['i'] ) ) { echo ' <a class="button" href="' . esc_url( $p['i'] ) . '" target="_blank" rel="noopener noreferrer">خرید لایسنس</a>'; }
-    echo '</td></tr><tr><th>دامنه‌ی این سایت</th><td><code dir="ltr">' . esc_html( sahel_lic_domain() ) . '</code></td></tr>';
+    echo '<table class="form-table">';
+    if ( ( $p && ! empty( $p['k'] ) ) || ! empty( $o['key'] ) ) {
+        echo '<tr><th><label for="sahel-lic-key">کلید (اگر از پیچا گرفته‌اید)</label></th><td><input type="text" id="sahel-lic-key" name="key" class="regular-text" dir="ltr" autocomplete="off" value="' . esc_attr( isset( $o['key'] ) ? $o['key'] : '' ) . '" placeholder="PCH-XXXXX-XXXXX-XXXXX-XXXXX"> <button class="button button-primary">ذخیره و بررسی</button></td></tr>';
+    } else {
+        echo '<tr><th>بررسی وضعیت</th><td><button class="button button-primary">بررسی دوباره</button>' . ( $p && ! empty( $p['i'] ) ? ' <a class="button" href="' . esc_url( $p['i'] ) . '" target="_blank" rel="noopener noreferrer">تماس با پیچا</a>' : '' ) . '</td></tr>';
+    }
+    echo '<tr><th>دامنه‌ی این سایت</th><td><code dir="ltr">' . esc_html( sahel_lic_domain() ) . '</code></td></tr>';
     echo '<tr><th>نسخه‌ی نصب‌شده</th><td>' . esc_html( $t->get( 'Version' ) );
-    if ( $p && 'active' === $p['s'] && ! empty( $p['v'] ) && version_compare( (string) $p['v'], (string) $t->get( 'Version' ), '>' ) ) {
+    if ( $p && ! sahel_lic_restricted() && ! empty( $p['v'] ) && version_compare( (string) $p['v'], (string) $t->get( 'Version' ), '>' ) ) {
         echo ' — <b>نسخه‌ی ' . esc_html( $p['v'] ) . ' آماده است' . ( ! empty( $p['c'] ) ? ' (به‌روزرسانی مهم)' : '' ) . '.</b> <a href="' . esc_url( admin_url( 'update-core.php' ) ) . '">به‌روزرسانی</a>';
         if ( ! empty( $p['l'] ) ) { echo '<br><span class="description" style="white-space:pre-line">' . esc_html( $p['l'] ) . '</span>'; }
     }
     echo '</td></tr><tr><th>آخرین بررسی موفق</th><td>' . ( ! empty( $o['last_ok'] ) ? esc_html( wp_date( 'Y/m/d H:i', (int) $o['last_ok'] ) ) : '—' ) . '</td></tr></table></form>';
-    echo '<p class="description">برای بررسی لایسنس و به‌روزرسانی، قالب روزی یک بار این اطلاعات را به <code dir="ltr">' . esc_html( $cfg['server'] ) . '</code> می‌فرستد: دامنه‌ی سایت، کلید لایسنس، نسخه‌ی قالب، نسخه‌ی وردپرس و PHP. هیچ اطلاعاتی از مشتریان، سفارش‌ها یا محتوای سایت فرستاده نمی‌شود.</p></div>';
+    echo '<p class="description">برای ثبت نصب و دریافت به‌روزرسانی، قالب روزی یک بار این اطلاعات را به <code dir="ltr">' . esc_html( $cfg['server'] ) . '</code> می‌فرستد: دامنه‌ی سایت، نسخه‌ی قالب، نسخه‌ی وردپرس و PHP. هیچ اطلاعاتی از مشتریان، سفارش‌ها یا محتوای سایت فرستاده نمی‌شود.</p></div>';
 }
 add_action( 'admin_notices', function () {
     if ( ! sahel_lic_cfg() || ! current_user_can( 'manage_options' ) ) { return; }
@@ -14422,5 +14454,5 @@ add_action( 'admin_notices', function () {
         return;
     }
     list( $cls, $txt ) = sahel_lic_status_text( $p );
-    echo '<div class="notice notice-' . esc_attr( $cls ) . '"><p><b>قالب پیچا:</b> ' . esc_html( $txt ) . ' <a href="' . esc_url( admin_url( 'themes.php?page=sahel-license' ) ) . '">وارد کردن کلید لایسنس</a></p></div>';
+    echo '<div class="notice notice-' . esc_attr( $cls ) . '"><p><b>قالب پیچا:</b> ' . esc_html( $txt ) . ' <a href="' . esc_url( admin_url( 'themes.php?page=sahel-license' ) ) . '">جزئیات</a></p></div>';
 } );
