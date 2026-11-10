@@ -12110,6 +12110,7 @@ function sahel_slm_extras( $n, $out ) {
     $map = array( 'center' => '50% 50%', 'right' => '100% 50%', 'left' => '0% 50%', 'top' => '50% 0%', 'bottom' => '50% 100%', 'tr' => '100% 0%', 'tl' => '0% 0%' );
     if ( isset( $map[ $pos ] ) ) { $out['style'] .= ';--m-pos:' . $map[ $pos ]; $out['cls'] .= ' slm-pos'; }
     if ( get_theme_mod( $k . '_image_m', '' ) ) { $out['cls'] .= ' slm-mimg'; }
+    if ( function_exists( 'sahel_slc_extras' ) ) { $out = sahel_slc_extras( $n, $out ); } /* v8.7: انتخاب دقیق بخش قابل‌نمایش */
     return $out;
 }
 /* نسبت ابعاد یک تصویر کتابخانه (کش‌شده) برای حالت «تصویر کامل بدون برش» */
@@ -14074,3 +14075,178 @@ add_action( 'customize_register', function ( $w ) {
         $bo->description = 'اگر بخش «برندها — کارتی» برند داشته باشد، این نوار به‌صورت پیش‌فرض نمایش داده نمی‌شود تا برندها تکرار نشوند (قابل تغییر در همان بخش).';
     }
 }, 3000 );
+
+/* =====================================================================
+ * v8.7 — اسلایدر در نمایشگرهای مختلف
+ *  ۱) انتخاب دقیق بخش قابل‌نمایش هر اسلاید، جدا برای موبایل، تبلت و دسکتاپ (قاب کشیدنی روی خود تصویر + بزرگ‌نمایی)
+ *  ۲) حالت «نسبت ثابت» برای دسکتاپ و تبلت، تا تصویر در همه‌ی نمایشگرها یک‌جور دیده شود
+ *  ۳) گزینه‌ی تصویر ثابت (بدون زوم و حرکت خودکار که لبه‌های تصویر را می‌بُرد)
+ * مقدار خالی = همان رفتار قبلی؛ هیچ تنظیم قبلی تغییر نمی‌کند.
+ * ===================================================================== */
+function sahel_slc_san( $v ) {
+    if ( ! preg_match( '/^(\d{1,3}),(\d{1,3}),(\d{2,3})$/', (string) $v, $m ) ) { return ''; }
+    return min( 100, (int) $m[1] ) . ',' . min( 100, (int) $m[2] ) . ',' . max( 100, min( 300, (int) $m[3] ) );
+}
+function sahel_slc_san_mode( $v ) { return in_array( $v, array( 'image', 'ratio' ), true ) ? $v : ''; }
+function sahel_slc_san_ratio( $v ) { $v = (string) $v; return preg_match( '#^\d{1,2}/\d{1,2}$#', $v ) ? $v : ''; }
+/* کلاس و متغیرهای هر اسلاید */
+function sahel_slc_extras( $n, $out ) {
+    $k = 'sahel_slide' . (int) $n;
+    foreach ( array( 'd', 't', 'm' ) as $d ) {
+        $v = sahel_slc_san( get_theme_mod( $k . '_crop_' . $d, '' ) );
+        if ( '' === $v ) { continue; }
+        list( $x, $y, $z ) = array_map( 'intval', explode( ',', $v ) );
+        $out['cls']   .= ' slc-' . $d;
+        $out['style'] .= ';--cx-' . $d . ':' . $x . '%;--cy-' . $d . ':' . $y . '%;--cz-' . $d . ':' . round( $z / 100, 2 );
+    }
+    return $out;
+}
+add_action( 'wp_head', function () {
+    $mq = array( 'd' => '@media(min-width:921px)', 't' => '@media(min-width:601px) and (max-width:920px)', 'm' => '@media(max-width:600px)' );
+    $c  = '';
+    foreach ( $mq as $d => $q ) {
+        $c .= $q . '{.slider .slide.slc-' . $d . ' .sb-wrap{animation:none!important;transform:none!important;scale:1!important}'
+            . '.slider .slide.slc-' . $d . ' .slide-bg{object-fit:cover!important;object-position:var(--cx-' . $d . ',50%) var(--cy-' . $d . ',50%)!important;transform:scale(var(--cz-' . $d . ',1))!important;transform-origin:var(--cx-' . $d . ',50%) var(--cy-' . $d . ',50%)!important;animation:none!important}}';
+    }
+    if ( (int) get_theme_mod( 'sahel_sl_still', 0 ) ) {
+        $c .= '.slider .slide:not(.smx):not(.slc-d):not(.slc-t):not(.slc-m) .sb-wrap{animation:none!important;transform:none!important}.slider .slide:not(.smx):not(.slc-d):not(.slc-t):not(.slc-m) .slide-bg{transform:none!important}';
+    }
+    foreach ( array( 'd' => 'sld', 't' => 'slt' ) as $d => $p ) {
+        $mode = sahel_slc_san_mode( get_theme_mod( 'sahel_' . $p . '_mode', '' ) );
+        if ( '' === $mode ) { continue; }
+        if ( 'ratio' === $mode ) {
+            $ar = sahel_slc_san_ratio( get_theme_mod( 'sahel_' . $p . '_ratio', '' ) );
+            if ( '' === $ar ) { $ar = 'd' === $d ? '21/9' : '16/9'; }
+        } else {
+            $ar = function_exists( 'sahel_img_ratio' ) ? sahel_img_ratio( (string) get_theme_mod( 'sahel_slide1_image', '' ) ) : '';
+            if ( '' === $ar ) { $ar = '16/9'; }
+            $ar = 'var(--sl-ar-img,' . $ar . ')';
+            $GLOBALS['sahel_slc_arjs'] = 1;
+        }
+        $c .= $mq[ $d ] . '{.slider:not(:has(.slide.smx)){min-height:0!important;height:auto!important;aspect-ratio:' . $ar . ';max-height:none}}';
+    }
+    if ( '' === $c ) { return; }
+    echo '<style id="sahel-v87-slc">' . $c . '</style>' . "\n"; // phpcs:ignore -- اعداد و نسبت پاک‌سازی‌شده
+}, 99 );
+/* حالت «نسبت خود تصویر»: نسبت از خود تصویر اسلاید اول خوانده می‌شود */
+add_action( 'wp_footer', function () {
+    if ( empty( $GLOBALS['sahel_slc_arjs'] ) ) { return; }
+    echo '<script id="sahel-v87-slcjs">(function(){var s=document.querySelector(".slider");if(!s)return;var i=s.querySelector("img.slide-bg");if(!i)return;function f(){if(i.naturalWidth&&i.naturalHeight)s.style.setProperty("--sl-ar-img",i.naturalWidth+"/"+i.naturalHeight);}if(i.complete)f();else i.addEventListener("load",f);})();</script>' . "\n";
+}, 40 );
+
+/* ---------- سفارشی‌سازی: قاب انتخاب روی تصویر ---------- */
+add_action( 'customize_register', function ( $w ) {
+    if ( ! class_exists( 'WP_Customize_Control' ) ) { return; }
+    if ( ! class_exists( 'Sahel_Crop_Control' ) ) {
+        class Sahel_Crop_Control extends WP_Customize_Control {
+            public $type = 'sahel_crop';
+            public $slide = 1;
+            public function render_content() {
+                echo '<span class="customize-control-title">' . esc_html( $this->label ) . '</span>';
+                if ( $this->description ) { echo '<span class="description customize-control-description">' . esc_html( $this->description ) . '</span>'; }
+                echo '<div class="scp" data-slide="' . (int) $this->slide . '">'
+                   . '<div class="scp-tabs" role="tablist"><button type="button" class="on" data-d="m">📱 موبایل</button><button type="button" data-d="t">تبلت</button><button type="button" data-d="d">🖥 دسکتاپ</button></div>'
+                   . '<div class="scp-stage"><img alt="" draggable="false"><div class="scp-frame"></div><div class="scp-empty">ابتدا تصویر اسلاید را انتخاب کنید.</div></div>'
+                   . '<label class="scp-zoom"><span>بزرگ‌نمایی</span><input type="range" min="100" max="300" step="5" value="100"><output>100%</output></label>'
+                   . '<div class="scp-row"><button type="button" class="button scp-reset">بازگشت به پیش‌فرض</button><span class="scp-val"></span></div>'
+                   . '</div>';
+            }
+        }
+    }
+    for ( $i = 1; $i <= 12; $i++ ) {
+        $sec = 'sahel_slide' . $i;
+        if ( ! $w->get_section( $sec ) ) { continue; }
+        $ids = array();
+        foreach ( array( 'd', 't', 'm' ) as $d ) {
+            $ids[ $d ] = $sec . '_crop_' . $d;
+            $w->add_setting( $ids[ $d ], array( 'default' => '', 'sanitize_callback' => 'sahel_slc_san' ) );
+        }
+        $w->add_control( new Sahel_Crop_Control( $w, $sec . '_crop', array(
+            'label'       => '🎯 انتخاب دقیق بخش قابل‌نمایش تصویر',
+            'description' => 'دستگاه را انتخاب کنید و قاب را روی تصویر بکشید؛ همان بخش داخل قاب در آن دستگاه نمایش داده می‌شود. با «بزرگ‌نمایی» قاب کوچک‌تر می‌شود.',
+            'section'     => $sec,
+            'settings'    => $ids,
+            'slide'       => $i,
+            'priority'    => 7,
+        ) ) );
+    }
+    $s = $w->get_section( 'sahel_x_slider_resp' ) ? 'sahel_x_slider_resp' : ( $w->get_section( 'sahel_slider' ) ? 'sahel_slider' : '' );
+    if ( ! $s ) { return; }
+    if ( 'sahel_x_slider_resp' === $s ) { $w->get_section( $s )->title = '🖥📱 اسلایدر در نمایشگرهای مختلف (دسکتاپ، تبلت، موبایل)'; }
+    $modes = array( '' => 'ارتفاع ثابت (پیش‌فرض)', 'image' => 'نسبت خود تصویرِ اسلاید اول (تصویر کامل، بدون برش)', 'ratio' => 'نسبت دلخواه' );
+    $ratios = array( '' => '— پیش‌فرض —', '21/9' => '۲۱:۹ (خیلی عریض)', '2/1' => '۲:۱', '16/9' => '۱۶:۹', '3/2' => '۳:۲', '4/3' => '۴:۳', '1/1' => '۱:۱ (مربع)' );
+    $w->add_setting( 'sahel_sl_still', array( 'default' => 0, 'sanitize_callback' => 'absint' ) );
+    $w->add_control( 'sahel_sl_still', array( 'label' => '🖼 تصویر اسلاید ثابت بماند (بدون زوم و حرکت خودکار)', 'description' => 'زوم خودکار حدود ۱۵٪ از لبه‌های تصویر را می‌بُرد. با این گزینه تصویر در همه‌ی نمایشگرها همان‌طور که هست دیده می‌شود.', 'section' => $s, 'type' => 'checkbox', 'priority' => 1 ) );
+    $w->add_setting( 'sahel_sld_mode', array( 'default' => '', 'sanitize_callback' => 'sahel_slc_san_mode' ) );
+    $w->add_control( 'sahel_sld_mode', array( 'label' => '🖥 اندازه‌ی اسلایدر در دسکتاپ', 'description' => 'با «نسبت»، اسلایدر در مانیتور کوچک و بزرگ یک‌جور دیده می‌شود.', 'section' => $s, 'type' => 'select', 'choices' => $modes, 'priority' => 2 ) );
+    $w->add_setting( 'sahel_sld_ratio', array( 'default' => '', 'sanitize_callback' => 'sahel_slc_san_ratio' ) );
+    $w->add_control( 'sahel_sld_ratio', array( 'label' => '— نسبت دلخواه دسکتاپ', 'section' => $s, 'type' => 'select', 'choices' => $ratios, 'priority' => 3 ) );
+    $w->add_setting( 'sahel_slt_mode', array( 'default' => '', 'sanitize_callback' => 'sahel_slc_san_mode' ) );
+    $w->add_control( 'sahel_slt_mode', array( 'label' => '📟 اندازه‌ی اسلایدر در تبلت', 'section' => $s, 'type' => 'select', 'choices' => $modes, 'priority' => 4 ) );
+    $w->add_setting( 'sahel_slt_ratio', array( 'default' => '', 'sanitize_callback' => 'sahel_slc_san_ratio' ) );
+    $w->add_control( 'sahel_slt_ratio', array( 'label' => '— نسبت دلخواه تبلت', 'section' => $s, 'type' => 'select', 'choices' => $ratios, 'priority' => 5 ) );
+}, 1020 );
+add_action( 'customize_controls_print_footer_scripts', function () {
+    echo '<style>.scp{margin-top:8px}.scp-tabs{display:flex;gap:4px;margin-bottom:8px}.scp-tabs button{flex:1;padding:6px 4px;border:1px solid #c3c4c7;background:#fff;border-radius:6px;cursor:pointer;font-size:12px}.scp-tabs button.on{background:#2271b1;border-color:#2271b1;color:#fff}'
+       . '.scp-tabs button.set::after{content:" ●";color:#00a32a}.scp-tabs button.on.set::after{color:#fff}'
+       . '.scp-stage{position:relative;overflow:hidden;border-radius:6px;background:#1d2327;line-height:0;touch-action:none;cursor:grab;user-select:none;min-height:60px}.scp-stage.drag{cursor:grabbing}'
+       . '.scp-stage img{display:block;width:100%;height:auto;pointer-events:none}.scp-stage:not(.has-img) img,.scp-stage:not(.has-img) .scp-frame{display:none}.scp-stage.has-img .scp-empty{display:none}'
+       . '.scp-empty{color:#c3c4c7;font-size:12px;line-height:1.8;padding:18px 10px;text-align:center}'
+       . '.scp-frame{position:absolute;box-sizing:border-box;border:2px solid #fff;box-shadow:0 0 0 9999px rgba(0,0,0,.58);border-radius:3px;pointer-events:none}.scp-frame.def{border-style:dashed;border-color:#f0c33c}'
+       . '.scp-zoom{display:flex;align-items:center;gap:8px;margin:10px 0 6px;font-size:12px}.scp-zoom input{flex:1;min-width:0}.scp-zoom output{min-width:42px;text-align:end;direction:ltr}'
+       . '.scp-row{display:flex;align-items:center;justify-content:space-between;gap:8px}.scp-val{font-size:11px;color:#646970}</style>';
+    echo '<script id="sahel-v87-crop">' . <<<'SHJS87'
+(function(){
+if(!window.wp||!wp.customize){return;}
+var api=wp.customize;
+function num(id,d){var s=api(id),v=s?parseFloat(s.get()):NaN;return (isNaN(v)||!v)?d:v;}
+function str(id,d){var s=api(id),v=s?String(s.get()||''):'';return v||d;}
+function ratio(v){var m=String(v).match(/^(\d+)\/(\d+)$/);return m?(+m[1])/(+m[2]):0;}
+/* نسبت عرض به ارتفاع کادر اسلایدر در هر دستگاه (با تنظیمات فعلی) */
+function boxAr(dev,ai){
+ if(dev==='m'){var mm=str('sahel_slm_mode','fixed');if(mm==='ratio'){return ratio(str('sahel_slm_ratio','16/9'))||16/9;}if(mm==='image'){return ai;}if(mm==='vh'){return 390/(num('sahel_slm_vh',60)/100*780);}return (390*num('sahel_slm_w',100)/100)/(num('sahel_slm_h',0)||num('sahel_slide_height_m',480));}
+ if(dev==='t'){var mt=str('sahel_slt_mode','');if(mt==='ratio'){return ratio(str('sahel_slt_ratio','16/9'))||16/9;}if(mt==='image'){return ai;}return 768/(num('sahel_slide_height_t',0)||num('sahel_slide_height_m',480));}
+ var md=str('sahel_sld_mode','');if(md==='ratio'){return ratio(str('sahel_sld_ratio','21/9'))||21/9;}if(md==='image'){return ai;}return 1260/num('sahel_slide_height',620);
+}
+function parse(v){var m=String(v||'').match(/^(\d{1,3}),(\d{1,3}),(\d{2,3})$/);return m?{x:Math.min(100,+m[1])/100,y:Math.min(100,+m[2])/100,z:Math.max(100,Math.min(300,+m[3]))/100}:null;}
+/* هندسه‌ی قاب: همان فرمولی که CSS (object-position + scale) اجرا می‌کند */
+function geom(ai,ac,z){var fw=ai>ac?ac/ai:1,fh=ai>ac?1:ai/ac;return{fw:fw/z,fh:fh/z};}
+function init(control){
+ var $c=control.container,root=$c.find('.scp')[0];if(!root||root._scp){return;}root._scp=1;
+ var n=root.getAttribute('data-slide'),ids=control.params.settings||{},dev='m';
+ var stage=root.querySelector('.scp-stage'),img=stage.querySelector('img'),frame=stage.querySelector('.scp-frame'),zin=root.querySelector('.scp-zoom input'),zout=root.querySelector('.scp-zoom output'),val=root.querySelector('.scp-val');
+ var cur={x:.5,y:0,z:1},isDef=true;
+ function setting(){return ids[dev]?api(ids[dev]):null;}
+ function src(){var m=str('sahel_slide'+n+'_image_m',''),d=str('sahel_slide'+n+'_image','');return dev==='m'&&m?m:d;}
+ function ai(){return img.naturalWidth&&img.naturalHeight?img.naturalWidth/img.naturalHeight:16/9;}
+ function draw(){
+  var g=geom(ai(),boxAr(dev,ai()),cur.z);
+  frame.style.width=(g.fw*100)+'%';frame.style.height=(g.fh*100)+'%';frame.style.left=(cur.x*(1-g.fw)*100)+'%';frame.style.top=(cur.y*(1-g.fh)*100)+'%';
+  frame.classList.toggle('def',isDef);zin.value=Math.round(cur.z*100);zout.textContent=Math.round(cur.z*100)+'%';
+  val.textContent=isDef?'پیش‌فرض قالب':('افقی '+Math.round(cur.x*100)+'٪ · عمودی '+Math.round(cur.y*100)+'٪');
+  [].forEach.call(root.querySelectorAll('.scp-tabs button'),function(b){var d=b.getAttribute('data-d');b.classList.toggle('on',d===dev);var s=ids[d]?api(ids[d]):null;b.classList.toggle('set',!!(s&&parse(s.get())));});
+ }
+ function load(){var s=setting(),p=s?parse(s.get()):null;isDef=!p;cur=p||{x:.5,y:dev==='m'?.5:0,z:1};var u=src();if(u){if(img.getAttribute('src')!==u){img.setAttribute('src',u);}stage.classList.add('has-img');}else{img.removeAttribute('src');stage.classList.remove('has-img');}draw();}
+ function commit(){var s=setting();if(!s){return;}isDef=false;s.set(Math.round(cur.x*100)+','+Math.round(cur.y*100)+','+Math.round(cur.z*100));draw();}
+ function point(e){var r=stage.getBoundingClientRect(),g=geom(ai(),boxAr(dev,ai()),cur.z),px=(e.clientX-r.left)/r.width,py=(e.clientY-r.top)/r.height;
+  var l=Math.max(0,Math.min(1-g.fw,px-g.fw/2)),t=Math.max(0,Math.min(1-g.fh,py-g.fh/2));
+  cur.x=(1-g.fw)>.002?l/(1-g.fw):.5;cur.y=(1-g.fh)>.002?t/(1-g.fh):.5;isDef=false;draw();}
+ img.addEventListener('load',draw);
+ var down=false;
+ stage.addEventListener('pointerdown',function(e){if(!stage.classList.contains('has-img')){return;}down=true;stage.classList.add('drag');try{stage.setPointerCapture(e.pointerId);}catch(x){}point(e);e.preventDefault();});
+ stage.addEventListener('pointermove',function(e){if(down){point(e);}});
+ function up(){if(!down){return;}down=false;stage.classList.remove('drag');commit();}
+ stage.addEventListener('pointerup',up);stage.addEventListener('pointercancel',up);
+ zin.addEventListener('input',function(){cur.z=Math.max(1,Math.min(3,(+zin.value||100)/100));isDef=false;draw();});
+ zin.addEventListener('change',commit);
+ root.querySelector('.scp-reset').addEventListener('click',function(){var s=setting();if(s){s.set('');}load();});
+ [].forEach.call(root.querySelectorAll('.scp-tabs button'),function(b){b.addEventListener('click',function(){dev=b.getAttribute('data-d');load();});});
+ ['sahel_slide'+n+'_image','sahel_slide'+n+'_image_m','sahel_slm_mode','sahel_slm_ratio','sahel_slm_h','sahel_slm_vh','sahel_slm_w','sahel_slide_height','sahel_slide_height_m','sahel_slide_height_t','sahel_sld_mode','sahel_sld_ratio','sahel_slt_mode','sahel_slt_ratio'].forEach(function(id){var s=api(id);if(s){s.bind(function(){load();});}});
+ load();
+}
+api.bind('ready',function(){api.control.each(function(c){if(c.params&&c.params.type==='sahel_crop'){c.deferred.embedded.done(function(){init(c);});}});});
+window.sahelCropInit=init;
+})();
+SHJS87
+    . '</script>' . "\n";
+} );
