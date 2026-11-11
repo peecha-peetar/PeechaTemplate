@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Peecha License Server
  * Description:       فهرست سایت‌هایی که قالب پیچا رویشان نصب شده (با تأیید یا رد هر سایت) و انتشار نسخه‌های جدید قالب — فقط روی peecha.ir نصب شود.
- * Version:           1.1.0
+ * Version:           1.2.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            Peecha Studio
@@ -11,14 +11,14 @@
  */
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
-define( 'PEECHA_LIC_SERVER', '1.1.0' );
+define( 'PEECHA_LIC_SERVER', '1.2.0' );
 
 final class Peecha_License_Server {
 
 	const OPT   = 'peecha_lic_opts';
 	const REL   = 'peecha_lic_releases';
 	const KEYS  = 'peecha_lic_keys';
-	const DBVER = '1';
+	const DBVER = '2';
 
 	public static function init() {
 		register_activation_hook( __FILE__, array( __CLASS__, 'install' ) );
@@ -66,7 +66,8 @@ final class Peecha_License_Server {
 			UNIQUE KEY domain (domain),
 			KEY lic_id (lic_id)
 		) $cs;" );
-		update_option( 'peecha_lic_dbver', self::DBVER, false );
+		delete_option( 'peecha_lic_dbver' );
+		add_option( 'peecha_lic_dbver', self::DBVER, '', true ); /* v1.2: بارگذاری خودکار → بدون پرس‌وجوی اضافه در هر صفحه */
 		self::keys();
 		self::store_dir();
 	}
@@ -184,6 +185,7 @@ final class Peecha_License_Server {
 				$wpdb->insert( $ts, array( 'domain' => $domain, 'status' => 'pending', 'first_seen' => gmdate( 'Y-m-d H:i:s', $now ), 'last_seen' => gmdate( 'Y-m-d H:i:s', $now ), 'theme_ver' => $ver, 'wp_ver' => $wpv, 'php_ver' => $phpv ) );
 				$site = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $ts WHERE domain = %s", $domain ) ); // phpcs:ignore
 				$is_new = true;
+				delete_transient( 'peecha_lic_pending' );
 			}
 			if ( ! $site ) { return new WP_REST_Response( array( 'error' => 'server' ), 500 ); }
 			$upd = array( 'last_seen' => gmdate( 'Y-m-d H:i:s', $now ), 'theme_ver' => $ver, 'wp_ver' => $wpv, 'php_ver' => $phpv );
@@ -227,6 +229,18 @@ final class Peecha_License_Server {
 		}
 		$json = wp_json_encode( $payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
 		return new WP_REST_Response( array( 'payload' => $json, 'sig' => self::sign( $json ) ), 200 );
+	}
+	/* بعد از تأیید یا رد، به همان سایت خبر داده می‌شود تا وضعیتش را همان لحظه تازه کند (بدون انتظار برای پاسخ) */
+	public static function nudge( $site_id ) {
+		global $wpdb;
+		list( , $ts ) = self::tables();
+		$d = $wpdb->get_var( $wpdb->prepare( "SELECT domain FROM $ts WHERE id = %d", $site_id ) ); // phpcs:ignore
+		$d = self::clean_domain( (string) $d );
+		if ( '' === $d || self::is_dev_domain( $d ) ) { return; }
+		delete_transient( 'peecha_lic_t_' . md5( $d ) );
+		foreach ( array( 'https://', 'http://' ) as $sch ) {
+			wp_safe_remote_post( $sch . $d . '/?rest_route=/peecha-client/v1/refresh', array( 'timeout' => 3, 'blocking' => false, 'redirection' => 1, 'reject_unsafe_urls' => true ) );
+		}
 	}
 	/* سایت باید همان عددی را که فرستاده، از نشانی خودش هم پس بدهد؛ جلوی ثبت دامنه‌ی جعلی را می‌گیرد */
 	private static function verify_site( $domain, $home, $nonce ) {
@@ -313,7 +327,12 @@ final class Peecha_License_Server {
 		global $wpdb;
 		if ( ! current_user_can( 'manage_options' ) ) { return; }
 		list( , $ts ) = self::tables();
-		$n = (int) $wpdb->get_var( "SELECT COUNT(*) FROM $ts WHERE status = 'pending' AND lic_id = 0 AND verified = 1" ); // phpcs:ignore
+		$n = get_transient( 'peecha_lic_pending' );
+		if ( false === $n ) {
+			$n = (int) $wpdb->get_var( "SELECT COUNT(*) FROM $ts WHERE status = 'pending' AND lic_id = 0 AND verified = 1" ); // phpcs:ignore
+			set_transient( 'peecha_lic_pending', $n, 5 * MINUTE_IN_SECONDS );
+		}
+		$n = (int) $n;
 		if ( $n && ( empty( $_GET['page'] ) || 'peecha-license' !== $_GET['page'] ) ) { // phpcs:ignore
 			echo '<div class="notice notice-warning"><p>قالب پیچا روی <b>' . (int) $n . '</b> سایتِ جدید نصب شده و منتظر تأیید شماست. <a href="' . esc_url( admin_url( 'admin.php?page=peecha-license' ) ) . '">بررسی کنید</a></p></div>';
 		}
@@ -329,6 +348,8 @@ final class Peecha_License_Server {
 		list( $tl, $ts ) = self::tables();
 		$do = isset( $_POST['do'] ) ? sanitize_key( $_POST['do'] ) : '';
 		$id = isset( $_POST['id'] ) ? absint( $_POST['id'] ) : 0;
+		delete_transient( 'peecha_lic_pending' );
+		if ( $id && in_array( $do, array( 'site_allow', 'site_block', 'site_reset', 'site_unlink' ), true ) ) { add_action( 'shutdown', function () use ( $id ) { Peecha_License_Server::nudge( $id ); } ); }
 		switch ( $do ) {
 			case 'site_allow': $wpdb->update( $ts, array( 'status' => 'allowed' ), array( 'id' => $id ) ); self::back( 'sites', 'سایت تأیید شد.' );
 			case 'site_block': $wpdb->update( $ts, array( 'status' => 'blocked' ), array( 'id' => $id ) ); self::back( 'sites', 'سایت رد شد.' );

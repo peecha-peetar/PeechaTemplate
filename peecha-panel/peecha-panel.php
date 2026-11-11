@@ -3,7 +3,7 @@
  * Plugin Name:       پنل پیچا — مدیریت ساده‌ی فروشگاه
  * Plugin URI:        https://peecha.ir
  * Description:       پنل فارسی، ساده و سریع برای مدیریت فروشگاه ووکامرس: داشبورد فروش، سفارش‌ها با تاریخ شمسی و کد رهگیری، ویرایش سریع قیمت و موجودی، افزودن محصول و لیست مشتریان. داخل پیشخوان وردپرس و با همان ورود امن وردپرس.
- * Version:           1.3.1
+ * Version:           1.3.2
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Requires Plugins:  woocommerce
@@ -15,7 +15,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'PP_VER', '1.3.1' );
+define( 'PP_VER', '1.3.2' );
 define( 'PP_FILE', __FILE__ );
 define( 'PP_URL', plugin_dir_url( __FILE__ ) );
 define( 'PP_SLUG', 'peecha-panel' );
@@ -63,6 +63,9 @@ final class Peecha_Panel {
 		}
 		add_action( 'wp_ajax_pp_quick_save', array( __CLASS__, 'ajax_quick_save' ) );
 
+		foreach ( array( 'woocommerce_product_set_stock_status', 'woocommerce_variation_set_stock_status', 'woocommerce_update_product', 'woocommerce_new_product' ) as $h ) {
+			add_action( $h, function () { delete_transient( 'pp_outn' ); } );
+		}
 		/* کش آمار با هر تغییر سفارش پاک می‌شود */
 		foreach ( array( 'woocommerce_new_order', 'woocommerce_order_status_changed', 'woocommerce_update_order', 'woocommerce_delete_order', 'woocommerce_trash_order' ) as $h ) {
 			add_action( $h, array( __CLASS__, 'flush_stats' ) );
@@ -433,8 +436,14 @@ final class Peecha_Panel {
 		$proc = (int) wc_orders_count( 'processing' );
 		$hold = (int) wc_orders_count( 'on-hold' );
 		$low  = self::low_stock();
-		$out  = function_exists( 'wc_get_products' ) ? wc_get_products( array( 'status' => 'publish', 'stock_status' => 'outofstock', 'limit' => 1, 'paginate' => true, 'return' => 'ids' ) ) : null;
-		$outn = $out ? (int) $out->total : 0;
+		/* v1.3.2: شمارش ناموجودها ۵ دقیقه نگه داشته می‌شود (با تغییر موجودی پاک می‌شود) */
+		$outn = get_transient( 'pp_outn' );
+		if ( false === $outn ) {
+			$out  = function_exists( 'wc_get_products' ) ? wc_get_products( array( 'status' => 'publish', 'stock_status' => 'outofstock', 'limit' => 1, 'paginate' => true, 'return' => 'ids' ) ) : null;
+			$outn = $out ? (int) $out->total : 0;
+			set_transient( 'pp_outn', $outn, 5 * MINUTE_IN_SECONDS );
+		}
+		$outn = (int) $outn;
 
 		$u = wp_get_current_user();
 		echo '<div class="pp-hello"><h1>سلام ' . esc_html( $u->display_name ) . ' 👋</h1><p>' . esc_html( self::jdate( current_time( 'timestamp' ), false, true ) ) . ' — خلاصه‌ی فروشگاه شما</p></div>'; // phpcs:ignore

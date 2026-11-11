@@ -7975,13 +7975,14 @@ add_action( 'customize_register', function ( $w ) {
  * ===================================================================== */
 function sahel_css_file_url( $prefix, $css, $ext = 'css' ) {
     $ext = 'js' === $ext ? 'js' : 'css';
-    if ( 'css' === $ext && function_exists( 'sahel_css_min' ) ) { $css = sahel_css_min( $css ); } /* v8.0: فایل CSS کوچک‌تر */
     $up = wp_upload_dir();
     if ( ! empty( $up['error'] ) ) { return ''; }
     $dir  = trailingslashit( $up['basedir'] ) . 'sahel-css';
-    $name = $prefix . '-' . substr( md5( $css ), 0, 16 ) . '.' . $ext;
+    /* v9.1: نام فایل از متن خام ساخته می‌شود؛ فشرده‌سازی CSS (که هر بار چند میلی‌ثانیه طول می‌کشید) فقط موقع ساخت فایل اجرا می‌شود */
+    $name = $prefix . '-' . substr( md5( 'r1|' . $css ), 0, 16 ) . '.' . $ext;
     $file = $dir . '/' . $name;
     if ( ! file_exists( $file ) ) {
+        if ( 'css' === $ext && function_exists( 'sahel_css_min' ) ) { $css = sahel_css_min( $css ); } /* v8.0: فایل CSS کوچک‌تر */
         if ( ! wp_mkdir_p( $dir ) || ! is_writable( $dir ) ) { return ''; }
         /* سقف ایمنی: اگر پوشه بیش از ۳۰۰ فایل داشت، فایل تازه ساخته نمی‌شود (CSS/JS داخل صفحه می‌ماند) */
         $all = glob( $dir . '/*.*' );
@@ -14304,9 +14305,9 @@ function sahel_lic_domain() {
 }
 function sahel_lic_opt() { $o = get_option( 'sahel_lic', array() ); return is_array( $o ) ? $o : array(); }
 /* آخرین وضعیتِ امضاشده (هر بار امضا دوباره سنجیده می‌شود) */
-function sahel_lic_state() {
+function sahel_lic_state( $reset = false ) {
     static $st = false;
-    if ( false !== $st ) { return $st; }
+    if ( false !== $st && ! $reset ) { return $st; }
     $st  = null;
     $cfg = sahel_lic_cfg();
     $o   = sahel_lic_opt();
@@ -14354,10 +14355,11 @@ function sahel_lic_check( $force = false ) {
         if ( false !== $sig && 64 === strlen( $sig ) ) { try { $ok = sodium_crypto_sign_verify_detached( $sig, (string) $b['payload'], $cfg['pub'] ); } catch ( Exception $e ) { $ok = false; } }
         $p = $ok ? json_decode( (string) $b['payload'], true ) : null;
         if ( ! is_array( $p ) || ! isset( $p['n'], $p['d'], $p['t'] ) || ! hash_equals( $nonce, (string) $p['n'] ) || $p['d'] !== sahel_lic_domain() || abs( time() - (int) $p['t'] ) > DAY_IN_SECONDS ) { $err = 'پاسخ سرور پیچا تأیید نشد.'; }
-        else { $o['payload'] = (string) $b['payload']; $o['sig'] = (string) $b['sig']; $o['last_ok'] = time(); }
+        else { $o['payload'] = (string) $b['payload']; $o['sig'] = (string) $b['sig']; $o['last_ok'] = time(); $o['ver'] = (string) $t->get( 'Version' ); }
     }
     $o['err'] = $err;
     update_option( 'sahel_lic', $o, false );
+    sahel_lic_state( true ); /* v9.1: وضعیت تازه در همین درخواست دیده شود */
     return '' === $err;
 }
 /* سرور با این نشانی مطمئن می‌شود درخواست واقعاً از همین سایت آمده */
@@ -14370,9 +14372,31 @@ add_action( 'rest_api_init', function () {
     } ) );
 } );
 add_action( 'sahel_lic_cron', function () { sahel_lic_check( true ); } );
-add_action( 'init', function () {
-    if ( ! sahel_lic_cfg() ) { return; }
+/* v9.1: برای بازدیدکننده‌ها هیچ کاری انجام نمی‌شود (قبلاً در هر بازدید دو خواندن از پایگاه‌داده داشت)؛ فقط در پیشخوان */
+add_action( 'admin_init', function () {
+    if ( ( function_exists( 'wp_doing_ajax' ) && wp_doing_ajax() ) || ! current_user_can( 'manage_options' ) || ! sahel_lic_cfg() ) { return; }
     if ( ! wp_next_scheduled( 'sahel_lic_cron' ) ) { wp_schedule_event( time() + 60, 'daily', 'sahel_lic_cron' ); }
+    $o   = sahel_lic_opt();
+    $p   = sahel_lic_state();
+    $age = time() - ( isset( $o['last_try'] ) ? (int) $o['last_try'] : 0 );
+    $cur = (string) wp_get_theme( get_template() )->get( 'Version' );
+    /* بعد از به‌روزرسانی قالب، نسخه‌ی جدید بلافاصله به فهرست فروشنده گزارش می‌شود */
+    if ( ( ! isset( $o['ver'] ) || $o['ver'] !== $cur ) && $age > 60 ) { sahel_lic_check( true ); return; }
+    /* تا وقتی سایت تأیید نشده، هر چند دقیقه وضعیت دوباره پرسیده می‌شود تا تأییدِ فروشنده زود دیده شود */
+    if ( ( ! $p || 'active' !== $p['s'] ) && $age > 300 ) { sahel_lic_check( true ); }
+} );
+/* سرور بعد از «تأیید» یا «رد» همین نشانی را صدا می‌زند تا وضعیت همان لحظه تازه شود (حداکثر هر ۳۰ ثانیه یک بار) */
+add_action( 'rest_api_init', function () {
+    if ( ! sahel_lic_cfg() ) { return; }
+    register_rest_route( 'peecha-client/v1', '/refresh', array( 'methods' => array( 'GET', 'POST' ), 'permission_callback' => '__return_true', 'callback' => function () {
+        if ( get_transient( 'sahel_lic_rf' ) ) { return new WP_REST_Response( array( 'ok' => 0 ), 429 ); }
+        set_transient( 'sahel_lic_rf', 1, 30 );
+        return new WP_REST_Response( array( 'ok' => sahel_lic_check( true ) ? 1 : 0 ), 200 );
+    } ) );
+} );
+add_action( 'upgrader_process_complete', function () {
+    $o = sahel_lic_opt();
+    if ( $o ) { unset( $o['last_try'], $o['ver'] ); update_option( 'sahel_lic', $o, false ); }
 } );
 add_action( 'after_switch_theme', function () { if ( sahel_lic_cfg() ) { sahel_lic_check( true ); } } );
 add_action( 'switch_theme', function () { wp_clear_scheduled_hook( 'sahel_lic_cron' ); } );

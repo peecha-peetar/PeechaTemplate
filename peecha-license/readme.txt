@@ -1,7 +1,7 @@
 === Peecha License Server ===
 Requires at least: 6.0
 Requires PHP: 7.4
-Stable tag: 1.1.0
+Stable tag: 1.2.0
 License: GPLv2 or later
 
 فهرست سایت‌هایی که قالب پیچا رویشان نصب شده، و انتشار نسخه‌های جدید قالب. این افزونه فقط روی peecha.ir نصب می‌شود، نه روی سایت مشتری.
