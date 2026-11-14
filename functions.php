@@ -813,7 +813,7 @@ add_action( 'customize_register', function( $w ) {
         'wipe' => 'پرده‌ای (کشیده‌شدن از کنار)', 'circle' => 'دایره‌ای (باز شدن از وسط)', 'flip' => 'چرخش سه‌بعدی',
     ) ) );
 
-    $slide_max = min( 10, max( 1, (int) get_theme_mod( 'sahel_slide_count', 3 ) ) + 1 );
+    $slide_max = 10;
     for ( $i = 1; $i <= $slide_max; $i++ ) {
         $w->add_section( 'sahel_slide' . $i, array( 'title' => 'اسلاید ' . sahel_fa( $i ), 'priority' => 30 ) );
         $w->add_setting( 'sahel_slide' . $i . '_bgtype', array( 'default' => 'image', 'sanitize_callback' => 'sanitize_key' ) );
@@ -5861,7 +5861,7 @@ function sahel_v63_customize( $w ) {
             'stack'   => '🗂 کارتی (اسلاید قبلی کوچک و محو می‌شود)',
         );
     }
-    $max = min( 10, max( 1, (int) get_theme_mod( 'sahel_slide_count', 3 ) ) + 1 );
+    $max = 10;
     for ( $i = 1; $i <= $max; $i++ ) {
         $sl = 'sahel_slide' . $i;
         if ( ! $w->get_section( $sl ) ) { continue; }
@@ -6944,6 +6944,10 @@ function sahel_slide_models_more() {
         'cover'     => '📔 جلد مجله (نام برند بزرگ بالا، تیتر پایین)',
         'coverflow' => '🎠 کاورفلو (چند تصویر سه‌بعدی که خودکار می‌چرخند)',
         'sticker'   => '🏷 استیکری (محصول PNG، برچسب دایره‌ای و چیپ‌های شناور)',
+        'atelier'   => 'ویترین — متن کنار عکس، بدون روکش',
+        'shelf'     => 'قفسه — تیتر بالا و سه تصویر',
+        'film'      => 'نوار عنوان — عکس کامل و متن در نوار پایین',
+        'runway'    => 'ران‌وی — عکس داخل کادر کنار متن',
     );
 }
 function sahel_slide_model_more( $m, $c ) {
@@ -6979,6 +6983,16 @@ function sahel_slide_model_more( $m, $c ) {
             $chip1 = '<span class="sm-stk-chip k1">✔ ' . esc_html( sahel_fa( get_theme_mod( 'sahel_stat1', '8000' ) ) . '+ ' . get_theme_mod( 'sahel_stat1_label', 'مشتری خوشحال' ) ) . '</span>';
             $chip2 = $sd['pill'] ? '<span class="sm-stk-chip k2">' . esc_html( $sd['pill'] ) . '</span>' : '';
             return '<div class="wrap sm-stk' . $flip . '">' . $txt( 'right' ) . '<div class="sm-stk-stage"><span class="sm-stk-blob" aria-hidden="true"></span>' . $im( $i1, 'sm-stk-img', true ) . $ring . $chip1 . $chip2 . '</div></div>';
+        case 'atelier':
+            return '<div class="sm-at' . $flip . '"><div class="sm-at-copy">' . $txt( 'right' ) . '</div><figure class="sm-at-fig">' . $im( $i1, '', true ) . '</figure></div>';
+        case 'shelf':
+            $row = '';
+            foreach ( array_slice( $imgs ? $imgs : array( $i1 ), 0, 3 ) as $k => $src ) { $row .= '<figure>' . $im( $src, '', 0 === $k ) . '</figure>'; }
+            return '<div class="wrap sm-shelf">' . $txt( 'center' ) . '<div class="sm-shelf-row">' . $row . '</div></div>';
+        case 'film':
+            return '<div class="sb-wrap">' . $c['media_bg'] . '</div><div class="sm-film-bar"><span class="sm-film-n">' . esc_html( sahel_fa( sprintf( '%02d', $c['n'] ) ) ) . '</span>' . $txt( 'right' ) . '</div>';
+        case 'runway':
+            return '<div class="sm-rw' . $flip . '"><div class="sm-rw-copy">' . $txt( 'right' ) . '</div><figure class="sm-rw-fig">' . $im( $i1, '', true ) . '</figure></div>';
     }
     return '';
 }
@@ -14480,3 +14494,46 @@ add_action( 'admin_notices', function () {
     list( $cls, $txt ) = sahel_lic_status_text( $p );
     echo '<div class="notice notice-' . esc_attr( $cls ) . '"><p><b>قالب پیچا:</b> ' . esc_html( $txt ) . ' <a href="' . esc_url( admin_url( 'themes.php?page=sahel-license' ) ) . '">جزئیات</a></p></div>';
 } );
+
+/* v9.2 — مدل‌های اسلایدر ویترین، قفسه، نوار عنوان و ران‌وی. مدل‌های قبلی دست نخورده‌اند. */
+add_action( 'wp_head', function () {
+    echo '<style id="sahel-v92-slides">' . <<<'SHCSS92'
+.slide.slst-atelier,.slide.slst-runway{background:var(--bg)}
+.sm-at,.sm-rw{display:grid;height:100%;align-items:stretch}
+.sm-at{grid-template-columns:minmax(260px,42%) minmax(0,1fr)}
+.sm-rw{grid-template-columns:minmax(260px,46%) minmax(0,1fr);align-items:center;gap:28px;padding:40px 48px;box-sizing:border-box}
+.sm-at-copy,.sm-rw-copy{display:flex;align-items:center;min-width:0;padding:36px 40px}
+.sm-rw-copy{padding:0}
+.sm-at-copy{border-inline-end:1px solid var(--line)}
+.sm-at.sm-flip,.sm-rw.sm-flip{direction:ltr}
+.sm-at.sm-flip>.sm-at-copy,.sm-rw.sm-flip>.sm-rw-copy{direction:rtl;order:2;border-inline-end:0;border-inline-start:1px solid var(--line)}
+.sm-at-fig,.sm-rw-fig{margin:0;min-width:0;min-height:0;overflow:hidden}
+.sm-at-fig img,.sm-rw-fig img{width:100%;height:100%;object-fit:cover}
+.sm-rw-fig{height:min(78%,520px);background:color-mix(in srgb,var(--ink) 5%,var(--bg))}
+.sm-shelf{height:100%;display:flex;flex-direction:column;justify-content:center;gap:22px}
+.sm-shelf .sm-txt{text-align:center;margin-inline:auto;max-width:640px}
+.sm-shelf .hero-cta{justify-content:center}
+.sm-shelf-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.sm-shelf-row figure{margin:0;aspect-ratio:3/4;overflow:hidden;background:var(--cardbg)}
+.sm-shelf-row img{width:100%;height:100%;object-fit:cover}
+.slst-film .sb-wrap{position:absolute;inset:0 0 108px 0}
+.slst-film .slide-bg{width:100%;height:100%;object-fit:cover}
+.sm-film-bar{position:absolute;inset-inline:0;bottom:0;display:flex;align-items:center;gap:18px;min-height:108px;padding:16px 28px;background:var(--bg);color:var(--ink);box-sizing:border-box}
+.sm-film-n{font-weight:800;font-size:1.1rem;letter-spacing:.08em;color:var(--muted);flex-shrink:0}
+.sm-film-bar .sm-txt{max-width:none}
+.sm-film-bar .sm-txt h1{font-size:clamp(1.25rem,2.4vw,2rem);margin:0 0 4px}
+.sm-film-bar .sm-txt p{margin:0;max-width:62ch}
+.sm-film-bar .hero-cta{margin-top:8px}
+@media(max-width:920px){
+.sm-at,.sm-rw,.sm-at.sm-flip,.sm-rw.sm-flip{grid-template-columns:1fr;grid-template-rows:auto 1fr;direction:rtl;height:100%;padding:0;gap:0}
+.sm-at-copy,.sm-rw-copy,.sm-at.sm-flip>.sm-at-copy,.sm-rw.sm-flip>.sm-rw-copy{order:2;border:0;padding:18px 20px 24px}
+.sm-at-fig{min-height:42%}
+.sm-rw-fig{height:42%;width:100%}
+.sm-shelf-row{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.sm-film-bar{min-height:96px;padding:12px 16px}
+.sm-film-bar .sm-txt p{display:none}
+.slst-film .sb-wrap{bottom:96px}
+}
+SHCSS92
+    . '</style>';
+}, 210 );
