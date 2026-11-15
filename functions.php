@@ -843,7 +843,14 @@ add_action( 'customize_register', function( $w ) {
 
     $slide_max = 10;
     for ( $i = 1; $i <= $slide_max; $i++ ) {
-        $w->add_section( 'sahel_slide' . $i, array( 'title' => 'اسلاید ' . sahel_fa( $i ), 'priority' => 30 ) );
+        $w->add_section( 'sahel_slide' . $i, array(
+            'title' => 'اسلاید ' . sahel_fa( $i ),
+            'priority' => 30,
+            'active_callback' => function () use ( $i ) {
+                $n = max( 1, min( 10, (int) get_theme_mod( 'sahel_slide_count', 3 ) ) );
+                return $i <= $n;
+            },
+        ) );
         $w->add_setting( 'sahel_slide' . $i . '_bgtype', array( 'default' => 'image', 'sanitize_callback' => 'sanitize_key' ) );
         $w->add_control( 'sahel_slide' . $i . '_bgtype', array( 'label' => 'نوع پس‌زمینه', 'section' => 'sahel_slide' . $i, 'type' => 'select', 'choices' => array( 'image' => 'تصویر', 'color' => 'رنگ ساده', 'gradient' => 'گرادیانت', 'video' => 'ویدئو', 'compare' => 'مقایسه قبل/بعد (دو تصویر با دستگیره)' ) ) );
         $w->add_setting( 'sahel_slide' . $i . '_image', array( 'default' => '', 'sanitize_callback' => 'esc_url_raw' ) );
@@ -1766,7 +1773,7 @@ body.ddst-4 .dd-card small{display:none}
 .slide.slst-2 .sb-wrap{left:0;right:auto;width:56%}
 .slide.slst-2 .slide-txt{background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(6px);padding:30px;border-radius:22px}
 .slide.slst-3{background:var(--bg)}
-.slide.slst-3 .slide-bg{display:none}
+.slide.slst-3 .slide-bg{opacity:.42}
 .slide.slst-3 .slide-ovl{display:none}
 .slide.slst-3 .slide-txt{max-width:820px;margin-inline:auto;text-align:center}
 .slide.slst-3 .slide-txt .hero-cta{justify-content:center}
@@ -1776,7 +1783,7 @@ body.ddst-4 .dd-card small{display:none}
 .slider:has(.slide.active.slst-4):not(.is-full){border-radius:20px}
 .slide.slst-4 .wrap{padding-top:20px;padding-bottom:20px}
 .slide.slst-4 .slide-txt h1{font-size:clamp(1.5rem,3vw,2.2rem);margin:10px 0 10px}
-.slide.slst-4 .slide-txt p{display:none}
+.slide.slst-4 .slide-txt p{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:10px;font-size:.88rem;line-height:1.7}
 @media(max-width:920px){
 .slide.slst-2 .sb-wrap{position:absolute;left:0;right:0;width:100%;opacity:.35}
 .slide.slst-2 .slide-txt{background:transparent;backdrop-filter:none;padding:0}
@@ -2955,7 +2962,7 @@ function sahel_home_html() {
         for ( $i = 1; $i <= $count; $i++ ) {
             $sd = sahel_slide_data( $i );
             $sd['n'] = $i;
-            $has_bg = $sd['img'] || $sd['bgtype'] !== 'image';
+            $has_bg = $sd['img'] || 'image' !== $sd['bgtype'] || $sd['t1'] || $sd['t2'] || $sd['desc'] || $sd['pill'] || $sd['btn'] || ! empty( $sd['btn2'] ) || ! empty( $sd['style'] ) || ! empty( $sd['video'] );
             if ( ! $has_bg ) { continue; }
             $rendered[] = $sd;
         }
@@ -4038,8 +4045,8 @@ section.sec-al-center .faq-item summary{justify-content:center;gap:14px}
 .slide.slst-7 .slide-txt .hero-cta{justify-content:center}
 .slide.slst-7 .slide-txt .pill{margin-inline:auto;background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.35)}
 .slide.slst-7 .slide-ovl{background:linear-gradient(to top,rgba(10,7,5,.78),rgba(10,7,5,.3))!important}
-.slide.slst-7 .slide-txt h1{color:#fff;font-size:clamp(2.4rem,6vw,4.6rem)}
-.slide.slst-7 .slide-txt p{color:rgba(255,255,255,.85)}
+.slide.slst-7 .slide-txt h1{color:var(--st-tc,#fff);font-size:clamp(2.4rem,6vw,4.6rem)}
+.slide.slst-7 .slide-txt p{color:var(--st-dc,rgba(255,255,255,.85))}
 .slide.slst-7 .slide-txt .btn-ghost{background:transparent;color:#fff;border-color:rgba(255,255,255,.6)}
 .slide.slst-8 .slide-ovl{opacity:.35}
 .slide.slst-8 .slide-txt{padding:34px 38px;border-radius:calc(var(--rad,22px) + 8px);background:color-mix(in srgb,var(--bg) 72%,transparent);backdrop-filter:blur(18px) saturate(1.3);-webkit-backdrop-filter:blur(18px) saturate(1.3);border:1px solid rgba(255,255,255,.6);box-shadow:var(--shadow-lg)}
@@ -4717,7 +4724,7 @@ add_action( 'customize_register', function( $w ) {
     $w->add_setting( 'sahel_sc_on', array( 'default' => 0, 'sanitize_callback' => 'absint' ) );
     $w->add_control( 'sahel_sc_on', array( 'label' => '🛍 ویترین مشترک دسته‌بندی/محصول روی همه اسلایدها', 'section' => $sec, 'type' => 'checkbox' ) );
     sahel_showcase_controls( $w, $sec, 'sahel_sc', 'ویترین مشترک: ' );
-    $count = max( 1, min( 10, (int) get_theme_mod( 'sahel_slide_count', 3 ) ) + 1 );
+    $count = 10;
     for ( $i = 1; $i <= $count; $i++ ) {
         $s = 'sahel_slide' . $i;
         if ( ! $w->get_section( $s ) ) { continue; }
@@ -5989,11 +5996,19 @@ function sahel_slide_model_html( $sd, $m, $idx, $style, $sx ) {
     } else {
         $media_bg = $im( $i1, 'slide-bg', true );
     }
+    if ( 'video' === $sd['bgtype'] && ! empty( $sd['video'] ) ) {
+        $sahel_still = $im;
+        $im = function ( $src, $cls = '', $first = false ) use ( $sahel_still, $media_bg, $i1 ) {
+            if ( $first && $src === $i1 ) { return '<div class="sm-vid">' . $media_bg . '</div>'; }
+            return $sahel_still( $src, $cls, $first );
+        };
+    }
     $flip = 'left' === $al ? ' sm-flip' : '';
     $h = '';
     switch ( $m ) {
         case 'h-type':
-            $h = '<div class="sm-deco" aria-hidden="true"><i></i><i></i><i></i></div><div class="wrap sm-type">' . $txt( 'center', true, '<div class="sm-line"></div>' ) . '</div>';
+            $type_bg = ( $i1 || ( 'video' === $sd['bgtype'] && ! empty( $sd['video'] ) ) ) ? '<div class="sb-wrap sm-softbg">' . $media_bg . '</div>' : '';
+            $h = $type_bg . '<div class="sm-deco" aria-hidden="true"><i></i><i></i><i></i></div><div class="wrap sm-type">' . $txt( 'center', true, '<div class="sm-line"></div>' ) . '</div>';
             break;
         case 'h-split':
             $stats = '';
@@ -6026,7 +6041,7 @@ function sahel_slide_model_html( $sd, $m, $idx, $style, $sx ) {
                     $cards .= '<a class="sm-card" style="--i:' . (int) $ci . '" href="' . esc_url( is_wp_error( $link ) ? '#' : $link ) . '">' . $im( sahel_cat_img( $c, $fbc ) ) . '<b>' . esc_html( $c->name ) . '</b></a>';
                 }
             }
-            $h = '<div class="wrap sm-cats">' . $txt( 'right' ) . ( $cards ? '<div class="sm-cards">' . $cards . '</div>' : '' ) . '</div>';
+            $h = ( $i1 || ( 'video' === $sd['bgtype'] && ! empty( $sd['video'] ) ) ? '<div class="sb-wrap sm-softbg">' . $media_bg . '</div>' : '' ) . '<div class="wrap sm-cats">' . $txt( 'right' ) . ( $cards ? '<div class="sm-cards">' . $cards . '</div>' : '' ) . '</div>';
             break;
         case 'png':
             $list = array_values( array_filter( array( $i1, $i2, $i3, $i4 ) ) );
@@ -6064,7 +6079,7 @@ function sahel_slide_model_html( $sd, $m, $idx, $style, $sx ) {
                 $tiles .= '<i style="--i:' . ( $r + $c ) . ';--tx:' . ( -25 * $c ) . '%;--ty:' . round( -100 / 3 * $r, 3 ) . '%"></i>'; $t++;
             } }
             $tiles .= '</div>';
-            $h = '<div class="sb-wrap sm-mos-bg" style="--mos:url(' . esc_url( $i1 ) . ')">' . $tiles . '</div><div class="slide-ovl"></div><div class="wrap sm-mosw">' . $txt( null ) . '</div>';
+            $h = '<div class="sb-wrap sm-mos-bg" style="--mos:url(' . esc_url( $i1 ) . ')">' . ( 'video' === $sd['bgtype'] && ! empty( $sd['video'] ) ? $media_bg : '' ) . $tiles . '</div><div class="slide-ovl"></div><div class="wrap sm-mosw">' . $txt( null ) . '</div>';
             break;
         case 'outline':
             $h = '<div class="sm-outline" aria-hidden="true"><span>' . esc_html( $big ) . '</span></div><div class="wrap sm-outw' . $flip . '">' . $txt( 'right' ) . '<div class="sm-out-img">' . $im( $i1, '', true ) . '</div></div>';
@@ -6075,8 +6090,18 @@ function sahel_slide_model_html( $sd, $m, $idx, $style, $sx ) {
         default:
             $h = function_exists( 'sahel_slide_model_more' ) ? sahel_slide_model_more( $m, compact( 'txt', 'im', 'media_bg', 'i1', 'i2', 'i3', 'i4', 'big', 'flip', 'sd', 'url', 'g', 'n', 'eager', 'al' ) ) : '';
     }
+    $fx_bg = preg_match( '/\b(mfx-zoom|mfx-spotlight|mfx-reveal|kb-in|kb-out|kb-pan)\b/', (string) $sx['cls'] );
+    if ( false === strpos( $h, 'sb-wrap' ) && $fx_bg ) {
+        $h = '<div class="sb-wrap">' . $media_bg . ( false !== strpos( (string) $sx['cls'], 'mfx-reveal' ) ? $sx['top'] : '' ) . '</div>' . $h;
+    }
+    if ( false !== strpos( $h, 'sb-wrap' ) && ( false !== strpos( (string) $sx['cls'], 'is-compare' ) || false !== strpos( (string) $sx['cls'], 'mfx-reveal' ) ) && ! empty( $sx['top'] ) && false === strpos( $h, 'cmp-top' ) ) {
+        $h = preg_replace( '#(<div class="sb-wrap[^"]*"[^>]*>)#', '$1' . $sx['top'], $h, 1 );
+    }
+    $tail = (string) $sx['under'] . (string) $sx['over'];
+    if ( false !== strpos( (string) $sx['cls'], 'is-compare' ) && ! empty( $sx['ui'] ) ) { $tail = $sx['ui'] . $tail; }
+    if ( ! empty( $sd['n'] ) && function_exists( 'sahel_slide_showcase_html' ) ) { $tail .= sahel_slide_showcase_html( (int) $sd['n'] ); }
     $cls = 'slide' . ( 0 === $idx ? ' active' : '' ) . ' slst-' . sanitize_html_class( $m ) . ' smx' . ( $sx['cls'] ? $sx['cls'] : '' ) . ( $bgst ? ' sm-has-bg' : '' );
-    return '<section class="' . esc_attr( trim( $cls ) ) . '" style="' . esc_attr( ltrim( $style . $bgst, ';' ) ) . '">' . $h . '</section>';
+    return '<section class="' . esc_attr( trim( $cls ) ) . '" style="' . esc_attr( ltrim( $style . $bgst, ';' ) ) . '">' . $h . $tail . '</section>';
 }
 function sahel_slide_cta( $sd, $url ) {
     if ( ! $sd['btn'] && empty( $sd['btn2'] ) ) { return ''; }
@@ -6091,6 +6116,12 @@ add_action( 'wp_head', function() {
 @media(min-width:921px){.slider .slide .wrap{padding-inline:max(24px,96px)}}
 /* ===== پایه‌ی مدل‌های جدید ===== */
 .slide.smx{background:var(--sm-bg,linear-gradient(135deg,var(--cream),var(--bg)))}
+.slide.smx>.sb-wrap{z-index:0}
+.slide.smx>.sm-softbg{opacity:.38}
+.sm-vid,.sm-vid .slide-bg,.sm-vid video{width:100%;height:100%;object-fit:cover}
+.slide.smx.mfx-spotlight.m-in>.slide-ovl{display:block;z-index:4}
+.slide.smx>.sl-layer{z-index:5}
+.slide.smx>.sl-layer.lz-over,.slide.smx>.sl-showcase,.slide.smx>.cmp-ui{z-index:8}
 .slide.smx>.wrap{position:absolute;inset:0;margin-inline:auto;height:auto;padding-top:56px;padding-bottom:56px;box-sizing:border-box}
 .slide.smx .sm-txt{position:relative;z-index:3}
 .slide.smx img{display:block}
@@ -7008,7 +7039,8 @@ function sahel_slide_model_more( $m, $c ) {
             $cell3 = $c['i3'] ? '<a class="bt bt-c" href="' . esc_url( $c['url'] ) . '">' . $im( $c['i3'] ) . '</a>' : $stat;
             return '<div class="wrap sm-bento' . $flip . '"><div class="bt bt-txt">' . $txt( 'right' ) . '</div><a class="bt bt-a" href="' . esc_url( $c['url'] ) . '">' . $im( $i1, '', true ) . '</a><a class="bt bt-b" href="' . esc_url( $c['url'] ) . '">' . $im( $i2 ) . ( $sd['pill'] ? '<span>' . esc_html( $sd['pill'] ) . '</span>' : '' ) . '</a>' . $cell3 . '</div>';
         case 'textmask':
-            return '<div class="wrap sm-tm"><div class="sm-tm-word" aria-hidden="true" style="--tm:url(' . esc_url( $i1 ) . ')">' . esc_html( $big ) . '</div>' . $txt( 'center' ) . '</div>';
+            $bg = ( 'video' === $sd['bgtype'] && ! empty( $sd['video'] ) ) ? '<div class="sb-wrap sm-softbg">' . $c['media_bg'] . '</div>' : '';
+            return $bg . '<div class="wrap sm-tm"><div class="sm-tm-word" aria-hidden="true" style="--tm:url(' . esc_url( $i1 ) . ')">' . esc_html( $big ) . '</div>' . $txt( 'center' ) . '</div>';
         case 'brutal':
             $row = str_repeat( '<span>' . esc_html( $sd['pill'] ? $sd['pill'] : $big ) . ' ✦ </span>', 6 );
             return '<div class="wrap sm-brutal' . $flip . '">' . $txt( 'right' ) . '<div class="sm-br-card">' . $im( $i1, '', true ) . '<span class="sm-br-sticker" aria-hidden="true">' . esc_html( ( $sd['pill'] && ( function_exists( 'mb_strlen' ) ? mb_strlen( $sd['pill'] ) : strlen( $sd['pill'] ) ) <= 10 ) ? $sd['pill'] : 'جدید ✦' ) . '</span></div></div><div class="sm-br-strip" aria-hidden="true"><div>' . $row . $row . '</div></div>';
@@ -7984,6 +8016,11 @@ add_action( 'customize_controls_enqueue_scripts', function () {
     wp_add_inline_style( 'customize-controls', $css );
     $js = <<<'SHCZS'
 (function(api,$){api.bind('ready',function(){
+ var count=api('sahel_slide_count');
+ if(count){
+  function syncSlides(){var n=parseInt(count.get(),10);if(!n||n<1)n=1;if(n>10)n=10;for(var i=1;i<=10;i++){(function(i){var s=api.section('sahel_slide'+i);if(s){s.active.set(i<=n);}})(i);}}
+  syncSlides();count.bind(syncSlides);
+ }
  var side=$('.wp-full-overlay-sidebar').first(); if(!side.length){return;}
  var btn=$('<button type="button" class="sahel-czs-btn" aria-label="جستجوی تنظیمات قالب" title="جستجوی تنظیمات (Ctrl+K)">🔍 جستجو</button>');
  var foot=$('#customize-footer-actions'); if(foot.length){foot.prepend(btn);}else{$('#customize-header-actions').append(btn);}
