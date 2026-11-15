@@ -6991,6 +6991,9 @@ function sahel_slide_models_more() {
         'shelf'     => 'قفسه — تیتر بالا و سه تصویر',
         'film'      => 'نوار عنوان — عکس کامل و متن در نوار پایین',
         'runway'    => 'ران‌وی — عکس داخل کادر کنار متن',
+        'lens'      => 'ذره‌بین — حرکت ماوس جزئیات عکس را نشان می‌دهد',
+        'panels'    => 'پانل — اشاره، عرض هر عکس را باز می‌کند',
+        'depth'     => 'عمق — دو لایه عکس با حرکت ماوس جابه‌جا می‌شوند',
     );
 }
 function sahel_slide_model_more( $m, $c ) {
@@ -7036,6 +7039,18 @@ function sahel_slide_model_more( $m, $c ) {
             return '<div class="sb-wrap">' . $c['media_bg'] . '</div><div class="sm-film-bar"><span class="sm-film-n">' . esc_html( sahel_fa( sprintf( '%02d', $c['n'] ) ) ) . '</span>' . $txt( 'right' ) . '</div>';
         case 'runway':
             return '<div class="sm-rw' . $flip . '"><div class="sm-rw-copy">' . $txt( 'right' ) . '</div><figure class="sm-rw-fig">' . $im( $i1, '', true ) . '</figure></div>';
+        case 'lens':
+            $zoom = $c['i2'] ? '' : ' is-zoom';
+            return '<div class="sm-lens" data-lens><div class="sm-lens-a">' . $im( $i1, '', true ) . '</div><div class="sm-lens-b' . $zoom . '">' . $im( $c['i2'] ? $i2 : $i1 ) . '</div><span class="sm-lens-ring" aria-hidden="true"></span><div class="sm-lens-copy"><small>ماوس را روی تصویر بکشید</small>' . $txt( 'right' ) . '</div></div>';
+        case 'panels':
+            $list = array_slice( $imgs ? $imgs : array( $i1 ), 0, 3 );
+            $row  = '';
+            foreach ( $list as $k => $src ) {
+                $row .= '<button type="button" class="sm-pan-it' . ( 0 === $k ? ' on' : '' ) . '" data-n="' . esc_attr( sahel_fa( sprintf( '%02d', $k + 1 ) ) ) . '">' . $im( $src, '', 0 === $k ) . '</button>';
+            }
+            return '<div class="sm-pan"><div class="sm-pan-row" data-pan>' . $row . '</div><div class="sm-pan-copy">' . $txt( 'right' ) . '</div></div>';
+        case 'depth':
+            return '<div class="sm-depth" data-depth><div class="sm-depth-bg">' . $im( $i1, '', true ) . '</div><figure class="sm-depth-frame">' . $im( $c['i2'] ? $i2 : $i1 ) . '</figure><div class="sm-depth-copy">' . $txt( 'right' ) . '</div></div>';
     }
     return '';
 }
@@ -14676,3 +14691,88 @@ body.ddst-7 .dd-grid,body.ddst-7 .dd-cards{grid-template-columns:1fr 1fr}
 SHCSS93
     . '</style>';
 }, 212 );
+
+/* v9.4 — سه مدل تعاملی اسلاید. مدل‌های قبلی دست نخورده‌اند. */
+add_action( 'wp_head', function () {
+    echo '<style id="sahel-v94-slides">' . <<<'SHCSS94'
+.slst-lens,.slst-panels,.slst-depth{overflow:hidden;background:#111}
+.slst-lens .grad-text,.slst-panels .grad-text,.slst-depth .grad-text{background:none;-webkit-text-fill-color:currentColor;color:inherit}
+.slst-lens .sm-txt h1,.slst-panels .sm-txt h1,.slst-depth .sm-txt h1{font-size:clamp(1.45rem,2.5vw,2.15rem);line-height:1.35;margin:8px 0 10px;font-weight:800}
+.slst-lens .sm-txt p,.slst-panels .sm-txt p,.slst-depth .sm-txt p{font-size:.92rem;line-height:1.85;margin-bottom:16px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.slst-lens .pill,.slst-panels .pill{border-radius:0;background:transparent;border:0;padding:0;letter-spacing:.14em;font-size:.72rem}
+.slst-lens .pill i,.slst-panels .pill i{display:none}
+.sm-lens,.sm-pan,.sm-depth{position:absolute;inset:0}
+.sm-lens-a,.sm-lens-b{position:absolute;inset:0}
+.sm-lens-a img,.sm-lens-b img,.sm-depth-bg img,.sm-depth-frame img,.sm-pan-it img{width:100%;height:100%;object-fit:cover}
+.sm-lens-b{clip-path:circle(104px at var(--lx,68%) var(--ly,46%));z-index:2}
+.sm-lens-b.is-zoom img{transform:scale(1.55);transform-origin:var(--lx,68%) var(--ly,46%)}
+.sm-lens-ring{position:absolute;z-index:3;width:208px;height:208px;border-radius:50%;border:1px solid rgba(255,255,255,.85);left:var(--lx,68%);top:var(--ly,46%);transform:translate(-50%,-50%);pointer-events:none}
+.sm-lens-copy,.sm-pan-copy,.sm-depth-copy{position:absolute;z-index:4;display:flex;flex-direction:column;justify-content:flex-end}
+.sm-lens-copy{inset-inline-end:22px;bottom:22px;width:min(360px,calc(100% - 44px));background:var(--bg);color:var(--ink);padding:18px 20px 20px}
+.sm-lens-copy small{font-size:.72rem;letter-spacing:.08em;color:var(--muted);margin-bottom:6px}
+.sm-pan{display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,30%)}
+.sm-pan-row{display:flex;min-width:0;min-height:0}
+.sm-pan-it{flex:1 1 0;min-width:0;position:relative;border:0;padding:0;overflow:hidden;cursor:pointer;transition:flex-grow .5s cubic-bezier(.22,.7,.2,1)}
+.sm-pan-it.on{flex-grow:2.6}
+.sm-pan-it::after{content:attr(data-n);position:absolute;top:16px;inset-inline-start:14px;color:#fff;font-weight:700;font-size:.78rem;letter-spacing:.12em;text-shadow:0 1px 2px rgba(0,0,0,.45)}
+.sm-pan-it img{transition:transform .7s cubic-bezier(.22,.7,.2,1)}
+.sm-pan-it.on img{transform:scale(1.04)}
+.sm-pan-copy{position:relative;inset:auto;background:var(--bg);color:var(--ink);padding:28px 24px;border-inline-start:1px solid var(--line)}
+.sm-depth-bg{position:absolute;inset:-5%}
+.sm-depth-bg img{transform:translate3d(calc(var(--dx,0) * -18px),calc(var(--dy,0) * -14px),0)}
+.sm-depth-frame{position:absolute;z-index:2;margin:0;top:11%;inset-inline-start:7%;width:min(30%,340px);aspect-ratio:3/4;background:#fff;padding:8px;box-shadow:0 22px 40px rgba(0,0,0,.28)}
+.sm-depth-frame img{transform:translate3d(calc(var(--dx,0) * 22px),calc(var(--dy,0) * 16px),0);height:calc(100% + 28px);margin-top:-14px}
+.sm-depth-copy{inset-inline-end:5%;bottom:8%;width:min(400px,44%);background:#141311;color:#f6f1ea;padding:20px 22px}
+.sm-depth-copy .sm-txt p{color:rgba(246,241,234,.78)}
+.sm-depth-copy .btn-ghost{color:#f6f1ea;border-color:rgba(246,241,234,.4)}
+@media(max-width:920px){
+.sm-lens-b{clip-path:circle(72px at var(--lx,68%) var(--ly,38%))}
+.sm-lens-ring{width:144px;height:144px}
+.sm-lens-copy{inset-inline:12px;bottom:12px;width:auto}
+.sm-pan{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) auto}
+.sm-pan-copy{border-inline-start:0;border-top:1px solid var(--line);padding:16px}
+.sm-depth-frame{width:42%;top:8%;inset-inline-start:5%;padding:5px}
+.sm-depth-copy{inset-inline:12px;bottom:12px;width:auto}
+}
+@media(prefers-reduced-motion:reduce){
+.sm-pan-it,.sm-pan-it img{transition:none}
+.sm-depth-bg img,.sm-depth-frame img{transform:none}
+}
+SHCSS94
+    . '</style>';
+}, 213 );
+add_action( 'wp_footer', function () {
+    if ( ! is_front_page() ) { return; }
+    echo '<script id="sahel-v94-slides">' . <<<'SHJS94'
+(function(){
+var reduce=window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+Array.prototype.forEach.call(document.querySelectorAll("[data-lens]"),function(el){
+  var raf=0,x=68,y=46;
+  function paint(){raf=0;el.style.setProperty("--lx",x.toFixed(2)+"%");el.style.setProperty("--ly",y.toFixed(2)+"%");}
+  el.addEventListener("pointermove",function(e){
+    var r=el.getBoundingClientRect();if(!r.width)return;
+    x=Math.max(6,Math.min(94,(e.clientX-r.left)/r.width*100));
+    y=Math.max(8,Math.min(86,(e.clientY-r.top)/r.height*100));
+    if(!raf)raf=requestAnimationFrame(paint);
+  });
+});
+Array.prototype.forEach.call(document.querySelectorAll("[data-pan]"),function(row){
+  function pick(t){var b=t&&t.closest?t.closest(".sm-pan-it"):null;if(!b||!row.contains(b)||b.classList.contains("on"))return;Array.prototype.forEach.call(row.children,function(c){c.classList.toggle("on",c===b);});}
+  row.addEventListener("pointerover",function(e){pick(e.target);});
+  row.addEventListener("focusin",function(e){pick(e.target);});
+});
+if(reduce)return;
+Array.prototype.forEach.call(document.querySelectorAll("[data-depth]"),function(el){
+  var raf=0,dx=0,dy=0;
+  function paint(){raf=0;el.style.setProperty("--dx",dx.toFixed(3));el.style.setProperty("--dy",dy.toFixed(3));}
+  el.addEventListener("pointermove",function(e){
+    var r=el.getBoundingClientRect();if(!r.width)return;
+    dx=(e.clientX-r.left)/r.width-.5;dy=(e.clientY-r.top)/r.height-.5;
+    if(!raf)raf=requestAnimationFrame(paint);
+  });
+  el.addEventListener("pointerleave",function(){dx=0;dy=0;if(!raf)raf=requestAnimationFrame(paint);});
+});
+})();
+SHJS94
+    . '</script>';
+}, 34 );
