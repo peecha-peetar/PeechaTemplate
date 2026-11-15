@@ -5,6 +5,7 @@ $sd = wp_trim_words( wp_strip_all_tags( $product->get_short_description() ), 14 
 ?>
 <li <?php wc_product_class( '', $product ); ?>>
 <article class="prod-card">
+<div class="prod-shot">
 <a class="prod-media" href="<?php the_permalink(); ?>">
 <?php
 $sahel_img = array( 'loading' => 'lazy', 'decoding' => 'async' );
@@ -27,6 +28,11 @@ echo $product->get_image( 'woocommerce_thumbnail', $sahel_img );
 <span class="badge variant">دارای گزینه</span>
 <?php endif; ?>
 </a>
+<?php $sahel_vid = function_exists( 'sahel_product_video_data' ) ? sahel_product_video_data( $product ) : null; ?>
+<?php if ( $sahel_vid ) : ?>
+<button type="button" class="prod-vid" data-type="<?php echo esc_attr( $sahel_vid['type'] ); ?>" data-src="<?php echo esc_url( $sahel_vid['src'] ); ?>" aria-label="پخش ویدئو"><span></span></button>
+<?php endif; ?>
+</div>
 <div class="prod-body">
 <?php echo wc_get_product_category_list( $product->get_id(), '، ', '<span class="prod-cat">', '</span>' ); ?>
 <h3 class="prod-name"><a href="<?php the_permalink(); ?>"><?php echo esc_html( $product->get_name() ); ?></a></h3>
@@ -48,5 +54,9 @@ echo $product->get_image( 'woocommerce_thumbnail', $sahel_img );
 </div>
 </div>
 </div>
+<?php $sahel_parts = function_exists( 'sahel_snapp_parts' ) ? sahel_snapp_parts( $product ) : 0; ?>
+<?php if ( $sahel_parts ) : ?>
+<p class="prod-snapp">پرداخت با اسنپ‌پی · <?php echo esc_html( function_exists( 'sahel_fa' ) ? sahel_fa( (string) $sahel_parts ) : (string) $sahel_parts ); ?> قسط</p>
+<?php endif; ?>
 </article>
 </li>

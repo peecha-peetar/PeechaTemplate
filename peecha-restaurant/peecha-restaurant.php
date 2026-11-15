@@ -366,11 +366,12 @@ final class Peecha_Restaurant {
 			echo '<td><input type="time" name="day_open[' . esc_attr( $n ) . ']" value="' . esc_attr( $d['open'] ) . '"></td>';
 			echo '<td><input type="time" name="day_close[' . esc_attr( $n ) . ']" value="' . esc_attr( $d['close'] ) . '"></td></tr>';
 		}
-		echo '</tbody></table><h2>شعب و میزها</h2><p>هر میز یک خط، به شکل «نام|ظرفیت». مثلاً <code>میز پنجره|4</code></p>';
+		echo '</tbody></table><h2>شعب و میزها</h2><p>هر میز یک خط، به شکل «نام|ظرفیت». مثلاً <code>میز پنجره|4</code>. شعبه بدون نام ذخیره نمی‌شود.</p><div id="peechaBranches">';
 		$branches = array_values( $o['branches'] );
-		for ( $i = 0; $i < 4; $i++ ) {
-			$b = isset( $branches[ $i ] ) && is_array( $branches[ $i ] ) ? $branches[ $i ] : array( 'name' => '', 'phone' => '', 'address' => '', 'tables' => '' );
-			echo '<div style="border:1px solid #dcdcde;padding:12px;margin:0 0 12px;background:#fff"><h3>شعبه ' . esc_html( (string) ( $i + 1 ) ) . '</h3>';
+		$branches[] = array( 'name' => '', 'phone' => '', 'address' => '', 'tables' => '' );
+		foreach ( $branches as $i => $b ) {
+			if ( ! is_array( $b ) ) { $b = array( 'name' => '', 'phone' => '', 'address' => '', 'tables' => '' ); }
+			echo '<div class="peecha-branch" style="border:1px solid #dcdcde;padding:12px;margin:0 0 12px;background:#fff"><h3>شعبه</h3>';
 			echo '<p><input class="regular-text" name="br_name[]" placeholder="نام" value="' . esc_attr( $b['name'] ?? '' ) . '"></p>';
 			echo '<p><input class="regular-text" name="br_phone[]" placeholder="تلفن" value="' . esc_attr( $b['phone'] ?? '' ) . '"></p>';
 			echo '<p><input class="regular-text" name="br_address[]" placeholder="نشانی" value="' . esc_attr( $b['address'] ?? '' ) . '"></p>';
@@ -380,9 +381,12 @@ final class Peecha_Restaurant {
 				foreach ( $tables as $t ) { $lines[] = $t['name'] . '|' . $t['seats']; }
 				$tables = implode( "\n", $lines );
 			}
-			echo '<p><textarea name="br_tables[]" rows="4" class="large-text" placeholder="میز ۱|4">' . esc_textarea( (string) $tables ) . '</textarea></p></div>';
+			echo '<p><textarea name="br_tables[]" rows="4" class="large-text" placeholder="میز ۱|4">' . esc_textarea( (string) $tables ) . '</textarea></p>';
+			echo '<p><button type="button" class="button peecha-branch-del">حذف این شعبه</button></p></div>';
 		}
-		echo '<p><button class="button button-primary">ذخیره</button></p></form></div>';
+		echo '</div><p><button type="button" class="button" id="peechaBranchAdd">شعبه دیگر</button></p>';
+		echo '<p><button class="button button-primary">ذخیره</button></p></form>';
+		echo '<script>(function(){var box=document.getElementById("peechaBranches"),add=document.getElementById("peechaBranchAdd");if(!box||!add)return;function renum(){box.querySelectorAll(".peecha-branch h3").forEach(function(h,i){h.textContent="شعبه "+(i+1);});}renum();add.addEventListener("click",function(){var last=box.querySelector(".peecha-branch:last-child");if(!last)return;var node=last.cloneNode(true);node.querySelectorAll("input,textarea").forEach(function(el){el.value="";});box.appendChild(node);renum();});box.addEventListener("click",function(e){var b=e.target.closest&&e.target.closest(".peecha-branch-del");if(!b)return;var card=b.closest(".peecha-branch");if(box.querySelectorAll(".peecha-branch").length<2){card.querySelectorAll("input,textarea").forEach(function(el){el.value="";});return;}card.remove();renum();});})();</script></div>';
 	}
 
 	public static function save_settings() {
