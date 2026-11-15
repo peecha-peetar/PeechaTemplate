@@ -358,7 +358,10 @@ add_filter( 'loop_shop_per_page', function() { return ! empty( $GLOBALS['sahel_l
 add_filter( 'woocommerce_product_query', function( $q ) {
     if ( is_admin() ) { return; }
     if ( isset( $_GET['mstock'] ) && $_GET['mstock'] === 'in' ) { $q->set( 'stock_status', array( 'instock' ) ); }
-    if ( ! get_theme_mod( 'sahel_shop_sidebar_on', 0 ) && ! get_theme_mod( 'sahel_product_sidebar_on', 0 ) ) { return; } /* فیلترهای پنل صفحه محصول هم به فروشگاه می‌روند */
+    if ( ! get_theme_mod( 'sahel_shop_sidebar_on', 0 ) && ! get_theme_mod( 'sahel_product_sidebar_on', 0 ) ) {
+        $sahel_has_q = ! empty( $_GET['fcat'] ) || ! empty( $_GET['fbrand'] ) || ! empty( $_GET['fmodel'] ) || ! empty( $_GET['fattr'] ) || ! empty( $_GET['min_price'] ) || ! empty( $_GET['max_price'] ) || ! empty( $_GET['fsale'] );
+        if ( ! $sahel_has_q ) { return; }
+    }
     $tax_query = $q->get( 'tax_query' );
     if ( ! is_array( $tax_query ) ) { $tax_query = array(); }
     $brand_tax = sahel_brand_taxonomy();
@@ -375,6 +378,12 @@ add_filter( 'woocommerce_product_query', function( $q ) {
             if ( is_array( $tq_val ) && isset( $tq_val['taxonomy'] ) && $brand_tax === $tq_val['taxonomy'] ) { unset( $tax_query[ $tq_key ] ); }
         }
         $tax_query[] = array( 'taxonomy' => $brand_tax, 'field' => 'slug', 'terms' => array_map( 'sanitize_title', wp_unslash( $_GET['fbrand'] ) ) );
+    }
+    if ( taxonomy_exists( 'sahel_model' ) && ! empty( $_GET['fmodel'] ) && is_array( $_GET['fmodel'] ) ) {
+        foreach ( $tax_query as $tq_key => $tq_val ) {
+            if ( is_array( $tq_val ) && isset( $tq_val['taxonomy'] ) && 'sahel_model' === $tq_val['taxonomy'] ) { unset( $tax_query[ $tq_key ] ); }
+        }
+        $tax_query[] = array( 'taxonomy' => 'sahel_model', 'field' => 'slug', 'terms' => array_map( 'sanitize_title', wp_unslash( $_GET['fmodel'] ) ) );
     }
     $real_clauses = array_filter( $tax_query, 'is_array' );
     if ( count( $real_clauses ) > 1 ) { $tax_query['relation'] = 'AND'; }
@@ -449,6 +458,15 @@ function sahel_shop_filters_sidebar_html() {
         if ( $brand_terms && ! is_wp_error( $brand_terms ) && count( $brand_terms ) ) {
             $h .= '<div class="sf-group"><h4>برند</h4><div class="sf-list">';
             foreach ( $brand_terms as $bt ) { $h .= '<label class="sf-check"><input type="checkbox" name="fbrand[]" value="' . esc_attr( $bt->slug ) . '"' . ( in_array( $bt->slug, $cur_fbrand, true ) ? ' checked' : '' ) . '><span>' . esc_html( $bt->name ) . '</span></label>'; }
+            $h .= '</div></div>';
+        }
+    }
+    if ( taxonomy_exists( 'sahel_model' ) ) {
+        $model_terms = get_terms( array( 'taxonomy' => 'sahel_model', 'hide_empty' => true ) );
+        if ( $model_terms && ! is_wp_error( $model_terms ) && count( $model_terms ) ) {
+            $cur_fmodel = ( isset( $_GET['fmodel'] ) && is_array( $_GET['fmodel'] ) ) ? array_map( 'sanitize_title', wp_unslash( $_GET['fmodel'] ) ) : array();
+            $h .= '<div class="sf-group"><h4>' . esc_html( get_theme_mod( 'sahel_model_label', 'مدل' ) ) . '</h4><div class="sf-list">';
+            foreach ( $model_terms as $mt ) { $h .= '<label class="sf-check"><input type="checkbox" name="fmodel[]" value="' . esc_attr( $mt->slug ) . '"' . ( in_array( $mt->slug, $cur_fmodel, true ) ? ' checked' : '' ) . '><span>' . esc_html( $mt->name ) . '</span></label>'; }
             $h .= '</div></div>';
         }
     }
@@ -628,7 +646,7 @@ function sahel_sec( $key ) {
     $defs = sahel_home_sec_defs();
     $d = isset( $defs[ $key ] ) ? $defs[ $key ] : array( '', '', '', 99 );
     return array(
-        'on'         => (int) get_theme_mod( 'sahel_sec_' . $key . '_on', 1 ),
+        'on'         => (int) get_theme_mod( 'sahel_sec_' . $key . '_on', ( 'finder' === $key ? 0 : 1 ) ),
         'title'      => get_theme_mod( 'sahel_sec_' . $key . '_title', $d[1] ),
         'sub'        => get_theme_mod( 'sahel_sec_' . $key . '_sub', $d[2] ),
         'full'       => (int) get_theme_mod( 'sahel_sec_' . $key . '_full', 0 ),
@@ -881,6 +899,10 @@ add_action( 'customize_register', function( $w ) {
         $w->add_control( 'sahel_slide' . $i . '_btn2', array( 'label' => 'متن دکمه دوم (اختیاری)', 'section' => 'sahel_slide' . $i ) );
         $w->add_setting( 'sahel_slide' . $i . '_url2', array( 'default' => '', 'sanitize_callback' => 'esc_url_raw' ) );
         $w->add_control( 'sahel_slide' . $i . '_url2', array( 'label' => 'لینک دکمه دوم', 'section' => 'sahel_slide' . $i ) );
+        $w->add_setting( 'sahel_slide' . $i . '_finder', array( 'default' => 0, 'sanitize_callback' => 'absint' ) );
+        $w->add_control( 'sahel_slide' . $i . '_finder', array( 'label' => '🔎 نمایش جستجوی هدفمند روی این اسلاید', 'section' => 'sahel_slide' . $i, 'type' => 'checkbox' ) );
+        $w->add_setting( 'sahel_slide' . $i . '_finder_title', array( 'default' => '', 'sanitize_callback' => 'sanitize_text_field' ) );
+        $w->add_control( 'sahel_slide' . $i . '_finder_title', array( 'label' => 'عنوان جستجو روی این اسلاید (خالی = عنوان کلی بخش)', 'section' => 'sahel_slide' . $i ) );
         /* v5.5: مدل، ویدئو و تایپوگرافی اختصاصی هر اسلاید */
         $sl = 'sahel_slide' . $i;
         $w->add_setting( $sl . '_style', array( 'default' => '', 'sanitize_callback' => 'sanitize_key' ) );
@@ -1200,7 +1222,7 @@ add_action( 'customize_register', function( $w ) {
     $w->add_panel( 'sahel_home_panel', array( 'title' => '۱۲. بخش‌های صفحه اصلی', 'description' => 'هر بخش صفحه اصلی، تنظیمات (فعال‌سازی، تیتر، پس‌زمینه، ...) و محتوای اختصاصی خودش را در یک قسمت جداگانه دارد.', 'priority' => 40 ) );
     foreach ( sahel_home_sec_defs() as $key => $def ) {
         $w->add_section( 'sahel_secgrp_' . $key, array( 'title' => $def[0], 'panel' => 'sahel_home_panel' ) );
-        $w->add_setting( 'sahel_sec_' . $key . '_on', array( 'default' => 1, 'sanitize_callback' => 'absint' ) );
+        $w->add_setting( 'sahel_sec_' . $key . '_on', array( 'default' => ( 'finder' === $key ? 0 : 1 ), 'sanitize_callback' => 'absint' ) );
         $w->add_control( 'sahel_sec_' . $key . '_on', array( 'label' => '✔ نمایش این بخش', 'section' => 'sahel_secgrp_' . $key, 'type' => 'checkbox' ) );
         $w->add_setting( 'sahel_sec_' . $key . '_order', array( 'default' => $def[3], 'sanitize_callback' => 'absint' ) );
         $w->add_control( 'sahel_sec_' . $key . '_order', array( 'label' => '🔃 ترتیب نمایش', 'section' => 'sahel_secgrp_' . $key, 'type' => 'number', 'input_attrs' => array( 'min' => 1, 'max' => 20 ) ) );
@@ -2825,6 +2847,8 @@ function sgo(n){if(!$sl.length)return;si=(n+$sl.length)%$sl.length;$sl.removeCla
 $dt.on('click',function(){sgo($(this).index());});
 $(document).on('click','.s-next',function(){sgo(si+1);});
 $(document).on('click','.s-prev',function(){sgo(si-1);});
+$(document).on('focusin pointerdown','.sahel-finder',function(){clearTimeout(stimer);$('#sprog').css({transition:'none',width:'0'});});
+$(document).on('focusout','.sahel-finder',function(e){ if(!e.relatedTarget||!this.contains(e.relatedTarget)){ sprog(); } });
 var tx0=null;
 $('.slider').on('touchstart',function(e){tx0=e.originalEvent.touches[0].clientX;});
 $('.slider').on('touchend',function(e){if(tx0===null)return;var dx=e.originalEvent.changedTouches[0].clientX-tx0;if(dx>40)sgo(si-1);if(dx<-40)sgo(si+1);tx0=null;});
@@ -2962,7 +2986,7 @@ function sahel_home_html() {
         for ( $i = 1; $i <= $count; $i++ ) {
             $sd = sahel_slide_data( $i );
             $sd['n'] = $i;
-            $has_bg = $sd['img'] || 'image' !== $sd['bgtype'] || $sd['t1'] || $sd['t2'] || $sd['desc'] || $sd['pill'] || $sd['btn'] || ! empty( $sd['btn2'] ) || ! empty( $sd['style'] ) || ! empty( $sd['video'] );
+            $has_bg = $sd['img'] || 'image' !== $sd['bgtype'] || $sd['t1'] || $sd['t2'] || $sd['desc'] || $sd['pill'] || $sd['btn'] || ! empty( $sd['btn2'] ) || ! empty( $sd['style'] ) || ! empty( $sd['video'] ) || ( ! empty( $sd['n'] ) && (int) get_theme_mod( 'sahel_slide' . (int) $sd['n'] . '_finder', 0 ) );
             if ( ! $has_bg ) { continue; }
             $rendered[] = $sd;
         }
@@ -3008,6 +3032,7 @@ function sahel_home_html() {
                 if ( ! empty( $sd['btn2'] ) ) { $ob .= '<a class="btn btn-ghost" href="' . esc_url( $sd['url2'] ? $sd['url2'] : sahel_shop_url() ) . '">' . esc_html( $sd['btn2'] ) . '</a>'; }
                 $ob .= '</div>';
             }
+            if ( ! empty( $sd['n'] ) && function_exists( 'sahel_slide_finder_html' ) ) { $ob .= sahel_slide_finder_html( (int) $sd['n'] ); }
             $ob .= '</div></div></section>';
         }
         $ob .= '</div>';
@@ -3480,7 +3505,7 @@ function sahel_engine( $template ) {
             // فیلترهای پنل کناری روی query string کار می‌کنن؛ اگه افزونه/سرور کش صفحه رو
             // بدون توجه به query string سرو کنه، تغییر فیلتر هیچ اثری نشون نمی‌ده.
             // این هدرها به کش‌کننده‌های رایج می‌گن این نسخه‌ی خاص (با این فیلترها) کش نشه.
-            if ( ( $sidebar_on || get_theme_mod( 'sahel_product_sidebar_on', 0 ) ) && ( ! empty( $_GET['fcat'] ) || ! empty( $_GET['fbrand'] ) || ! empty( $_GET['fattr'] ) || ! empty( $_GET['min_price'] ) || ! empty( $_GET['max_price'] ) || ! empty( $_GET['fsale'] ) ) && ! headers_sent() ) {
+            if ( ( ! empty( $_GET['fcat'] ) || ! empty( $_GET['fbrand'] ) || ! empty( $_GET['fmodel'] ) || ! empty( $_GET['fattr'] ) || ! empty( $_GET['min_price'] ) || ! empty( $_GET['max_price'] ) || ! empty( $_GET['fsale'] ) ) && ! headers_sent() ) {
                 nocache_headers();
             }
             $h = '<main class="wrap shop-main"><nav class="crumbs">' . woocommerce_breadcrumb( array( 'echo' => false ) ) . '</nav>';
@@ -3490,6 +3515,9 @@ function sahel_engine( $template ) {
             }
             if ( $sidebar_on ) {
                 $h .= sahel_shop_filters_sidebar_html();
+            }
+            if ( (int) get_theme_mod( 'sahel_find_shop', 0 ) && function_exists( 'sahel_finder_html' ) ) {
+                $h .= sahel_finder_html( 'shop' );
             }
             if ( get_theme_mod( 'sahel_shop_filters', 1 ) ) {
                 if ( ! $sidebar_on ) {
@@ -5976,14 +6004,15 @@ function sahel_slide_model_html( $sd, $m, $idx, $style, $sx ) {
     $al   = in_array( $sd['align'], array( 'right', 'center', 'left' ), true ) ? $sd['align'] : 'right';
 
     /* بلوک متن مشترک (با تایپوگرافی و انیمیشن‌های اختصاصی هر اسلاید) */
-    $txt = function ( $align = null, $with_cta = true, $extra = '' ) use ( $sd, $url, $al ) {
+    $txt = function ( $align = null, $with_cta = true, $extra = '' ) use ( $sd, $url, $al, $n ) {
         $a = 'al-' . ( $align ? $align : $al );
         $o = '<div class="slide-txt sm-txt ' . esc_attr( $a ) . '">';
         if ( $sd['pill'] ) { $o .= '<span class="pill"><i></i>' . esc_html( $sd['pill'] ) . '</span>'; }
         if ( $sd['t1'] || $sd['t2'] ) { $o .= '<h1>' . esc_html( $sd['t1'] ) . ( $sd['t1'] && $sd['t2'] ? '<br>' : '' ) . ( $sd['t2'] ? '<span class="grad-text">' . esc_html( $sd['t2'] ) . '</span>' : '' ) . '</h1>'; }
         if ( $sd['desc'] ) { $o .= '<p>' . esc_html( $sd['desc'] ) . '</p>'; }
         if ( $with_cta ) { $o .= sahel_slide_cta( $sd, $url ); }
-        return $o . $extra . '</div>';
+        $find = function_exists( 'sahel_slide_finder_html' ) ? sahel_slide_finder_html( $n ) : '';
+        return $o . $extra . $find . '</div>';
     };
 
     /* پس‌زمینه: رنگ/گرادیانت انتخابی اسلاید؛ در غیر این صورت رنگ کرم قالب */
@@ -9840,7 +9869,7 @@ function sahel_seo_tpl( $t, $name = '', $count = 0 ) {
 }
 /* پارامترهایی که نسخه‌ی تکراری از یک صفحه می‌سازند */
 function sahel_seo_dup_params() {
-    return array( 'fcat', 'fbrand', 'fattr', 'min_price', 'max_price', 'fsale', 'mstock', 'frating', 'orderby', 'order', 'rating_filter', 'pcm', 'pcfx', 'pcper', 'sahel_landing', 'sahel_catalog', 'sahel_pv', 'sahel_gallery', 'add-to-cart', 'replytocom' );
+    return array( 'fcat', 'fbrand', 'fmodel', 'fattr', 'min_price', 'max_price', 'fsale', 'mstock', 'frating', 'orderby', 'order', 'rating_filter', 'pcm', 'pcfx', 'pcper', 'sahel_landing', 'sahel_catalog', 'sahel_pv', 'sahel_gallery', 'add-to-cart', 'replytocom' );
 }
 function sahel_seo_is_dup() {
     foreach ( array_keys( $_GET ) as $k ) { // phpcs:ignore
@@ -14813,3 +14842,392 @@ Array.prototype.forEach.call(document.querySelectorAll("[data-depth]"),function(
 SHJS94
     . '</script>';
 }, 34 );
+
+/* جستجوی هدفمند: برند موجود + دسته کالا + مدل (قابل تغییر نام برای صنف‌های دیگر) + دو ویژگی ووکامرس */
+add_action( 'init', function () {
+    $label = trim( (string) get_theme_mod( 'sahel_model_label', 'مدل' ) );
+    if ( '' === $label ) { $label = 'مدل'; }
+    register_taxonomy( 'sahel_model', array( 'product' ), array(
+        'labels' => array(
+            'name'          => $label,
+            'singular_name' => $label,
+            'menu_name'     => $label,
+            'search_items'  => 'جستجوی ' . $label,
+            'all_items'     => 'همهٔ موارد',
+            'edit_item'     => 'ویرایش ' . $label,
+            'update_item'   => 'به‌روزرسانی',
+            'add_new_item'  => $label . ' تازه',
+            'new_item_name' => 'نام ' . $label,
+            'not_found'     => 'موردی نیست',
+        ),
+        'public'            => true,
+        'show_ui'           => true,
+        'show_admin_column' => true,
+        'show_in_rest'      => true,
+        'hierarchical'      => false,
+        'rewrite'           => array( 'slug' => 'item-model', 'with_front' => false ),
+        'capabilities'      => array(
+            'manage_terms' => 'manage_product_terms',
+            'edit_terms'   => 'edit_product_terms',
+            'delete_terms' => 'delete_product_terms',
+            'assign_terms' => 'assign_product_terms',
+        ),
+    ) );
+}, 11 );
+add_action( 'admin_init', function () {
+    if ( '1' === get_option( 'sahel_model_rewrite' ) ) { return; }
+    flush_rewrite_rules( false );
+    update_option( 'sahel_model_rewrite', '1', false );
+} );
+
+function sahel_model_brand_select( $selected ) {
+    $tax = sahel_brand_taxonomy();
+    if ( ! $tax ) { return ''; }
+    $terms = get_terms( array( 'taxonomy' => $tax, 'hide_empty' => false ) );
+    if ( ! $terms || is_wp_error( $terms ) ) { return ''; }
+    $h = '<select name="sahel_brand" style="min-width:220px"><option value="">— بدون برند مشخص —</option>';
+    foreach ( $terms as $t ) {
+        $h .= '<option value="' . esc_attr( $t->slug ) . '"' . selected( $selected, $t->slug, false ) . '>' . esc_html( $t->name ) . '</option>';
+    }
+    return $h . '</select>';
+}
+add_action( 'sahel_model_add_form_fields', function () {
+    $box = sahel_model_brand_select( '' );
+    if ( ! $box ) { return; }
+    echo '<div class="form-field"><label>برند مربوط</label>' . $box . '<p>اگر پر شود، در جستجوی هدفمند فقط وقتی همان برند انتخاب شده این مورد دیده می‌شود. برای صنف‌های دیگر می‌توانید خالی بگذارید.</p></div>';
+} );
+add_action( 'sahel_model_edit_form_fields', function ( $term ) {
+    $box = sahel_model_brand_select( (string) get_term_meta( $term->term_id, 'sahel_brand', true ) );
+    if ( ! $box ) { return; }
+    echo '<tr class="form-field"><th scope="row"><label>برند مربوط</label></th><td>' . $box . '<p class="description">خالی یعنی در همهٔ برندها نشان داده شود.</p></td></tr>';
+} );
+function sahel_save_model_brand( $term_id ) {
+    if ( ! current_user_can( 'edit_product_terms' ) && ! current_user_can( 'manage_product_terms' ) && ! current_user_can( 'manage_categories' ) ) { return; }
+    $v = isset( $_POST['sahel_brand'] ) ? sanitize_title( wp_unslash( $_POST['sahel_brand'] ) ) : '';
+    update_term_meta( (int) $term_id, 'sahel_brand', $v );
+}
+add_action( 'created_sahel_model', 'sahel_save_model_brand' );
+add_action( 'edited_sahel_model', 'sahel_save_model_brand' );
+
+function sahel_finder_slots() {
+    $slots = array();
+    if ( (int) get_theme_mod( 'sahel_find_cat', 1 ) && taxonomy_exists( 'product_cat' ) ) {
+        $slots[] = array( 'tax' => 'product_cat', 'name' => 'fcat[]', 'kind' => 'fcat', 'label' => get_theme_mod( 'sahel_find_cat_label', 'دسته‌بندی کالا' ), 'role' => 'cat' );
+    }
+    $brand = sahel_brand_taxonomy();
+    if ( $brand && (int) get_theme_mod( 'sahel_find_brand', 1 ) ) {
+        $slots[] = array( 'tax' => $brand, 'name' => 'fbrand[]', 'kind' => 'fbrand', 'label' => get_theme_mod( 'sahel_find_brand_label', 'برند' ), 'role' => 'brand' );
+    }
+    if ( (int) get_theme_mod( 'sahel_find_model', 1 ) && taxonomy_exists( 'sahel_model' ) ) {
+        $ml = trim( (string) get_theme_mod( 'sahel_find_model_label', '' ) );
+        if ( '' === $ml ) { $ml = get_theme_mod( 'sahel_model_label', 'مدل' ); }
+        $slots[] = array( 'tax' => 'sahel_model', 'name' => 'fmodel[]', 'kind' => 'fmodel', 'label' => $ml, 'role' => 'model' );
+    }
+    for ( $i = 1; $i <= 2; $i++ ) {
+        $tax = sanitize_key( (string) get_theme_mod( 'sahel_find_attr' . $i, '' ) );
+        if ( ! $tax || ! taxonomy_exists( $tax ) || 0 !== strpos( $tax, 'pa_' ) ) { continue; }
+        $lab = $tax;
+        if ( function_exists( 'wc_attribute_label' ) ) { $lab = wc_attribute_label( $tax ); }
+        $over = trim( (string) get_theme_mod( 'sahel_find_attr' . $i . '_label', '' ) );
+        if ( '' !== $over ) { $lab = $over; }
+        $slots[] = array( 'tax' => $tax, 'name' => 'fattr[' . $tax . '][]', 'kind' => 'attr', 'label' => $lab, 'role' => '' );
+    }
+    return $slots;
+}
+function sahel_finder_picked_list( $slot ) {
+    if ( 'attr' === $slot['kind'] ) {
+        $tax = $slot['tax'];
+        if ( empty( $_GET['fattr'][ $tax ] ) || ! is_array( $_GET['fattr'][ $tax ] ) ) { return array(); }
+        return array_map( 'sanitize_title', wp_unslash( $_GET['fattr'][ $tax ] ) );
+    }
+    $key = $slot['kind'];
+    if ( empty( $_GET[ $key ] ) || ! is_array( $_GET[ $key ] ) ) { return array(); }
+    return array_map( 'sanitize_title', wp_unslash( $_GET[ $key ] ) );
+}
+function sahel_finder_cat_map() {
+    static $map = null;
+    if ( null !== $map ) { return $map; }
+    $cached = get_transient( 'sahel_finder_catmap' );
+    if ( is_array( $cached ) ) { return $map = $cached; }
+    global $wpdb;
+    $rows = $wpdb->get_results(
+        "SELECT t1.slug AS slug, tt1.taxonomy AS tax, t2.slug AS cat, tt2.term_id AS cat_id
+         FROM {$wpdb->term_relationships} r1
+         INNER JOIN {$wpdb->term_taxonomy} tt1 ON r1.term_taxonomy_id = tt1.term_taxonomy_id
+         INNER JOIN {$wpdb->terms} t1 ON tt1.term_id = t1.term_id
+         INNER JOIN {$wpdb->term_relationships} r2 ON r1.object_id = r2.object_id
+         INNER JOIN {$wpdb->term_taxonomy} tt2 ON r2.term_taxonomy_id = tt2.term_taxonomy_id AND tt2.taxonomy = 'product_cat'
+         INNER JOIN {$wpdb->terms} t2 ON tt2.term_id = t2.term_id
+         INNER JOIN {$wpdb->posts} p ON p.ID = r1.object_id AND p.post_type = 'product' AND p.post_status = 'publish'
+         WHERE tt1.taxonomy <> 'product_cat'"
+    );
+    $map = array();
+    $parents = array();
+    foreach ( (array) $rows as $row ) {
+        $key = $row->tax . ':' . $row->slug;
+        if ( ! isset( $map[ $key ] ) ) { $map[ $key ] = array(); }
+        $map[ $key ][ $row->cat ] = 1;
+        $cid = (int) $row->cat_id;
+        if ( ! isset( $parents[ $cid ] ) ) {
+            $parents[ $cid ] = array();
+            foreach ( get_ancestors( $cid, 'product_cat' ) as $aid ) {
+                $at = get_term( (int) $aid, 'product_cat' );
+                if ( $at && ! is_wp_error( $at ) ) { $parents[ $cid ][] = $at->slug; }
+            }
+        }
+        foreach ( $parents[ $cid ] as $pslug ) { $map[ $key ][ $pslug ] = 1; }
+    }
+    foreach ( $map as $key => $set ) { $map[ $key ] = array_keys( $set ); }
+    set_transient( 'sahel_finder_catmap', $map, 12 * HOUR_IN_SECONDS );
+    return $map;
+}
+foreach ( array( 'save_post_product', 'edited_term', 'created_term', 'delete_term' ) as $sahel_finder_hk ) {
+    add_action( $sahel_finder_hk, function () { delete_transient( 'sahel_finder_catmap' ); } );
+}
+function sahel_finder_thumb( $term, $with_image ) {
+    if ( ! $with_image || ! (int) get_theme_mod( 'sahel_find_thumbs', 1 ) ) { return ''; }
+    $tid = 0;
+    foreach ( array( 'thumbnail_id', 'pwb_brand_image', 'yith_woocommerce_brand_thumbnail_id', 'brand_image', 'logo' ) as $mk ) {
+        $tid = (int) get_term_meta( $term->term_id, $mk, true );
+        if ( $tid ) { break; }
+    }
+    if ( $tid ) {
+        $u = wp_get_attachment_image_url( $tid, 'thumbnail' );
+        if ( $u ) { return '<img src="' . esc_url( $u ) . '" alt="" width="36" height="36" loading="lazy" decoding="async">'; }
+    }
+    $ch = function_exists( 'mb_substr' ) ? mb_substr( $term->name, 0, 1 ) : substr( $term->name, 0, 1 );
+    return '<i class="fd-ph" aria-hidden="true">' . esc_html( $ch ) . '</i>';
+}
+function sahel_slide_finder_html( $n ) {
+    $n = (int) $n;
+    if ( $n < 1 || ! (int) get_theme_mod( 'sahel_slide' . $n . '_finder', 0 ) ) { return ''; }
+    $title = trim( (string) get_theme_mod( 'sahel_slide' . $n . '_finder_title', '' ) );
+    if ( '' === $title ) { $title = (string) get_theme_mod( 'sahel_find_title', 'جستجوی کالا' ); }
+    return sahel_finder_html( 'slide', $title );
+}
+function sahel_finder_html( $context = 'shop', $title = null ) {
+    $slots = sahel_finder_slots();
+    if ( ! $slots ) { return ''; }
+    $fields = '';
+    foreach ( $slots as $slot ) {
+        $terms = get_terms( array( 'taxonomy' => $slot['tax'], 'hide_empty' => true ) );
+        if ( ! $terms || is_wp_error( $terms ) ) { continue; }
+        $picked = sahel_finder_picked_list( $slot );
+        $role = isset( $slot['role'] ) ? $slot['role'] : '';
+        $with_image = ( 'product_cat' === $slot['tax'] || 'brand' === $role );
+        $names = array();
+        $opts = '';
+        foreach ( $terms as $t ) {
+            $on = in_array( $t->slug, $picked, true );
+            if ( $on ) { $names[] = $t->name; }
+            $brand = '';
+            if ( 'model' === $role ) { $brand = (string) get_term_meta( $t->term_id, 'sahel_brand', true ); }
+            $cats_attr = '';
+            if ( 'product_cat' !== $slot['tax'] ) {
+                $cmap = sahel_finder_cat_map();
+                $ckey = $slot['tax'] . ':' . $t->slug;
+                $cats_attr = ' data-cats="' . esc_attr( implode( ' ', isset( $cmap[ $ckey ] ) ? $cmap[ $ckey ] : array() ) ) . '"';
+            }
+            $opts .= '<label class="fd-opt" data-name="' . esc_attr( $t->name ) . '"' . ( $brand ? ' data-brand="' . esc_attr( $brand ) . '"' : '' ) . $cats_attr . '>';
+            $opts .= '<input type="checkbox" name="' . esc_attr( $slot['name'] ) . '" value="' . esc_attr( $t->slug ) . '"' . ( $on ? ' checked' : '' ) . '>';
+            $opts .= sahel_finder_thumb( $t, $with_image );
+            $opts .= '<span>' . esc_html( $t->name ) . '</span></label>';
+        }
+        if ( ! $names ) { $face = 'همه'; }
+        elseif ( 1 === count( $names ) ) { $face = $names[0]; }
+        else { $face = sahel_fa( count( $names ) ) . ' مورد'; }
+        $fields .= '<div class="fd-field"' . ( $role ? ' data-find="' . esc_attr( $role ) . '"' : '' ) . '>';
+        $fields .= '<span class="fd-lab">' . esc_html( $slot['label'] ) . '</span>';
+        $fields .= '<div class="fd-combo"><button type="button" class="fd-face">' . esc_html( $face ) . '</button>';
+        $fields .= '<div class="fd-pop"><input type="search" class="fd-q" placeholder="جستجو" autocomplete="off">';
+        $fields .= '<div class="fd-opts">' . $opts . '<p class="fd-miss">موردی نیست</p></div></div></div></div>';
+    }
+    if ( '' === $fields ) { return ''; }
+    static $assets = false;
+    $css = '';
+    $late = '';
+    if ( ! $assets ) {
+        $assets = true;
+        $css = '<style id="sahel-finder">'
+            . '.sahel-finder{margin:0 0 22px;padding:16px 16px 14px;background:var(--card,#fff);border:1px solid var(--line,#e7e2db);border-radius:16px}'
+            . '.sahel-finder h2{margin:0 0 4px;font-size:1.12rem}.sahel-finder .fd-sub{margin:0 0 12px;color:var(--muted,#6d675f);font-size:.84rem}'
+            . '.sahel-finder form{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}'
+            . '.fd-field{display:flex;flex-direction:column;gap:6px;flex:1 1 160px;min-width:150px;font-size:.72rem;font-weight:800}'
+            . '.fd-combo{position:relative}.fd-face{width:100%;height:46px;border:1px solid var(--line,#e7e2db);border-radius:12px;background:#fff;padding:0 12px;font:inherit;font-weight:700;text-align:right;cursor:pointer}'
+            . '.fd-pop{display:none;position:fixed;z-index:80;background:#fff;border:1px solid var(--line,#e7e2db);border-radius:14px;box-shadow:0 16px 40px rgba(20,16,12,.16);padding:8px;max-height:280px}'
+            . '.fd-combo.is-open .fd-pop{display:flex;flex-direction:column}'
+            . '.fd-q{height:38px;border:1px solid var(--line,#e7e2db);border-radius:10px;padding:0 10px;font:inherit;margin-bottom:6px}'
+            . '.fd-opts{overflow:auto;min-height:0}.fd-opt{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:10px;cursor:pointer;font-weight:650}'
+            . '.fd-opt:hover{background:#f6f3ee}.fd-opt img,.fd-ph{width:36px;height:36px;border-radius:8px;object-fit:cover;flex:0 0 36px;background:#f3efe8}'
+            . '.fd-ph{display:grid;place-items:center;font-style:normal;font-weight:800}.fd-miss{display:none;margin:8px;color:#6d675f;font-weight:650}'
+            . '.fd-opts.is-empty .fd-miss{display:block}.sahel-finder button[type=submit]{height:46px;padding:0 18px;border:0;border-radius:12px;background:var(--accent,#171717);color:#fff;font:inherit;font-weight:800;cursor:pointer}'
+            . '.slide .sahel-finder{margin-top:14px;max-width:760px;background:color-mix(in srgb,#fff 94%,transparent)}'
+            . '.slide .al-center .sahel-finder,.slide .sm-txt.al-center .sahel-finder{margin-inline:auto}'
+            . '@media(max-width:640px){.sahel-finder button[type=submit]{flex:1 1 100%}}'
+            . '</style>';
+        $late = '<script id="sahel-finder-js">' . <<<'FDJS'
+(function(){
+function norm(s){return (s||"").toString().toLowerCase().replace(/ي/g,"ی").replace(/ك/g,"ک").replace(/ة/g,"ه").replace(/\s+/g," ").trim();}
+function fa(n){return String(n).replace(/[0-9]/g,function(d){return "۰۱۲۳۴۵۶۷۸۹"[d];});}
+function face(field){
+  var box=field.querySelectorAll(".fd-opt input:checked");
+  var btn=field.querySelector(".fd-face");
+  if(!btn)return;
+  if(!box.length){btn.textContent="همه";return;}
+  if(box.length===1){var sp=box[0].parentNode.querySelector("span");btn.textContent=sp?sp.textContent:"۱ مورد";return;}
+  btn.textContent=fa(box.length)+" مورد";
+}
+function place(combo){
+  var face=combo.querySelector(".fd-face"),pop=combo.querySelector(".fd-pop");
+  if(!face||!pop)return;
+  var r=face.getBoundingClientRect(),w=Math.max(r.width,220),below=window.innerHeight-r.bottom;
+  pop.style.width=w+"px";
+  var left=Math.max(8,Math.min(r.left,window.innerWidth-w-8));
+  pop.style.left=left+"px";
+  if(below<200&&r.top>below){pop.style.top="auto";pop.style.bottom=(window.innerHeight-r.top+6)+"px";}
+  else{pop.style.bottom="auto";pop.style.top=(r.bottom+6)+"px";}
+}
+function apply(form){
+  function vals(role){
+    var f=form.querySelector("[data-find="+role+"]"),o=[];
+    if(!f)return o;
+    Array.prototype.forEach.call(f.querySelectorAll(".fd-opt input:checked"),function(i){o.push(i.value);});
+    return o;
+  }
+  function hit(list,value){if(!list.length)return true;return list.indexOf(value)!==-1;}
+  var cats=vals("cat");
+  Array.prototype.forEach.call(form.querySelectorAll(".fd-opt[data-cats]"),function(opt){
+    if(!cats.length)return;
+    var dc=(opt.getAttribute("data-cats")||"").split(" "),ok=false,i;
+    for(i=0;i<dc.length;i++){if(dc[i]&&hit(cats,dc[i])){ok=true;break;}}
+    var box=opt.querySelector("input");
+    if(!ok&&box&&box.checked)box.checked=false;
+  });
+  var brands=vals("brand");
+  Array.prototype.forEach.call(form.querySelectorAll(".fd-field"),function(field){
+    var q=norm(field.querySelector(".fd-q")?field.querySelector(".fd-q").value:"");
+    var list=field.querySelector(".fd-opts"),n=0;
+    Array.prototype.forEach.call(field.querySelectorAll(".fd-opt"),function(opt){
+      var name=norm(opt.getAttribute("data-name")||"");
+      var tag=opt.getAttribute("data-brand")||"";
+      var searchOk=!q||name.indexOf(q)!==-1;
+      var brandOk=!tag||hit(brands,tag);
+      var catOk=true;
+      if(opt.hasAttribute("data-cats")&&cats.length){
+        catOk=false;
+        var dc=(opt.getAttribute("data-cats")||"").split(" "),i;
+        for(i=0;i<dc.length;i++){if(dc[i]&&hit(cats,dc[i])){catOk=true;break;}}
+      }
+      var show=searchOk&&brandOk&&catOk;
+      var box=opt.querySelector("input");
+      if((!brandOk||!catOk)&&box&&box.checked)box.checked=false;
+      opt.hidden=!show;
+      if(show)n++;
+    });
+    if(list)list.classList.toggle("is-empty",n===0);
+    face(field);
+  });
+}
+function closeAll(except){
+  Array.prototype.forEach.call(document.querySelectorAll(".fd-combo.is-open"),function(c){if(c!==except)c.classList.remove("is-open");});
+}
+document.addEventListener("click",function(e){
+  var face=e.target.closest?e.target.closest(".fd-face"):null;
+  if(face){
+    var form=face.closest("form");
+    if(form)apply(form);
+    var combo=face.parentNode;
+    var open=combo.classList.contains("is-open");
+    closeAll(null);
+    if(!open){combo.classList.add("is-open");place(combo);var q=combo.querySelector(".fd-q");if(q)q.focus();}
+    return;
+  }
+  if(e.target.closest&&e.target.closest(".fd-pop"))return;
+  closeAll(null);
+});
+document.addEventListener("input",function(e){
+  if(!e.target.closest)return;
+  var form=e.target.closest(".sahel-finder form");
+  if(!form)return;
+  if(e.target.classList.contains("fd-q")||e.target.type==="checkbox")apply(form);
+});
+document.addEventListener("change",function(e){
+  var form=e.target.closest?e.target.closest(".sahel-finder form"):null;
+  if(form)apply(form);
+});
+document.addEventListener("keydown",function(e){
+  if(e.key==="Escape")closeAll(null);
+  if(e.key==="Enter"&&e.target.classList&&e.target.classList.contains("fd-q"))e.preventDefault();
+});
+document.addEventListener("scroll",function(e){if(e.target&&e.target.closest&&e.target.closest(".fd-pop"))return;closeAll(null);},true);
+window.addEventListener("resize",function(){closeAll(null);});
+["touchstart","touchend"].forEach(function(ev){
+  document.addEventListener(ev,function(e){if(e.target.closest&&e.target.closest(".sahel-finder"))e.stopPropagation();},true);
+});
+Array.prototype.forEach.call(document.querySelectorAll(".sahel-finder form"),apply);
+})();
+FDJS
+            . '</script>';
+    }
+    $btn = get_theme_mod( 'sahel_find_btn', 'نمایش کالاها' );
+    $form = '<form method="get" action="' . esc_url( sahel_shop_url() ) . '">' . $fields . '<button type="submit">' . esc_html( $btn ) . '</button></form>';
+    $head = '';
+    if ( 'home' !== $context ) {
+        if ( null === $title ) { $title = (string) get_theme_mod( 'sahel_find_title', 'جستجوی کالا' ); }
+        $sub = ( 'slide' === $context ) ? '' : (string) get_theme_mod( 'sahel_find_sub', 'چند مورد را با هم انتخاب کنید' );
+        if ( '' !== $title ) { $head .= '<h2>' . esc_html( $title ) . '</h2>'; }
+        if ( '' !== $sub ) { $head .= '<p class="fd-sub">' . esc_html( $sub ) . '</p>'; }
+    }
+    return $css . '<div class="sahel-finder' . ( 'slide' === $context ? ' is-slide' : '' ) . '">' . $head . $form . '</div>' . $late;
+}
+
+add_filter( 'sahel_home_sec_defs', function ( $defs ) {
+    $defs['finder'] = array( 'جستجوی هدفمند', 'جستجوی کالا', 'برند، مدل و دسته را با هم انتخاب کنید', 2 );
+    return $defs;
+} );
+add_filter( 'sahel_home_parts', function ( $parts ) {
+    if ( ! empty( $GLOBALS['sahel_lite'] ) ) { return $parts; }
+    $sec = sahel_sec( 'finder' );
+    if ( empty( $sec['on'] ) ) { return $parts; }
+    $box = sahel_finder_html( 'home' );
+    if ( '' === $box ) { return $parts; }
+    $bg = sahel_sec_bg_attr( $sec );
+    $h = '<section id="finder" class="' . esc_attr( trim( $bg['class'] . ( $sec['full'] ? ' sec-full' : '' ) ) ) . '"' . $bg['style'] . '>' . $bg['overlay'] . '<div class="wrap">';
+    $h .= sahel_sec_head_html( $sec['title'], $sec['sub'], '' );
+    $h .= $box . '</div></section>';
+    $parts[] = array( (int) $sec['order'], $h );
+    return $parts;
+} );
+
+add_action( 'customize_register', function ( $w ) {
+    if ( ! $w->get_section( 'sahel_shop' ) ) { return; }
+    $choices = array( '' => '— استفاده نشود —' );
+    if ( function_exists( 'wc_get_attribute_taxonomies' ) ) {
+        foreach ( (array) wc_get_attribute_taxonomies() as $attr ) {
+            if ( empty( $attr->attribute_name ) ) { continue; }
+            $tax = function_exists( 'wc_attribute_taxonomy_name' ) ? wc_attribute_taxonomy_name( $attr->attribute_name ) : 'pa_' . $attr->attribute_name;
+            $choices[ $tax ] = $attr->attribute_label;
+        }
+    }
+    $add = function ( $id, $default, $label, $type, $extra = array() ) use ( $w ) {
+        $w->add_setting( $id, array( 'default' => $default, 'sanitize_callback' => ( 'select' === $type || 'text' === $type ) ? 'sanitize_text_field' : 'absint' ) );
+        $args = array_merge( array( 'label' => $label, 'section' => 'sahel_shop', 'type' => ( 'select' === $type ? 'select' : ( 'text' === $type ? 'text' : 'checkbox' ) ) ), $extra );
+        $w->add_control( $id, $args );
+    };
+    $add( 'sahel_find_shop', 0, '✔ نوار جستجوی هدفمند بالای صفحه فروشگاه', 'checkbox' );
+    $add( 'sahel_find_title', 'جستجوی کالا', 'عنوان بخش جستجو (فروشگاه، و اسلاید اگر عنوان خودش خالی باشد)', 'text' );
+    $add( 'sahel_find_sub', 'چند مورد را با هم انتخاب کنید', 'زیرتیتر نوار جستجو در فروشگاه', 'text' );
+    $add( 'sahel_find_btn', 'نمایش کالاها', 'متن دکمه جستجو', 'text' );
+    $add( 'sahel_find_thumbs', 1, 'تصویر بندانگشتی برند و دسته‌بندی داخل فهرست', 'checkbox' );
+    $add( 'sahel_model_label', 'مدل', 'نام دستهٔ مدل در مدیریت (برای خودرو: مدل، برای صنف دیگر: سایز، نوع، نسخه)', 'text' );
+    $add( 'sahel_find_cat', 1, 'فیلد دسته‌بندی کالا در جستجوی هدفمند', 'checkbox' );
+    $add( 'sahel_find_cat_label', 'دسته‌بندی کالا', 'عنوان فیلد دسته‌بندی', 'text' );
+    $add( 'sahel_find_brand', 1, 'فیلد برند در جستجوی هدفمند', 'checkbox' );
+    $add( 'sahel_find_brand_label', 'برند', 'عنوان فیلد برند', 'text' );
+    $add( 'sahel_find_model', 1, 'فیلد مدل در جستجوی هدفمند', 'checkbox' );
+    $add( 'sahel_find_model_label', '', 'عنوان فیلد مدل (خالی = همان نام دستهٔ مدل)', 'text' );
+    $add( 'sahel_find_attr1', '', 'ویژگی اضافهٔ ۱ (از ویژگی‌های ووکامرس، مثلاً سال یا رنگ)', 'select', array( 'choices' => $choices ) );
+    $add( 'sahel_find_attr1_label', '', 'عنوان دلخواه ویژگی ۱ (خالی = نام خود ویژگی)', 'text' );
+    $add( 'sahel_find_attr2', '', 'ویژگی اضافهٔ ۲', 'select', array( 'choices' => $choices ) );
+    $add( 'sahel_find_attr2_label', '', 'عنوان دلخواه ویژگی ۲ (خالی = نام خود ویژگی)', 'text' );
+}, 80 );
