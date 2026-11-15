@@ -6,7 +6,14 @@ $sd = wp_trim_words( wp_strip_all_tags( $product->get_short_description() ), 14 
 <li <?php wc_product_class( '', $product ); ?>>
 <article class="prod-card">
 <a class="prod-media" href="<?php the_permalink(); ?>">
-<?php echo $product->get_image( 'woocommerce_thumbnail', array( 'loading' => 'lazy' ) ); ?>
+<?php
+$sahel_img = array( 'loading' => 'lazy', 'decoding' => 'async' );
+if ( function_exists( 'is_shop' ) && ( is_shop() || is_product_taxonomy() ) && empty( $GLOBALS['sahel_card_lcp'] ) ) {
+    $GLOBALS['sahel_card_lcp'] = 1;
+    $sahel_img = array( 'loading' => 'eager', 'fetchpriority' => 'high', 'decoding' => 'async' );
+}
+echo $product->get_image( 'woocommerce_thumbnail', $sahel_img );
+?>
 <?php if ( function_exists( 'sahel_card_alt_img' ) ) { echo sahel_card_alt_img( $product ); } ?>
 <?php if ( $product->is_on_sale() ) : $br = (float) $product->get_regular_price(); $bs = $product->get_sale_price(); $bp = $br > 0 && $bs !== '' ? round( ( ( $br - $bs ) / $br ) * 100 ) : 0; ?>
 <span class="badge hot"><?php echo sahel_fa( $bp ); ?>٪ تخفیف</span>
